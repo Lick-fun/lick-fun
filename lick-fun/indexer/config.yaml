@@ -1,38 +1,30 @@
 # Envio HyperIndex configuration for Lick.fun
-# Stage 3: Real event signatures from deployed contracts
+# Monad testnet (chain 10143) — RPC sync mode (HyperSync not available)
 # Docs: https://docs.envio.dev/docs/configuration-file
-#
-# IMPORTANT: Replace placeholder addresses after Stage 6 deployment.
-# Set FACTORY_ADDRESS and start_block in .env or directly here.
 
 name: lick-fun-indexer
 
-networks:
-  - id: 10143  # Monad testnet
-    rpc_config:
-      url: ${RPC_URL}
-    start_block: 0  # TODO: set to Factory deployment block after Stage 6
+chains:
+  - id: 10143
+    rpc:
+      - url: ${ENVIO_RPC_URL}
+    start_block: 39291687
     contracts:
-      # ── Factory ─────────────────────────────────────────────────────────────
+      # ── Factory (Launch) ──────────────────────────────────────────────────────
       # Emits CurveCreate on every new token launch. Dynamically tracks each
       # deployed BondingCurve via the factory pattern below.
       - name: Factory
         address:
-          - "${FACTORY_ADDRESS}"  # TODO: fill after Stage 6 deploy
+          - "${ENVIO_FACTORY_ADDRESS}"
         abi_file_path: "./abis/Factory.json"
         handler: "./src/EventHandlers.ts"
         events:
           - event: "CurveCreate(address indexed creator, address indexed token, address indexed curve, uint256 virtualMon, uint256 virtualTokens, uint256 startTime)"
 
-      # ── BondingCurve (dynamically registered via Factory) ────────────────────
-      # Each token launch deploys a new BondingCurve. Envio tracks these via the
-      # factory field: when CurveCreate fires, the `curve` address is registered.
+      # ── BondingCurve (dynamically registered via Factory) ──────────────────────
+      # Each token launch deploys a new BondingCurve. Dynamic address registration
+      # is handled in the Factory.CurveCreate handler via context.BondingCurve.addDynamicContractAddress().
       - name: BondingCurve
-        # No static address — discovered dynamically from CurveCreate.curve
-        factory:
-          event_name: "CurveCreate"
-          field: "curve"
-          contract: "Factory"
         abi_file_path: "./abis/BondingCurve.json"
         handler: "./src/EventHandlers.ts"
         events:
@@ -40,3 +32,78 @@ networks:
           - event: "CurveBuy(address indexed buyer, address indexed token, uint256 amountIn, uint256 amountOut)"
           - event: "CurveSell(address indexed seller, address indexed token, uint256 amountIn, uint256 amountOut)"
           - event: "CurveGraduate(address indexed token, address indexed pool)"
+
+      # ── GraduationRouter ───────────────────────────────────────────────────────
+      # Emits LiquidityMigrated when a token graduates and LP is deployed to DEX.
+      - name: GraduationRouter
+        address:
+          - "0xf7067c6f9Fc81f0FB435bEcaeA05e5878B092c86"
+        abi_file_path: "./abis/GraduationRouter.json"
+        handler: "./src/EventHandlers.ts"
+        events:
+          - event: "LiquidityMigrated(address indexed token, address indexed pair, uint256 tokenLiquidity, uint256 monLiquidity)"
+
+      # ── GraduationPool ─────────────────────────────────────────────────────────
+      # Community pool that funds deploy/graduation subsidies.
+      - name: GraduationPool
+        address:
+          - "0x5c9CFaBf0E94f1ACF37A77a6f21B1e5acfD20568"
+        abi_file_path: "./abis/GraduationPool.json"
+        handler: "./src/EventHandlers.ts"
+        events:
+          - event: "PoolFunded(address indexed funder, uint256 amount)"
+          - event: "SubsidyClaimed(address indexed creator, string subsidyType, uint256 amount)"
+
+      # ── VestingController ──────────────────────────────────────────────────────
+      # Manages LP token vesting for graduated tokens.
+      - name: VestingController
+        address:
+          - "0xAA5b7D3ab8387CdEE8767f4E622101da191C6AfC"
+        abi_file_path: "./abis/VestingController.json"
+        handler: "./src/EventHandlers.ts"
+        events:
+          - event: "LPTokensLocked(address indexed token, address indexed pair, uint256 lpAmount, uint256 lockDuration)"
+
+      # ── FeeRouter ──────────────────────────────────────────────────────────────
+      # Routes trading fees to creator, LP, buyback, and gift recipients.
+      - name: FeeRouter
+        address:
+          - "0xA0a17b2eB3c836119e22E0Aa10e4243e88405161"
+        abi_file_path: "./abis/FeeRouter.json"
+        handler: "./src/EventHandlers.ts"
+        events:
+          - event: "FeeRouted(address indexed token, uint256 totalAmount, uint256 creatorShare, uint256 lpShare, uint256 buybackShare, uint256 giftShare)"
+
+      # ── PredictionMarket ───────────────────────────────────────────────────────
+      # Graduation prediction markets with yes/no betting.
+      - name: PredictionMarket
+        address:
+          - "0xc47FA8e0044458aaC0eeCCf6F2442E858f2387A6"
+        abi_file_path: "./abis/PredictionMarket.json"
+        handler: "./src/EventHandlers.ts"
+        events:
+          - event: "MarketCreated(address indexed token)"
+          - event: "BetPlaced(address indexed token, address indexed bettor, bool indexed isYes, uint256 amount)"
+          - event: "MarketResolved(address indexed token, bool outcome)"
+          - event: "WinningsClaimed(address indexed token, address indexed claimant, uint256 amount)"
+
+      # ── ProfileRegistry ────────────────────────────────────────────────────────
+      # On-chain profiles with reputation anchoring.
+      - name: ProfileRegistry
+        address:
+          - "0xc21d440e717a8E5637a2628B8f5AA5430e17e82E"
+        abi_file_path: "./abis/ProfileRegistry.json"
+        handler: "./src/EventHandlers.ts"
+        events:
+          - event: "ProfileCreated(uint256 indexed profileId, address indexed wallet)"
+          - event: "WalletLinked(uint256 indexed profileId, address indexed wallet, uint256 bond)"
+
+      # ── LickFactory (DEX) ──────────────────────────────────────────────────────
+      # Uniswap V2-style factory for DEX pair creation.
+      - name: LickFactory
+        address:
+          - "0x6848A334f9f7C2Cd5a2b34580EcC05F1616bAE48"
+        abi_file_path: "./abis/LickFactory.json"
+        handler: "./src/EventHandlers.ts"
+        events:
+          - event: "PairCreated(address indexed token0, address indexed token1, address pair, uint256 allPairsLength)"
