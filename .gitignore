@@ -1,0 +1,39 @@
+# Lick.fun — Root .gitignore (monorepo)
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Node (frontend, indexer)
+node_modules/
+dist/
+build/
+.next/
+.cache/
+.turbo/
+
+# Envio HyperIndex generated
+indexer/generated/
+indexer/.env/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Foundry build artifacts
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# Foundry dependencies (installed via forge install / git submodules)
+contracts/lib/
+
+# Logs
+*.log
+npm-debug.log*

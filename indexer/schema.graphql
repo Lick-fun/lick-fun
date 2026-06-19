@@ -1,0 +1,61 @@
+"""
+Lick.fun Envio HyperIndex — GraphQL Schema
+Stage 3: Token, Trade, Profile entities populated from on-chain events.
+"""
+
+"""
+One entry per token launched through the Factory.
+Keyed by token (ERC-20) address.
+"""
+type Token {
+  id: ID!                     # token address (lowercase hex)
+  creator: String!            # creator wallet address
+  name: String!               # ERC-20 name (read from contract at launch)
+  symbol: String!             # ERC-20 symbol (read from contract at launch)
+  curve: String!              # bonding curve contract address
+  virtualMon: BigInt!         # vMON reserve at launch (80,000e18)
+  virtualTokens: BigInt!      # vToken reserve at launch (477,000,000e18)
+  targetTokenAmount: BigInt!  # tokens available on curve (TOTAL_SUPPLY - VIRTUAL_TOKENS)
+  startTime: BigInt!          # timestamp trading becomes active (0 = immediate)
+  startBlock: BigInt!         # block BondingCurve was deployed (anti-sniping reference)
+  realMon: BigInt!            # current real MON in curve (updated on each trade)
+  soldTokens: BigInt!         # tokens sold to buyers (updated on each trade)
+  graduated: Boolean!         # true once realMon >= 100,000 MON
+  createdAt: BigInt!          # block.timestamp of CurveCreate
+  graduatedAt: BigInt         # block.timestamp of CurveGraduate (null until grad)
+  buyCount: Int!              # total number of buy trades
+  sellCount: Int!             # total number of sell trades
+  totalBuyVolume: BigInt!     # cumulative MON spent buying (sum of amountIn on buys)
+  totalSellVolume: BigInt!    # cumulative MON received selling (sum of amountOut on sells)
+}
+
+"""
+One entry per buy or sell trade.
+Keyed by txHash-logIndex for uniqueness.
+"""
+type Trade {
+  id: ID!                     # "${txHash}-${logIndex}"
+  token: Token!               # the token being traded
+  trader: String!             # buyer or seller wallet address
+  isBuy: Boolean!             # true = buy (MON→token), false = sell (token→MON)
+  amountIn: BigInt!           # MON in (buy) or tokens in (sell) — raw event value
+  amountOut: BigInt!          # tokens out (buy) or net MON out (sell) — raw event value
+  blockNumber: Int!           # block this trade landed in
+  blockTimestamp: BigInt!     # unix timestamp of the block
+  penaltyBps: Int!            # anti-sniping penalty applied (0 if after block 7+)
+}
+
+"""
+One entry per unique creator address.
+Keyed by creator wallet address.
+Tokens field is derived from Token.creator — no manual maintenance needed.
+"""
+type Profile {
+  id: ID!                     # creator wallet address (lowercase hex)
+  createdAt: BigInt!          # block.timestamp of their FIRST token launch
+  tokenCount: Int!            # total tokens created
+  graduatedCount: Int!        # tokens that reached graduation
+  totalBuyVolume: BigInt!     # sum of MON bought across all their tokens
+  totalSellVolume: BigInt!    # sum of MON sold across all their tokens
+  tokens: [Token!]! @derivedFrom(field: "creator")
+}
