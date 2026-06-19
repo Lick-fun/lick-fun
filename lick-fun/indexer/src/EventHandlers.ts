@@ -15,6 +15,13 @@
 import {
   Factory,
   BondingCurve,
+  GraduationRouter,
+  GraduationPool,
+  VestingController,
+  FeeRouter,
+  PredictionMarket,
+  ProfileRegistry,
+  LickFactory,
   type Token,
   type Trade,
   type Profile,
@@ -63,6 +70,8 @@ Factory.CurveCreate.handlerWithLoader({
     const creatorId = event.params.creator.toLowerCase();
     const blockTimestamp = BigInt(event.block.timestamp);
     const blockNumber = BigInt(event.block.number);
+
+    context.BondingCurve.addDynamicContractAddress(event.params.curve);
 
     /* ── Create Token ── */
     const token: Token = {
@@ -291,4 +300,80 @@ BondingCurve.CurveGraduate.handlerWithLoader({
       });
     }
   },
+});
+
+/* ═══════════════════════ GRADUATIONROUTER: LiquidityMigrated ═══════════════════════ */
+
+/**
+ * Fired when a graduated BondingCurve's liquidity is migrated to a DEX pair.
+ * Stub handler — emitted events are logged but no entities are updated.
+ */
+GraduationRouter.LiquidityMigrated.handler(async ({ event }) => {
+  // Stub: event logged by Envio; no entity mutations needed yet.
+});
+
+/* ═══════════════════════ GRADUATIONPOOL: PoolFunded ═══════════════════════════════ */
+
+GraduationPool.PoolFunded.handler(async ({ event }) => {
+  // Stub: community pool funding event
+});
+
+/* ═══════════════════════ GRADUATIONPOOL: SubsidyClaimed ═══════════════════════════ */
+
+GraduationPool.SubsidyClaimed.handler(async ({ event }) => {
+  // Stub: subsidy claimed event
+});
+
+/* ═══════════════════════ VESTINGCONTROLLER: LPTokensLocked ═══════════════════════ */
+
+VestingController.LPTokensLocked.handler(async ({ event }) => {
+  // Stub: LP tokens locked in vesting
+});
+
+/* ═══════════════════════ FEEROUTER: FeeRouted ══════════════════════════════════════ */
+
+FeeRouter.FeeRouted.handler(async ({ event }) => {
+  // Stub: fee routing event
+});
+
+/* ═══════════════════════ PREDICTIONMARKET: MarketCreated ══════════════════════════ */
+
+PredictionMarket.MarketCreated.handler(async ({ event }) => {
+  // Stub: prediction market created
+});
+
+/* ═══════════════════════ PREDICTIONMARKET: BetPlaced ══════════════════════════════ */
+
+PredictionMarket.BetPlaced.handler(async ({ event }) => {
+  // Stub: bet placed on prediction market
+});
+
+/* ═══════════════════════ PREDICTIONMARKET: MarketResolved ═════════════════════════ */
+
+PredictionMarket.MarketResolved.handler(async ({ event }) => {
+  // Stub: prediction market resolved
+});
+
+/* ═══════════════════════ PREDICTIONMARKET: WinningsClaimed ════════════════════════ */
+
+PredictionMarket.WinningsClaimed.handler(async ({ event }) => {
+  // Stub: winnings claimed from prediction market
+});
+
+/* ═══════════════════════ PROFILEREGISTRY: ProfileCreated ══════════════════════════ */
+
+ProfileRegistry.ProfileCreated.handler(async ({ event }) => {
+  // Stub: profile created on-chain
+});
+
+/* ═══════════════════════ PROFILEREGISTRY: WalletLinked ════════════════════════════ */
+
+ProfileRegistry.WalletLinked.handler(async ({ event }) => {
+  // Stub: wallet linked to profile
+});
+
+/* ═══════════════════════ LICKFACTORY: PairCreated ═════════════════════════════════ */
+
+LickFactory.PairCreated.handler(async ({ event }) => {
+  // Stub: DEX pair created
 });
