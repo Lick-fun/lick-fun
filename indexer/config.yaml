@@ -19,7 +19,7 @@ contracts:
 chains:
   - id: 10143
     rpc: ${ENVIO_RPC_URL}
-    start_block: 0
+    start_block: 39291000
     contracts:
       - name: Factory
         address: "${ENVIO_FACTORY_ADDRESS}"
