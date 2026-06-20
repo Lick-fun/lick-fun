@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { formatMon, formatTokens, formatTimeAgo, formatAddress } from "@/lib/hooks/useData";
+import { formatMon, formatTimeAgo, formatAddress, useTokenMeta } from "@/lib/hooks/useData";
 import { GraduationCap, Clock, TrendingUp } from "lucide-react";
 
 interface TokenCardProps {
@@ -22,6 +22,9 @@ interface TokenCardProps {
 }
 
 export function TokenCard({ token }: TokenCardProps) {
+  // Resolve name/symbol from contract if indexer stored empty strings
+  const { name, symbol } = useTokenMeta(token.id, token.name, token.symbol);
+
   return (
     <Link
       href={`/token/${token.id}`}
@@ -31,9 +34,9 @@ export function TokenCard({ token }: TokenCardProps) {
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="font-semibold text-foreground group-hover:text-lick-orange-light transition-colors">
-            {token.name}
+            {name || token.id.slice(0, 10) + "..."}
           </h3>
-          <p className="text-xs text-muted-foreground font-mono">${token.symbol}</p>
+          <p className="text-xs text-muted-foreground font-mono">${symbol || "???"}</p>
         </div>
         {token.graduated ? (
           <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-medium">

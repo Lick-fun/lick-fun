@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useReadContracts } from "wagmi";
 import { mockTokens, mockMarkets, getMockOdds } from "@/lib/mock/data";
 import { getTokenPrice, getGraduationProgress } from "@/lib/wagmi/contracts";
 import { getGraphQLClient } from "@/lib/graphql/client";
@@ -175,6 +176,46 @@ export function useLeaderboard(limit: number = 20) {
       return ((res.Profile as unknown[]) ?? []).map((r) => toBigIntProfile(r));
     },
   });
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* Token name/symbol resolution (reads from contract when indexer has empty strings) */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+const ERC20_NAME_SYMBOL_ABI = [
+  { type: "function", name: "name", inputs: [], outputs: [{ type: "string" }], stateMutability: "view" },
+  { type: "function", name: "symbol", inputs: [], outputs: [{ type: "string" }], stateMutability: "view" },
+] as const;
+
+/**
+ * Resolves token name and symbol from the contract when the indexer stored empty strings.
+ * Returns the indexer values if they are already populated.
+ */
+export function useTokenMeta(tokenId: string, indexerName: string, indexerSymbol: string) {
+  const needsResolution = !indexerName || !indexerSymbol;
+  const { data } = useReadContracts({
+    contracts: [
+      {
+        address: tokenId as `0x${string}`,
+        abi: ERC20_NAME_SYMBOL_ABI,
+        functionName: "name",
+      },
+      {
+        address: tokenId as `0x${string}`,
+        abi: ERC20_NAME_SYMBOL_ABI,
+        functionName: "symbol",
+      },
+    ],
+    query: { enabled: needsResolution && !!tokenId },
+  });
+
+  if (!needsResolution) {
+    return { name: indexerName, symbol: indexerSymbol };
+  }
+
+  const name = (data?.[0]?.result as string | undefined) ?? indexerName ?? tokenId.slice(0, 8);
+  const symbol = (data?.[1]?.result as string | undefined) ?? indexerSymbol ?? "???";
+  return { name, symbol };
 }
 
 /* ──────────────────────────────────────────────────────────────────────────────── */

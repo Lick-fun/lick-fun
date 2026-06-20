@@ -7,6 +7,7 @@ import {
   useTokenTrades,
   useMarket,
   useProfile,
+  useTokenMeta,
   formatMon,
   formatTimeAgo,
   formatAddress,
@@ -49,6 +50,13 @@ export default function TokenDetailPage() {
 
   const reputation =
     creatorProfile ? computeReputation(creatorProfile) : null;
+
+  // Resolve token name/symbol from contract if indexer stored empty strings
+  const { name: tokenName, symbol: tokenSymbol } = useTokenMeta(
+    tokenId,
+    token?.name ?? "",
+    token?.symbol ?? ""
+  );
 
   // Loading state
   if (tokenLoading || tradesLoading || profileLoading) {
@@ -99,9 +107,9 @@ export default function TokenDetailPage() {
         <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-3xl font-bold">{token.name}</h1>
+              <h1 className="text-3xl font-bold">{tokenName || token.id.slice(0, 10) + "..."}</h1>
               <span className="text-xl text-muted-foreground font-mono">
-                ${token.symbol}
+                ${tokenSymbol || "???"}
               </span>
             </div>
             <div className="flex items-center gap-3">
@@ -217,9 +225,9 @@ export default function TokenDetailPage() {
                         {trade.isBuy
                           ? `${Number(trade.amountIn) / 1e18} MON → ${
                               Number(trade.amountOut) / 1e18
-                            } ${token.symbol}`
+                            } ${tokenSymbol || "???"}`
                           : `${Number(trade.amountIn) / 1e18} ${
-                              token.symbol
+                              tokenSymbol || "???"
                             } → ${Number(trade.amountOut) / 1e18} MON`}
                       </div>
                       <div className="text-xs text-muted-foreground">
@@ -238,7 +246,7 @@ export default function TokenDetailPage() {
           {/* Trade Panel */}
           <TradePanel
             tokenId={token.id}
-            tokenSymbol={token.symbol}
+            tokenSymbol={tokenSymbol || "???"}
             realMon={token.realMon}
             soldTokens={token.soldTokens}
             monPerToken={token.price.monPerToken}
