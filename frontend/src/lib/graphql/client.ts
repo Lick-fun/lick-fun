@@ -1,6 +1,6 @@
 import { GraphQLClient } from "graphql-request";
 
-const DEFAULT_ENVIO_URL = "https://indexer.dev.hyperindex.xyz/fde5132/v1/graphql";
+const DEFAULT_ENVIO_URL = "http://localhost:8080/v1/graphql";
 
 let client: GraphQLClient | null = null;
 
