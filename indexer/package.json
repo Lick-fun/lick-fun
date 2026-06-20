@@ -1,6 +1,7 @@
 {
   "name": "lick-fun-indexer",
   "version": "0.1.0",
+  "type": "module",
   "description": "Envio HyperIndex indexer for Lick.fun — indexes bonding curve events on Monad",
   "license": "UNLICENSED",
   "scripts": {
@@ -9,7 +10,7 @@
     "start": "envio start",
     "dev": "envio dev",
     "codegen": "envio codegen",
-    "test": "node --require ts-node/register --test src/__tests__/handlers.test.ts"
+    "test": "node --loader ts-node/esm src/__tests__/handlers.test.ts"
   },
   "dependencies": {
     "envio": "^3.2.1"
