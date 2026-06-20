@@ -48,9 +48,9 @@ export interface ProfileEntity {
 }
 
 export interface EnvioProfileResponse {
-  profile?: ProfileEntity | null;
-  tokens: TokenEntity[];
-  trades: TradeEntity[];
+  Profile_by_pk?: ProfileEntity | null;
+  Token: TokenEntity[];
+  Trade: TradeEntity[];
 }
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
@@ -108,11 +108,12 @@ const TRADE_FRAGMENT = gql`
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Query Strings (exported for use with graphql-request)                            */
+/* NOTE: Envio v3 uses PascalCase query roots (Token, Token_by_pk, Trade, Profile) */
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
 export const QUERY_ALL_TOKENS = gql`
-  query GetAllTokens($limit: Int, $offset: Int, $orderBy: [TokenOrderBy!], $where: TokenFilter) {
-    tokens(limit: $limit, offset: $offset, order_by: $orderBy, where: $where) {
+  query GetAllTokens($limit: Int, $offset: Int, $orderBy: [Token_order_by!], $where: Token_bool_exp) {
+    Token(limit: $limit, offset: $offset, order_by: $orderBy, where: $where) {
       ...TokenFields
     }
   }
@@ -121,7 +122,7 @@ export const QUERY_ALL_TOKENS = gql`
 
 export const QUERY_TOKEN = gql`
   query GetToken($id: String!) {
-    token(id: $id) {
+    Token_by_pk(id: $id) {
       ...TokenFields
     }
   }
@@ -130,7 +131,7 @@ export const QUERY_TOKEN = gql`
 
 export const QUERY_TRADES_BY_TOKEN = gql`
   query GetTradesByToken($tokenId: String!, $limit: Int!) {
-    trades(
+    Trade(
       where: { token_id: { _eq: $tokenId } }
       order_by: { blockTimestamp: desc }
       limit: $limit
@@ -143,7 +144,7 @@ export const QUERY_TRADES_BY_TOKEN = gql`
 
 export const QUERY_PROFILE = gql`
   query GetProfile($address: String!) {
-    profile(id: $address) {
+    Profile_by_pk(id: $address) {
       ...ProfileFields
     }
   }
@@ -152,13 +153,13 @@ export const QUERY_PROFILE = gql`
 
 export const QUERY_PROFILE_SCORE = gql`
   query GetProfileScore($address: String!) {
-    profile(id: $address) {
+    Profile_by_pk(id: $address) {
       ...ProfileFields
     }
-    tokens(where: { creator: { _eq: $address } }) {
+    Token(where: { creator: { _eq: $address } }) {
       ...TokenFields
     }
-    trades(
+    Trade(
       where: { trader: { _eq: $address } }
       order_by: { blockTimestamp: asc }
     ) {
@@ -172,7 +173,7 @@ export const QUERY_PROFILE_SCORE = gql`
 
 export const QUERY_ALL_PROFILES = gql`
   query GetAllProfiles {
-    profiles {
+    Profile {
       ...ProfileFields
     }
   }
@@ -181,7 +182,7 @@ export const QUERY_ALL_PROFILES = gql`
 
 export const QUERY_LEADERBOARD = gql`
   query GetLeaderboard($limit: Int!) {
-    profiles(
+    Profile(
       order_by: { graduatedCount: desc }
       limit: $limit
     ) {

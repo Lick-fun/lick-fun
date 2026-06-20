@@ -80,10 +80,10 @@ export function useAllTokens() {
     queryKey: ["all-tokens"],
     queryFn: async () => {
       const client = getGraphQLClient();
-      const res = await client.request<{ tokens: unknown[] }>(QUERY_ALL_TOKENS, {
+      const res = await client.request<{ Token: unknown[] }>(QUERY_ALL_TOKENS, {
         limit: 100,
       });
-      return ((res.tokens as unknown[]) ?? []).map((r) =>
+      return ((res.Token as unknown[]) ?? []).map((r) =>
         decorateToken(toBigIntToken(r))
       );
     },
@@ -96,11 +96,11 @@ export function useToken(tokenId: string) {
     enabled: !!tokenId,
     queryFn: async () => {
       const client = getGraphQLClient();
-      const res = await client.request<{ token: unknown | null }>(QUERY_TOKEN, {
+      const res = await client.request<{ Token_by_pk: unknown | null }>(QUERY_TOKEN, {
         id: tokenId.toLowerCase(),
       });
-      if (!res.token) return null;
-      return decorateToken(toBigIntToken(res.token));
+      if (!res.Token_by_pk) return null;
+      return decorateToken(toBigIntToken(res.Token_by_pk));
     },
   });
 }
@@ -111,11 +111,11 @@ export function useTokenTrades(tokenId: string) {
     enabled: !!tokenId,
     queryFn: async () => {
       const client = getGraphQLClient();
-      const res = await client.request<{ trades: unknown[] }>(
+      const res = await client.request<{ Trade: unknown[] }>(
         QUERY_TRADES_BY_TOKEN,
         { tokenId: tokenId.toLowerCase(), limit: 50 }
       );
-      return ((res.trades as unknown[]) ?? []).map((r) => toBigIntTrade(r));
+      return ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
     },
   });
 }
@@ -126,12 +126,12 @@ export function useProfile(address: string) {
     enabled: !!address,
     queryFn: async () => {
       const client = getGraphQLClient();
-      const res = await client.request<{ profile: unknown | null }>(
+      const res = await client.request<{ Profile_by_pk: unknown | null }>(
         QUERY_PROFILE,
         { address: address.toLowerCase() }
       );
-      if (!res.profile) return null;
-      return toBigIntProfile(res.profile);
+      if (!res.Profile_by_pk) return null;
+      return toBigIntProfile(res.Profile_by_pk);
     },
   });
 }
@@ -142,11 +142,11 @@ export function useTokensByCreator(creator: string) {
     enabled: !!creator,
     queryFn: async () => {
       const client = getGraphQLClient();
-      const res = await client.request<{ tokens: unknown[] }>(QUERY_ALL_TOKENS, {
+      const res = await client.request<{ Token: unknown[] }>(QUERY_ALL_TOKENS, {
         limit: 100,
         where: { creator: { _eq: creator.toLowerCase() } },
       });
-      return ((res.tokens as unknown[]) ?? []).map((r) =>
+      return ((res.Token as unknown[]) ?? []).map((r) =>
         decorateToken(toBigIntToken(r))
       );
     },
@@ -158,8 +158,8 @@ export function useAllProfiles() {
     queryKey: ["all-profiles"],
     queryFn: async () => {
       const client = getGraphQLClient();
-      const res = await client.request<{ profiles: unknown[] }>(QUERY_ALL_PROFILES);
-      return ((res.profiles as unknown[]) ?? []).map((r) => toBigIntProfile(r));
+      const res = await client.request<{ Profile: unknown[] }>(QUERY_ALL_PROFILES);
+      return ((res.Profile as unknown[]) ?? []).map((r) => toBigIntProfile(r));
     },
   });
 }
@@ -169,10 +169,10 @@ export function useLeaderboard(limit: number = 20) {
     queryKey: ["leaderboard", limit],
     queryFn: async () => {
       const client = getGraphQLClient();
-      const res = await client.request<{ profiles: unknown[] }>(QUERY_LEADERBOARD, {
+      const res = await client.request<{ Profile: unknown[] }>(QUERY_LEADERBOARD, {
         limit,
       });
-      return ((res.profiles as unknown[]) ?? []).map((r) => toBigIntProfile(r));
+      return ((res.Profile as unknown[]) ?? []).map((r) => toBigIntProfile(r));
     },
   });
 }

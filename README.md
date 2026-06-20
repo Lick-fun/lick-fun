@@ -7,7 +7,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 
-**Status:** ✅ All 9 build stages complete · ✅ 2 security audit passes · ✅ Live on Monad testnet (chain 10143) · ✅ Frontend gas limits tightened · ✅ Envio indexer v3 rewrite (ESM fixed) · ⏳ Envio cloud deploy next
+**Status:** ✅ All 9 build stages complete · ✅ 2 security audit passes · ✅ Live on Monad testnet (chain 10143) · ✅ Frontend gas limits tightened · ✅ Envio indexer v3 rewrite (ESM fixed) · ✅ Frontend dev server running (port 3001) · ⏳ Envio cloud deploy next
 
 ---
 
@@ -103,7 +103,7 @@ Weight `k=0.15`, midpoint `0.4` (tune post-launch on real data). Reputation maps
 
 ## Testnet Deployment (Monad chain 10143)
 
-All 8 protocol contracts live on Monad testnet via `forge script script/Deploy.s.sol --broadcast`.
+All 8 protocol contracts live on Monad testnet via Foundry deploy script.
 
 | Contract | Address |
 |---|---|
@@ -126,7 +126,7 @@ All 8 protocol contracts live on Monad testnet via `forge script script/Deploy.s
 
 ```
 lick-fun/
-├── contracts/          — Foundry project (10 Solidity contracts + tests)
+├── contracts/          — Foundry project (11 Solidity contracts + tests)
 │   ├── src/
 │   │   ├── LickToken.sol          — Pure ERC-20, 1B supply
 │   │   ├── BondingCurve.sol       — CPMM curve, fees, anti-sniping, graduation
@@ -139,12 +139,16 @@ lick-fun/
 │   │   ├── GraduationRouter.sol   — Migration orchestrator (curve → LickPair → LP locked)
 │   │   ├── LickPair.sol           — V2-style AMM pair (0.25% LP-only fee, ERC-20 LP)
 │   │   └── LickFactory.sol        — CREATE2 factory, restricted createPair
-│   ├── script/Deploy.s.sol        — One-shot deploy script (testnet verified)
-│   └── test/                      — 103 Forge tests
+│   ├── script/                    — Deploy scripts (see contracts/README.md)
+│   └── test/                      — 9 test files, 103+ Forge tests
 ├── indexer/             — Envio HyperIndex (TypeScript + GraphQL)
 │   ├── config.yaml               — Chain events, factory tracking
 │   ├── schema.graphql            — Token, Trade, Profile entities
-│   └── src/EventHandlers.ts      — v3 indexer.onEvent API, NodeNext module, 5 handlers with CPMM math
+│   ├── abis/                     — Contract ABIs (BondingCurve, Factory, LickToken)
+│   └── src/
+│       ├── EventHandlers.ts      — v3 indexer.onEvent API, NodeNext module, 5 handlers with CPMM math
+│       ├── utils.ts              — CPMM math helpers, penalty decay, real-mon derivation
+│       └── __tests__/            — Indexer handler unit tests
 ├── reputation/          — Off-chain reputation engine (TypeScript)
 │   ├── src/
 │   │   ├── scoring.ts            — 7-factor sigmoid scoring
@@ -154,12 +158,29 @@ lick-fun/
 │   │   ├── queries.ts            — 5 GraphQL queries
 │   │   ├── broadcasts.ts         — Platform broadcast templates
 │   │   ├── ama.ts                — AMA window types
-│   │   └── staking.ts            — Reputation staking types (post-launch)
-│   └── src/__tests__/            — 46 vitest tests
-└── frontend/            — Next.js 15 app
-    ├── src/app/                  — 8 pages (Landing, Discover, Token Detail, Profile, Markets, How It Works)
-    ├── src/lib/                  — wagmi config, GraphQL client, contract hooks, gas limits
-    └── src/components/           — Layout, shared UI components
+│   │   ├── staking.ts            — Reputation staking types (post-launch)
+│   │   └── types.ts              — Shared type definitions
+│   └── src/__tests__/            — 46 vitest tests (scoring + broadcasts)
+└── frontend/            — Next.js 15.5 app
+    ├── src/app/                  — 7 pages
+    │   ├── page.tsx              — Landing page
+    │   ├── create/page.tsx       — Token creation wizard
+    │   ├── discover/page.tsx     — Token discovery feed
+    │   ├── how-it-works/page.tsx — Platform walkthrough
+    │   ├── markets/page.tsx      — Prediction markets dashboard
+    │   ├── profile/[address]/    — Creator profile pages
+    │   └── token/[id]/           — Token detail + trading pages
+    ├── src/lib/                  — Core library
+    │   ├── wagmi/                — RainbowKit + wagmi config, contract ABIs + addresses
+    │   ├── graphql/              — Envio GraphQL client + queries
+    │   ├── hooks/                — useCreateToken, useData (mock + live fallback)
+    │   ├── mock/data.ts          — Mock tokens, trades, profiles, prediction markets
+    │   └── utils.ts              — Tailwind class merging (cn)
+    └── src/components/           — UI components
+        ├── layout/              — Header, Sidebar, BottomNav
+        ├── token/               — TokenCard, TradePanel, CurveChart
+        ├── markets/             — BetForm
+        └── ui/                  — LoadingSpinner
 ```
 
 ---
@@ -233,7 +254,7 @@ ProfileRegistry.sol         — Wallet linking (0.1 MON bond refundable),
 | 4 | Reputation engine (scoring, badges, tiers, Merkle anchor) | ✅ |
 | 5 | Engagement layer (PredictionMarket, broadcasts, AMA, staking types) | ✅ |
 | 6 | FeeRouter + VestingController + GraduationPool + locker validation | ✅ |
-| 7 | Frontend (Next.js, 8 pages, RainbowKit, wagmi) | ✅ |
+| 7 | Frontend (Next.js, 7 pages, RainbowKit, wagmi) | ✅ |
 | 8 | ProfileRegistry (wallet linking, Merkle anchor, creator betting ban) | ✅ |
 | + | GraduationRouter + LickPair + LickFactory (V2 DEX, migration, LP lock) | ✅ |
 | + | Security audit pass 1 (all CRITICAL/HIGH/MEDIUM fixed) | ✅ |
@@ -248,7 +269,7 @@ ProfileRegistry.sol         — Wallet linking (0.1 MON bond refundable),
 | → | Founder-first-token launch | ⏳ |
 | → | Mainnet launch | PENDING |
 
-> 103 Forge tests · 46 vitest tests · 10 contracts · 8 pages · All green
+> 103+ Forge tests · 46 vitest tests · 11 contracts · 7 pages · All green
 
 ---
 
@@ -273,7 +294,7 @@ npm test
 cd frontend
 npm install
 npm run dev
-# opens at localhost:3000
+# opens at localhost:3001
 ```
 
 ---
@@ -289,6 +310,7 @@ See [`contracts/LOCKER_VALIDATION.md`](contracts/LOCKER_VALIDATION.md) for the s
 cd contracts
 source .env
 forge script script/Deploy.s.sol --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
+# Note: deployment script paths may vary — see contracts/README.md for the latest
 ```
 
 Then deploy the Envio indexer with the real contract addresses, update the frontend's `.env` with the Envio GraphQL endpoint, and push to Vercel.
