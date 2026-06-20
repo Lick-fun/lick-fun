@@ -8,17 +8,20 @@
  *   BondingCurve.CurveBuy   → create Trade, update Token + Profile
  *   BondingCurve.CurveSell  → create Trade, update Token + Profile
  *   BondingCurve.CurveGraduate → mark Token graduated, update Profile
+ *
+ * Note: context.client.readContract is NOT available in Envio Cloud deployments.
+ * Token name/symbol are stored as empty strings and must be resolved by the frontend
+ * via direct RPC calls to the token contract.
  */
 
 import { indexer } from "envio";
-import LickTokenAbi from "../abis/LickToken.json";
 import {
   VIRTUAL_MON,
   VIRTUAL_TOKENS,
   TARGET_TOKEN_AMOUNT,
   getPenaltyBps,
   deriveRealMon,
-} from "./utils";
+} from "./utils.js";
 
 /* ════════════════════════════ CONTRACT REGISTRATION ═══════════════════════════════ */
 
@@ -37,6 +40,9 @@ indexer.contractRegister({ contract: "Factory", event: "TokenCreated" }, ({ even
  * Note: The new event no longer carries virtualMon, virtualTokens, or startTime.
  * We use the known protocol constants for virtualMon/virtualTokens, and 0n for
  * startTime (the CurveLaunch handler overwrites it with the canonical on-chain value).
+ *
+ * name/symbol are stored as empty strings — the frontend reads them directly from
+ * the token contract via RPC since context.client is not available in cloud deployments.
  */
 indexer.onEvent({ contract: "Factory", event: "TokenCreated" }, async ({ event, context }) => {
   const creatorId = event.params.creator.toLowerCase();
@@ -44,26 +50,14 @@ indexer.onEvent({ contract: "Factory", event: "TokenCreated" }, async ({ event, 
   const blockTimestamp = BigInt(event.block.timestamp);
   const blockNumber = BigInt(event.block.number);
 
-  const [profile, tokenName, tokenSymbol] = await Promise.all([
-    context.Profile.get(creatorId),
-    context.client.readContract({
-      address: event.params.token as `0x${string}`,
-      abi: LickTokenAbi,
-      functionName: "name",
-    }) as Promise<string>,
-    context.client.readContract({
-      address: event.params.token as `0x${string}`,
-      abi: LickTokenAbi,
-      functionName: "symbol",
-    }) as Promise<string>,
-  ]);
+  const profile = await context.Profile.get(creatorId);
 
   /* ── Create Token ── */
   context.Token.set({
     id: tokenId,
     creator: creatorId,
-    name: tokenName,
-    symbol: tokenSymbol,
+    name: "",            // frontend reads from contract
+    symbol: "",          // frontend reads from contract
     curve: event.params.curve.toLowerCase(),
     virtualMon: VIRTUAL_MON,
     virtualTokens: VIRTUAL_TOKENS,
