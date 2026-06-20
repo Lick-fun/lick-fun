@@ -1,53 +1,13 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useCreateToken, type FeePresetKey, type DevLockTier } from "@/lib/hooks/useCreateToken";
+import { useCreateToken } from "@/lib/hooks/useCreateToken";
 import { Loader2, CheckCircle2, AlertCircle, Rocket } from "lucide-react";
-
-/* ──────────────────────────────────────────────────────────────────────────────── */
-/* Static option data                                                               */
-/* ──────────────────────────────────────────────────────────────────────────────── */
-
-const FEE_PRESETS: { key: FeePresetKey & string; label: string; description: string }[] = [
-  {
-    key: "DEFAULT",
-    label: "Standard",
-    description: "Creator fees go directly to your wallet.",
-  },
-  {
-    key: "ECOSYSTEM",
-    label: "Ecosystem",
-    description: "Creator fees are split via FeeRouter to support the ecosystem.",
-  },
-];
-
-const DEV_LOCK_TIERS: { key: DevLockTier; label: string; lpLock: string; devVest: string; badge: string }[] = [
-  {
-    key: "LIGHT",
-    label: "Light",
-    lpLock: "90 days",
-    devVest: "365 days",
-    badge: "🌱",
-  },
-  {
-    key: "STANDARD",
-    label: "Standard",
-    lpLock: "180 days",
-    devVest: "180 days",
-    badge: "⚡",
-  },
-  {
-    key: "DIAMOND",
-    label: "Diamond",
-    lpLock: "365 days",
-    devVest: "90 days",
-    badge: "💎",
-  },
-];
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Page                                                                             */
@@ -58,11 +18,18 @@ export default function CreateTokenPage() {
 
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
-  const [preset, setPreset] = useState<FeePresetKey>("DEFAULT");
-  const [tier, setTier] = useState<DevLockTier>("LIGHT");
 
   const { createToken, isPending, isConfirming, isSuccess, tokenAddress, txHash, error, reset } =
     useCreateToken();
+
+  const router = useRouter();
+
+  // Auto-redirect to the token's live data page once creation is confirmed
+  useEffect(() => {
+    if (isSuccess && tokenAddress) {
+      router.push(`/token/${tokenAddress}`);
+    }
+  }, [isSuccess, tokenAddress, router]);
 
   const isLoading = isPending || isConfirming;
 
@@ -70,7 +37,7 @@ export default function CreateTokenPage() {
     e.preventDefault();
     if (!name.trim() || !symbol.trim()) return;
     try {
-      await createToken({ name: name.trim(), symbol: symbol.trim().toUpperCase(), preset, tier });
+      await createToken({ name: name.trim(), symbol: symbol.trim().toUpperCase() });
     } catch {
       // error is captured in hook state
     }
@@ -90,8 +57,7 @@ export default function CreateTokenPage() {
           <Rocket className="w-12 h-12 text-lick-orange opacity-80" />
           <h2 className="text-xl font-semibold">Connect your wallet to continue</h2>
           <p className="text-sm text-muted-foreground max-w-xs">
-            You need a connected wallet to deploy a token. Creation costs{" "}
-            <span className="text-foreground font-medium">10 MON</span>.
+            You need a connected wallet to deploy a token on the bonding curve.
           </p>
           <ConnectButton />
         </div>
@@ -153,8 +119,7 @@ export default function CreateTokenPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Create Token</h1>
         <p className="text-muted-foreground">
-          Launch your token on the Lick.fun bonding curve. Costs{" "}
-          <span className="text-foreground font-medium">10 MON</span>.
+          Launch your token on the Lick.fun bonding curve.
         </p>
       </div>
 
@@ -203,70 +168,6 @@ export default function CreateTokenPage() {
           </div>
         </div>
 
-        {/* Fee Preset Card */}
-        <div className="rounded-xl border border-border bg-card p-6 flex flex-col gap-4">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Fee Preset
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            {FEE_PRESETS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => setPreset(p.key)}
-                disabled={isLoading}
-                className={cn(
-                  "flex flex-col gap-1 p-4 rounded-lg border text-left transition-all disabled:opacity-50",
-                  preset === p.key
-                    ? "border-lick-orange bg-lick-orange/10 text-foreground"
-                    : "border-border bg-background text-muted-foreground hover:border-lick-orange/40 hover:text-foreground"
-                )}
-              >
-                <span className="font-semibold text-sm">{p.label}</span>
-                <span className="text-xs leading-snug">{p.description}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Dev Lock Tier Card */}
-        <div className="rounded-xl border border-border bg-card p-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Dev Lock Tier
-            </h2>
-            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-              Informational
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {DEV_LOCK_TIERS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTier(t.key)}
-                disabled={isLoading}
-                className={cn(
-                  "flex flex-col items-center gap-2 p-4 rounded-lg border text-center transition-all disabled:opacity-50",
-                  tier === t.key
-                    ? "border-lick-orange bg-lick-orange/10 text-foreground"
-                    : "border-border bg-background text-muted-foreground hover:border-lick-orange/40 hover:text-foreground"
-                )}
-              >
-                <span className="text-2xl">{t.badge}</span>
-                <span className="font-semibold text-sm">{t.label}</span>
-                <div className="text-xs leading-snug space-y-0.5">
-                  <p>LP lock: {t.lpLock}</p>
-                  <p>Dev vest: {t.devVest}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Dev lock tier selection is coming soon. All tokens currently use Light tier vesting.
-          </p>
-        </div>
-
         {/* Error */}
         {error && (
           <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4">
@@ -301,7 +202,7 @@ export default function CreateTokenPage() {
           ) : (
             <>
               <Rocket className="w-4 h-4" />
-              Create Token — 10 MON
+              Create Token
             </>
           )}
         </button>

@@ -3,17 +3,12 @@
 import { useState } from "react";
 import { useWriteContract, useAccount, useWaitForTransactionReceipt } from "wagmi";
 import { decodeEventLog } from "viem";
-import { FactoryABI, FACTORY_ADDRESS, FeePreset, DEPLOY_FEE } from "@/lib/wagmi/contracts";
-
-export type FeePresetKey = keyof typeof FeePreset;
-export type DevLockTier = "LIGHT" | "STANDARD" | "DIAMOND";
+import { FactoryABI, FACTORY_ADDRESS } from "@/lib/wagmi/contracts";
 
 export interface UseCreateTokenResult {
   createToken: (params: {
     name: string;
     symbol: string;
-    preset: FeePresetKey;
-    tier: DevLockTier;
   }) => Promise<void>;
   isPending: boolean;
   isConfirming: boolean;
@@ -40,7 +35,7 @@ export function useCreateToken(): UseCreateTokenResult {
     hash: txHash,
   });
 
-  // Parse TokenCreated event from receipt to get the new token address
+  // Parse CurveCreate event from receipt to get the new token address
   if (isSuccess && receipt && !tokenAddress) {
     for (const log of receipt.logs) {
       try {
@@ -48,14 +43,14 @@ export function useCreateToken(): UseCreateTokenResult {
           abi: FactoryABI,
           data: log.data,
           topics: log.topics,
-          eventName: "TokenCreated",
+          eventName: "CurveCreate" as const,
         });
         if (decoded.args.token) {
           setTokenAddress(decoded.args.token as `0x${string}`);
         }
         break;
       } catch {
-        // not a TokenCreated log, skip
+        // not a CurveCreate log, skip
       }
     }
   }
@@ -63,12 +58,9 @@ export function useCreateToken(): UseCreateTokenResult {
   const createToken = async ({
     name,
     symbol,
-    preset,
   }: {
     name: string;
     symbol: string;
-    preset: FeePresetKey;
-    tier: DevLockTier;
   }) => {
     if (!address) throw new Error("Wallet not connected");
     setError(null);
@@ -78,11 +70,8 @@ export function useCreateToken(): UseCreateTokenResult {
       await writeContractAsync({
         address: FACTORY_ADDRESS,
         abi: FactoryABI,
-        functionName: "createTokenWithPreset",
-        args: [name, symbol, address, 0n, FeePreset[preset]],
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore wagmi types value as undefined for nonpayable but we pass the deploy fee
-        value: DEPLOY_FEE,
+        functionName: "createToken",
+        args: [name, symbol, address, 0n],
       });
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));

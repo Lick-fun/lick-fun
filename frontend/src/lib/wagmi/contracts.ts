@@ -11,7 +11,7 @@ export const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x00
 const PREDICTION_MARKET_ADDRESS = (process.env.NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
-/* Factory ABI (token creation)                                                     */
+/* Factory ABI (deployed testnet version)                                           */
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
 export const FactoryABI = [
@@ -21,50 +21,35 @@ export const FactoryABI = [
     inputs: [
       { name: "name", type: "string", internalType: "string" },
       { name: "symbol", type: "string", internalType: "string" },
-      { name: "creatorAddress", type: "address", internalType: "address" },
+      { name: "creator", type: "address", internalType: "address" },
       { name: "startTime", type: "uint256", internalType: "uint256" },
     ],
     outputs: [
-      { name: "tokenAddr", type: "address", internalType: "address" },
-      { name: "curveAddr", type: "address", internalType: "address" },
+      { name: "token", type: "address", internalType: "address" },
+      { name: "curve", type: "address", internalType: "address" },
     ],
     stateMutability: "nonpayable",
   },
   {
     type: "function",
-    name: "createTokenWithPreset",
-    inputs: [
-      { name: "name", type: "string", internalType: "string" },
-      { name: "symbol", type: "string", internalType: "string" },
-      { name: "creatorAddress", type: "address", internalType: "address" },
-      { name: "startTime", type: "uint256", internalType: "uint256" },
-      { name: "preset", type: "uint8", internalType: "enum FeeRouter.Preset" },
-    ],
-    outputs: [
-      { name: "tokenAddr", type: "address", internalType: "address" },
-      { name: "curveAddr", type: "address", internalType: "address" },
-    ],
-    stateMutability: "nonpayable",
+    name: "protocolFeeReceiver",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
   },
   {
     type: "event",
-    name: "TokenCreated",
+    name: "CurveCreate",
     inputs: [
+      { name: "creator", type: "address", indexed: true, internalType: "address" },
       { name: "token", type: "address", indexed: true, internalType: "address" },
       { name: "curve", type: "address", indexed: true, internalType: "address" },
-      { name: "creator", type: "address", indexed: true, internalType: "address" },
+      { name: "virtualMon", type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "virtualTokens", type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "startTime", type: "uint256", indexed: false, internalType: "uint256" },
     ],
   },
 ] as const satisfies Abi;
-
-/** FeeRouter.Preset enum — DEFAULT=0, ECOSYSTEM=1 */
-export const FeePreset = {
-  DEFAULT: 0,
-  ECOSYSTEM: 1,
-} as const;
-
-/** Deploy fee: 10 MON */
-export const DEPLOY_FEE = parseEther("10");
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* BondingCurve ABI (minimal — only what the frontend needs)                        */
@@ -276,7 +261,6 @@ export function getTokenPrice(
   realMon: bigint,
   soldTokens: bigint
 ): { monPerToken: number; marketCapMon: number } {
-  // Current bonding curve price: MON required to buy one more token
   const remainingTokens = VIRTUAL_TOKENS - soldTokens;
   if (remainingTokens === 0n) return { monPerToken: 0, marketCapMon: 0 };
   const priceWei = K / (remainingTokens * remainingTokens);
