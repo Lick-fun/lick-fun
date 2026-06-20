@@ -7,7 +7,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 
-**Status:** ✅ All 9 build stages complete · ✅ 2 security audit passes · ✅ Live on Monad testnet (chain 10143) · ✅ Frontend gas limits tightened · ⏳ Envio indexer deploy next
+**Status:** ✅ All 9 build stages complete · ✅ 2 security audit passes · ✅ Live on Monad testnet (chain 10143) · ✅ Frontend gas limits tightened · ✅ Envio indexer v3 rewrite (ESM fixed) · ⏳ Envio cloud deploy next
 
 ---
 
@@ -144,7 +144,7 @@ lick-fun/
 ├── indexer/             — Envio HyperIndex (TypeScript + GraphQL)
 │   ├── config.yaml               — Chain events, factory tracking
 │   ├── schema.graphql            — Token, Trade, Profile entities
-│   └── src/EventHandlers.ts      — 5 event handlers with CPMM math
+│   └── src/EventHandlers.ts      — v3 indexer.onEvent API, NodeNext module, 5 handlers with CPMM math
 ├── reputation/          — Off-chain reputation engine (TypeScript)
 │   ├── src/
 │   │   ├── scoring.ts            — 7-factor sigmoid scoring
@@ -241,6 +241,7 @@ ProfileRegistry.sol         — Wallet linking (0.1 MON bond refundable),
 | + | GitHub repo (github.com/Lick-fun/lick-fun, MIT) | ✅ |
 | + | Testnet deploy (all 8 contracts on Monad 10143) | ✅ |
 | + | Frontend gas-limit tightening (Monad declared-gas billing) | ✅ |
+| + | Envio indexer v3 API rewrite + NodeNext ESM fix | ✅ |
 | → | Envio indexer deploy (point to live addresses) | ⏳ |
 | → | LP locker validation (UNCX / Team Finance) | ⏳ |
 | → | Frontend wire to live Envio + Vercel deploy | ⏳ |

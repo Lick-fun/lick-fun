@@ -16,6 +16,10 @@ build/
 # Envio HyperIndex generated
 indexer/generated/
 indexer/.env/
+.envio-cloud/
+
+# Duplicate/temp directories
+lick-fun/
 
 # OS files
 .DS_Store
