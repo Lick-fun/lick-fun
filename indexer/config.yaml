@@ -20,6 +20,8 @@ chains:
   - id: 10143
     hypersync_config:
       url: https://monad-testnet.hypersync.xyz
+    rpc_config:
+      url: https://testnet-rpc.monad.xyz
     start_block: 39486047
     contracts:
       - name: Factory
