@@ -1,15 +1,15 @@
 name: lick-fun-indexer
 
+handlers: src
+
 contracts:
   - name: Factory
     abi_file_path: "./abis/Factory.json"
-    handler: "./src/EventHandlers.ts"
     events:
       - event: "CurveCreate(address indexed creator, address indexed token, address indexed curve, uint256 virtualMon, uint256 virtualTokens, uint256 startTime)"
 
   - name: BondingCurve
     abi_file_path: "./abis/BondingCurve.json"
-    handler: "./src/EventHandlers.ts"
     events:
       - event: "CurveLaunch(address indexed token, uint256 startTime, uint256 startBlock)"
       - event: "CurveBuy(address indexed buyer, address indexed token, uint256 amountIn, uint256 amountOut)"
