@@ -10,7 +10,7 @@ name: lick-fun-indexer
 networks:
   - id: 10143  # Monad testnet
     rpc_config:
-      url: ${RPC_URL}
+      url: ${ENVIO_RPC_URL}
     start_block: 0  # TODO: set to Factory deployment block after Stage 6
     contracts:
       # ── Factory ─────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ networks:
       # deployed BondingCurve via the factory pattern below.
       - name: Factory
         address:
-          - "${FACTORY_ADDRESS}"  # TODO: fill after Stage 6 deploy
+          - "${ENVIO_FACTORY_ADDRESS}"  # TODO: fill after Stage 6 deploy
         abi_file_path: "./abis/Factory.json"
         handler: "./src/EventHandlers.ts"
         events:
