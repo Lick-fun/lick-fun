@@ -6,7 +6,7 @@ contracts:
   - name: Factory
     abi_file_path: "./abis/Factory.json"
     events:
-      - event: "CurveCreate(address indexed creator, address indexed token, address indexed curve, uint256 virtualMon, uint256 virtualTokens, uint256 startTime)"
+      - event: "TokenCreated(address indexed token, address indexed curve, address indexed creator)"
 
   - name: BondingCurve
     abi_file_path: "./abis/BondingCurve.json"
@@ -20,8 +20,8 @@ chains:
   - id: 10143
     hypersync_config:
       url: https://monad-testnet.hypersync.xyz
-    start_block: 39291000
+    start_block: 39486303
     contracts:
       - name: Factory
-        address: "${ENVIO_FACTORY_ADDRESS}"
+        address: "0xe5a63a3496952bb12e4802264244d476a8f36eed"
       - name: BondingCurve

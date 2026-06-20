@@ -3,7 +3,7 @@
  * Stage 3: Indexes Factory + BondingCurve events on Monad testnet (chain 10143)
  *
  * Event flow:
- *   Factory.CurveCreate     → create Token + Profile
+ *   Factory.TokenCreated    → create Token + Profile
  *   BondingCurve.CurveLaunch → confirm startBlock on Token (emitted in constructor)
  *   BondingCurve.CurveBuy   → create Trade, update Token + Profile
  *   BondingCurve.CurveSell  → create Trade, update Token + Profile
@@ -22,19 +22,23 @@ import {
 
 /* ════════════════════════════ CONTRACT REGISTRATION ═══════════════════════════════ */
 
-// Register BondingCurve contracts dynamically when Factory emits CurveCreate
-indexer.contractRegister({ contract: "Factory", event: "CurveCreate" }, ({ event, context }) => {
+// Register BondingCurve contracts dynamically when Factory emits TokenCreated
+indexer.contractRegister({ contract: "Factory", event: "TokenCreated" }, ({ event, context }) => {
   context.chain.BondingCurve.add(event.params.curve);
   context.log.info(`Registered BondingCurve at ${event.params.curve.toLowerCase()}`);
 });
 
-/* ════════════════════════════ FACTORY: CurveCreate ════════════════════════════════ */
+/* ════════════════════════════ FACTORY: TokenCreated ════════════════════════════════ */
 
 /**
  * Fired by Factory.createToken(). One event per new token launch.
  * Creates Token entity + creates/updates Profile entity.
+ *
+ * Note: The new event no longer carries virtualMon, virtualTokens, or startTime.
+ * We use the known protocol constants for virtualMon/virtualTokens, and 0n for
+ * startTime (the CurveLaunch handler overwrites it with the canonical on-chain value).
  */
-indexer.onEvent({ contract: "Factory", event: "CurveCreate" }, async ({ event, context }) => {
+indexer.onEvent({ contract: "Factory", event: "TokenCreated" }, async ({ event, context }) => {
   const creatorId = event.params.creator.toLowerCase();
   const tokenId = event.params.token.toLowerCase();
   const blockTimestamp = BigInt(event.block.timestamp);
@@ -61,11 +65,11 @@ indexer.onEvent({ contract: "Factory", event: "CurveCreate" }, async ({ event, c
     name: tokenName,
     symbol: tokenSymbol,
     curve: event.params.curve.toLowerCase(),
-    virtualMon: event.params.virtualMon,
-    virtualTokens: event.params.virtualTokens,
+    virtualMon: VIRTUAL_MON,
+    virtualTokens: VIRTUAL_TOKENS,
     targetTokenAmount: TARGET_TOKEN_AMOUNT,
-    startTime: event.params.startTime,
-    startBlock: blockNumber,
+    startTime: 0n,           // overwritten by CurveLaunch
+    startBlock: blockNumber, // overwritten by CurveLaunch
     realMon: 0n,
     soldTokens: 0n,
     graduated: false,

@@ -30,14 +30,11 @@
   },
   {
     "type": "event",
-    "name": "CurveCreate",
+    "name": "TokenCreated",
     "inputs": [
-      { "name": "creator",       "type": "address", "indexed": true  },
-      { "name": "token",         "type": "address", "indexed": true  },
-      { "name": "curve",         "type": "address", "indexed": true  },
-      { "name": "virtualMon",    "type": "uint256", "indexed": false },
-      { "name": "virtualTokens", "type": "uint256", "indexed": false },
-      { "name": "startTime",     "type": "uint256", "indexed": false }
+      { "name": "token",   "type": "address", "indexed": true },
+      { "name": "curve",   "type": "address", "indexed": true },
+      { "name": "creator", "type": "address", "indexed": true }
     ],
     "anonymous": false
   }
