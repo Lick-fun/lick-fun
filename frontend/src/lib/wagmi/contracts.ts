@@ -7,14 +7,70 @@ import { parseEther, type Abi } from "viem";
 /* Contract Addresses (from env)                                                    */
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
-const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
 const PREDICTION_MARKET_ADDRESS = (process.env.NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* Factory ABI (token creation)                                                     */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+export const FactoryABI = [
+  {
+    type: "function",
+    name: "createToken",
+    inputs: [
+      { name: "name", type: "string", internalType: "string" },
+      { name: "symbol", type: "string", internalType: "string" },
+      { name: "creatorAddress", type: "address", internalType: "address" },
+      { name: "startTime", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [
+      { name: "tokenAddr", type: "address", internalType: "address" },
+      { name: "curveAddr", type: "address", internalType: "address" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "createTokenWithPreset",
+    inputs: [
+      { name: "name", type: "string", internalType: "string" },
+      { name: "symbol", type: "string", internalType: "string" },
+      { name: "creatorAddress", type: "address", internalType: "address" },
+      { name: "startTime", type: "uint256", internalType: "uint256" },
+      { name: "preset", type: "uint8", internalType: "enum FeeRouter.Preset" },
+    ],
+    outputs: [
+      { name: "tokenAddr", type: "address", internalType: "address" },
+      { name: "curveAddr", type: "address", internalType: "address" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "event",
+    name: "TokenCreated",
+    inputs: [
+      { name: "token", type: "address", indexed: true, internalType: "address" },
+      { name: "curve", type: "address", indexed: true, internalType: "address" },
+      { name: "creator", type: "address", indexed: true, internalType: "address" },
+    ],
+  },
+] as const satisfies Abi;
+
+/** FeeRouter.Preset enum — DEFAULT=0, ECOSYSTEM=1 */
+export const FeePreset = {
+  DEFAULT: 0,
+  ECOSYSTEM: 1,
+} as const;
+
+/** Deploy fee: 10 MON */
+export const DEPLOY_FEE = parseEther("10");
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* BondingCurve ABI (minimal — only what the frontend needs)                        */
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
-const BondingCurveABI = [
+export const BondingCurveABI = [
   {
     type: "function",
     name: "buy",
@@ -114,7 +170,7 @@ const BondingCurveABI = [
   },
 ] as const satisfies Abi;
 
-const PredictionMarketABI = [
+export const PredictionMarketABI = [
   {
     type: "function",
     name: "createMarket",
@@ -221,22 +277,13 @@ export function getTokenPrice(
   soldTokens: bigint
 ): { monPerToken: number; marketCapMon: number } {
   // Current bonding curve price: MON required to buy one more token
-  // Price = delta MON / 1 token ≈ derivative of CPMM
   const remainingTokens = VIRTUAL_TOKENS - soldTokens;
   if (remainingTokens === 0n) return { monPerToken: 0, marketCapMon: 0 };
-
-  // Price in wei: k / (remainingTokens)^2
   const priceWei = K / (remainingTokens * remainingTokens);
   const monPerToken = Number(priceWei) / 1e18;
-
-  // Market cap approximation: total supply * current spot price
   const totalSupply = 1_000_000_000n * 10n ** 18n;
   const marketCapWei = (totalSupply * priceWei) / 10n ** 18n;
-
-  return {
-    monPerToken,
-    marketCapMon: Number(marketCapWei) / 1e18,
-  };
+  return { monPerToken, marketCapMon: Number(marketCapWei) / 1e18 };
 }
 
 export function formatMon(wei: bigint): string {
@@ -330,11 +377,11 @@ export function useGetAmountOut(
   });
 }
 
-export function useWriteBuy(curveAddress: `0x${string}`) {
+export function useWriteBuy(_curveAddress: `0x${string}`) {
   return useWriteContract();
 }
 
-export function useWriteSell(curveAddress: `0x${string}`) {
+export function useWriteSell(_curveAddress: `0x${string}`) {
   return useWriteContract();
 }
 
@@ -471,5 +518,3 @@ export function useClaimWinnings() {
 
   return { claim, ...rest };
 }
-
-export { BondingCurveABI, PredictionMarketABI };
