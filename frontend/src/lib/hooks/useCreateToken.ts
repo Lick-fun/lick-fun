@@ -80,6 +80,8 @@ export function useCreateToken(): UseCreateTokenResult {
         abi: FactoryABI,
         functionName: "createTokenWithPreset",
         args: [name, symbol, address, 0n, FeePreset[preset]],
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore wagmi types value as undefined for nonpayable but we pass the deploy fee
         value: DEPLOY_FEE,
       });
     } catch (err) {

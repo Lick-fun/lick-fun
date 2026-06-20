@@ -15,14 +15,10 @@ import {
 } from "@/lib/hooks/useData";
 import type { Badge, Tier } from "@/lib/hooks/useData";
 import { TokenCard } from "@/components/token/TokenCard";
+import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
 import {
   ArrowLeft,
-  Shield,
   Award,
-  Star,
-  TrendingUp,
-  Users,
-  Clock,
   Coins,
 } from "lucide-react";
 
@@ -54,16 +50,49 @@ const BADGE_ICONS: Record<Badge, string> = {
 
 export default function ProfilePage() {
   const { address } = useParams<{ address: string }>();
-  const profile = useProfile(address);
-  const tokens = useTokensByCreator(address);
+  const addr = (address as string) ?? "";
 
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    error: profileError,
+    refetch: refetchProfile,
+  } = useProfile(addr);
+
+  const {
+    data: tokens = [],
+    isLoading: tokensLoading,
+  } = useTokensByCreator(addr);
+
+  // Loading state
+  if (profileLoading || tokensLoading) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        <LoadingSpinner label="Loading profile..." />
+      </div>
+    );
+  }
+
+  // Error state
+  if (profileError) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        <ErrorState
+          message={(profileError as Error).message}
+          onRetry={() => refetchProfile()}
+        />
+      </div>
+    );
+  }
+
+  // Not found
   if (!profile) {
     return (
       <div className="max-w-5xl mx-auto text-center py-20">
         <h2 className="text-2xl font-bold mb-2">Profile not found</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          No profile data for this address yet. Profiles are created when a creator
-          launches their first token.
+          No profile data for this address yet. Profiles are created when a
+          creator launches their first token.
         </p>
         <Link href="/discover" className="text-lick-orange-light hover:underline">
           Explore Tokens
@@ -109,7 +138,9 @@ export default function ProfilePage() {
             <div className="flex items-center gap-4 mb-4">
               <div className="flex items-center gap-2">
                 <Award className={`w-5 h-5 ${reputationColor(rep.score)}`} />
-                <span className={`text-3xl font-bold ${reputationColor(rep.score)}`}>
+                <span
+                  className={`text-3xl font-bold ${reputationColor(rep.score)}`}
+                >
                   {rep.score}
                 </span>
                 <span className="text-sm text-muted-foreground">/ 100</span>
@@ -136,7 +167,9 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-4 border-t border-border">
               <div>
                 <div className="text-lg font-semibold">{profile.tokenCount}</div>
-                <div className="text-xs text-muted-foreground">Tokens Launched</div>
+                <div className="text-xs text-muted-foreground">
+                  Tokens Launched
+                </div>
               </div>
               <div>
                 <div className="text-lg font-semibold text-green-400">

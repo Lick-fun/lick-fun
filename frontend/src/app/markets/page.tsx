@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAllMarkets, formatMon, formatTimeAgo } from "@/lib/hooks/useData";
 import { BetForm } from "@/components/markets/BetForm";
+import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
 import {
   TrendingUp,
   CheckCircle,
@@ -13,15 +14,35 @@ import {
 } from "lucide-react";
 
 export default function MarketsPage() {
-  const markets = useAllMarkets();
+  const { data: markets = [], isLoading, error } = useAllMarkets();
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <LoadingSpinner label="Loading markets..." />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <ErrorState message={(error as Error).message} />
+      </div>
+    );
+  }
 
   const active = markets.filter((m) => !m.resolved);
   const resolved = markets.filter((m) => m.resolved);
   const selected = markets.find((m) => m.tokenId === selectedTokenId);
 
   const leaderboard = [...markets]
-    .sort((a, b) => Number(b.totalYesMON + b.totalNoMON) - Number(a.totalYesMON + a.totalNoMON))
+    .sort(
+      (a, b) =>
+        Number(b.totalYesMON + b.totalNoMON) -
+        Number(a.totalYesMON + a.totalNoMON)
+    )
     .slice(0, 10);
 
   return (
@@ -94,7 +115,9 @@ export default function MarketsPage() {
               Resolved ({resolved.length})
             </h3>
             {resolved.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No resolved markets yet</p>
+              <p className="text-sm text-muted-foreground">
+                No resolved markets yet
+              </p>
             ) : (
               <div className="space-y-2">
                 {resolved.map((m) => (
@@ -163,7 +186,9 @@ export default function MarketsPage() {
                       <span className="text-xs font-bold text-muted-foreground w-5">
                         {i + 1}
                       </span>
-                      <span className="text-sm">{m.token?.name ?? m.tokenName}</span>
+                      <span className="text-sm">
+                        {m.token?.name ?? m.tokenName}
+                      </span>
                     </div>
                     <span className="text-xs text-muted-foreground font-mono">
                       {Number(m.totalPool) / 1e18} MON pool

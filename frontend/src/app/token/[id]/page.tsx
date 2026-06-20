@@ -2,18 +2,76 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useToken, useTokenTrades, useMarket, formatMon, formatTimeAgo, formatAddress, computeReputation, reputationColor, tierColor, tierBg } from "@/lib/hooks/useData";
-import { useProfile } from "@/lib/hooks/useData";
+import {
+  useToken,
+  useTokenTrades,
+  useMarket,
+  useProfile,
+  formatMon,
+  formatTimeAgo,
+  formatAddress,
+  computeReputation,
+  reputationColor,
+  tierColor,
+  tierBg,
+} from "@/lib/hooks/useData";
 import { TradePanel } from "@/components/token/TradePanel";
 import { CurveChart } from "@/components/token/CurveChart";
-import { ArrowLeft, ExternalLink, GraduationCap, TrendingUp, Shield, User } from "lucide-react";
+import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
+import {
+  ArrowLeft,
+  GraduationCap,
+  TrendingUp,
+  Shield,
+  User,
+} from "lucide-react";
 
 export default function TokenDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const token = useToken(id);
-  const trades = useTokenTrades(id);
-  const market = useMarket(id as string);
+  const tokenId = (id as string) ?? "";
 
+  // All hooks called unconditionally at the top level (Rules of Hooks)
+  const {
+    data: token,
+    isLoading: tokenLoading,
+    error: tokenError,
+    refetch: refetchToken,
+  } = useToken(tokenId);
+
+  const { data: trades = [], isLoading: tradesLoading } = useTokenTrades(tokenId);
+
+  const { data: market } = useMarket(tokenId);
+
+  // useProfile is always called; enabled guard is inside the hook when address is empty
+  const creatorAddress = token?.creator ?? "";
+  const { data: creatorProfile, isLoading: profileLoading } =
+    useProfile(creatorAddress);
+
+  const reputation =
+    creatorProfile ? computeReputation(creatorProfile) : null;
+
+  // Loading state
+  if (tokenLoading || tradesLoading || profileLoading) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <LoadingSpinner label="Loading token..." />
+      </div>
+    );
+  }
+
+  // Error state
+  if (tokenError) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <ErrorState
+          message={(tokenError as Error).message}
+          onRetry={() => refetchToken()}
+        />
+      </div>
+    );
+  }
+
+  // Not found
   if (!token) {
     return (
       <div className="max-w-6xl mx-auto text-center py-20">
@@ -24,11 +82,6 @@ export default function TokenDetailPage() {
       </div>
     );
   }
-
-  const creatorProfile = useProfile(token.creator);
-  const reputation = creatorProfile
-    ? computeReputation(creatorProfile)
-    : null;
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -111,7 +164,9 @@ export default function TokenDetailPage() {
             <div className="text-xs text-muted-foreground">Total Sells</div>
           </div>
           <div>
-            <div className="text-lg font-semibold">{formatTimeAgo(token.createdAt)} ago</div>
+            <div className="text-lg font-semibold">
+              {formatTimeAgo(token.createdAt)} ago
+            </div>
             <div className="text-xs text-muted-foreground">Launched</div>
           </div>
         </div>
@@ -124,7 +179,11 @@ export default function TokenDetailPage() {
           {/* Curve Chart */}
           <div className="rounded-xl border border-border bg-card p-5">
             <h3 className="font-semibold text-foreground mb-4">Bonding Curve</h3>
-            <CurveChart trades={trades} graduated={token.graduated} realMon={token.realMon} />
+            <CurveChart
+              trades={trades}
+              graduated={token.graduated}
+              realMon={token.realMon}
+            />
           </div>
 
           {/* Recent Trades */}
@@ -156,8 +215,12 @@ export default function TokenDetailPage() {
                     <div className="text-right">
                       <div className="font-mono">
                         {trade.isBuy
-                          ? `${Number(trade.amountIn) / 1e18} MON → ${Number(trade.amountOut) / 1e18} ${token.symbol}`
-                          : `${Number(trade.amountIn) / 1e18} ${token.symbol} → ${Number(trade.amountOut) / 1e18} MON`}
+                          ? `${Number(trade.amountIn) / 1e18} MON → ${
+                              Number(trade.amountOut) / 1e18
+                            } ${token.symbol}`
+                          : `${Number(trade.amountIn) / 1e18} ${
+                              token.symbol
+                            } → ${Number(trade.amountOut) / 1e18} MON`}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {formatTimeAgo(trade.blockTimestamp)} ago
@@ -202,7 +265,9 @@ export default function TokenDetailPage() {
                       {reputation.score}
                     </span>
                     <span
-                      className={`text-xs px-1.5 py-0.5 rounded border ${tierBg(reputation.tier)} ${tierColor(reputation.tier)}`}
+                      className={`text-xs px-1.5 py-0.5 rounded border ${tierBg(
+                        reputation.tier
+                      )} ${tierColor(reputation.tier)}`}
                     >
                       {reputation.tier}
                     </span>
@@ -230,7 +295,9 @@ export default function TokenDetailPage() {
           {/* Prediction Market Widget */}
           {market && (
             <div className="rounded-xl border border-border bg-card p-5">
-              <h3 className="font-semibold text-foreground mb-3">Prediction Market</h3>
+              <h3 className="font-semibold text-foreground mb-3">
+                Prediction Market
+              </h3>
               <div className="flex gap-4 mb-3">
                 <div className="flex-1 rounded-lg bg-green-500/5 border border-green-500/20 p-3 text-center">
                   <div className="text-green-400 text-lg font-bold">
@@ -246,10 +313,12 @@ export default function TokenDetailPage() {
                 </div>
               </div>
               <div className="text-xs text-muted-foreground">
-                Total Pool: {Number(market.totalYesMON + market.totalNoMON) / 1e18} MON
+                Total Pool:{" "}
+                {Number(market.totalYesMON + market.totalNoMON) / 1e18} MON
                 {market.resolved && (
                   <span className="ml-2 text-green-400">
-                    • Resolved: {market.outcome ? "Graduated ✅" : "Didn't graduate ❌"}
+                    • Resolved:{" "}
+                    {market.outcome ? "Graduated ✅" : "Didn't graduate ❌"}
                   </span>
                 )}
               </div>

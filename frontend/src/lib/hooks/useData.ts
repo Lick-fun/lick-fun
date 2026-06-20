@@ -1,93 +1,218 @@
 "use client";
 
 import { useMemo } from "react";
-import { mockTokens, mockProfiles, mockTrades, getMockTradesForToken, getMockProfile, getMockTokensByCreator, mockMarkets, getMockOdds } from "@/lib/mock/data";
+import { useQuery } from "@tanstack/react-query";
+import { mockTokens, mockMarkets, getMockOdds } from "@/lib/mock/data";
 import { getTokenPrice, getGraduationProgress } from "@/lib/wagmi/contracts";
-import type { TokenEntity, TradeEntity, ProfileEntity } from "@/lib/graphql/queries";
+import { getGraphQLClient } from "@/lib/graphql/client";
+import {
+  QUERY_ALL_TOKENS,
+  QUERY_TOKEN,
+  QUERY_TRADES_BY_TOKEN,
+  QUERY_PROFILE,
+  QUERY_ALL_PROFILES,
+  QUERY_LEADERBOARD,
+  type TokenEntity,
+  type TradeEntity,
+  type ProfileEntity,
+} from "@/lib/graphql/queries";
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
-/* Hooks using mock data (swap to real Envio queries when endpoint is live)         */
+/* BigInt converters (Envio returns numeric scalar fields as strings)                */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toBigIntToken(raw: any): TokenEntity {
+  return {
+    ...raw,
+    virtualMon: BigInt(raw.virtualMon),
+    virtualTokens: BigInt(raw.virtualTokens),
+    targetTokenAmount: BigInt(raw.targetTokenAmount),
+    startTime: BigInt(raw.startTime),
+    startBlock: BigInt(raw.startBlock),
+    realMon: BigInt(raw.realMon),
+    soldTokens: BigInt(raw.soldTokens),
+    createdAt: BigInt(raw.createdAt),
+    graduatedAt: raw.graduatedAt != null ? BigInt(raw.graduatedAt) : null,
+    totalBuyVolume: BigInt(raw.totalBuyVolume),
+    totalSellVolume: BigInt(raw.totalSellVolume),
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toBigIntTrade(raw: any): TradeEntity {
+  return {
+    ...raw,
+    amountIn: BigInt(raw.amountIn),
+    amountOut: BigInt(raw.amountOut),
+    blockTimestamp: BigInt(raw.blockTimestamp),
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toBigIntProfile(raw: any): ProfileEntity {
+  return {
+    ...raw,
+    createdAt: BigInt(raw.createdAt),
+    totalBuyVolume: BigInt(raw.totalBuyVolume),
+    totalSellVolume: BigInt(raw.totalSellVolume),
+  };
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* Token decoration helpers                                                          */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+function decorateToken(t: TokenEntity) {
+  return {
+    ...t,
+    progress: getGraduationProgress(t.realMon),
+    price: getTokenPrice(t.realMon, t.soldTokens),
+  };
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* Live Envio GraphQL hooks                                                          */
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
 export function useAllTokens() {
-  return useMemo(() => {
-    return mockTokens.map((t) => ({
-      ...t,
-      progress: getGraduationProgress(t.realMon),
-      price: getTokenPrice(t.realMon, t.soldTokens),
-    }));
-  }, []);
+  return useQuery({
+    queryKey: ["all-tokens"],
+    queryFn: async () => {
+      const client = getGraphQLClient();
+      const res = await client.request<{ tokens: unknown[] }>(QUERY_ALL_TOKENS, {
+        limit: 100,
+      });
+      return ((res.tokens as unknown[]) ?? []).map((r) =>
+        decorateToken(toBigIntToken(r))
+      );
+    },
+  });
 }
 
 export function useToken(tokenId: string) {
-  return useMemo(() => {
-    const t = mockTokens.find((t) => t.id === tokenId.toLowerCase());
-    if (!t) return null;
-    return {
-      ...t,
-      progress: getGraduationProgress(t.realMon),
-      price: getTokenPrice(t.realMon, t.soldTokens),
-    };
-  }, [tokenId]);
+  return useQuery({
+    queryKey: ["token", tokenId.toLowerCase()],
+    enabled: !!tokenId,
+    queryFn: async () => {
+      const client = getGraphQLClient();
+      const res = await client.request<{ token: unknown | null }>(QUERY_TOKEN, {
+        id: tokenId.toLowerCase(),
+      });
+      if (!res.token) return null;
+      return decorateToken(toBigIntToken(res.token));
+    },
+  });
 }
 
-export function useTokenTrades(tokenId: string): TradeEntity[] {
-  return useMemo(() => getMockTradesForToken(tokenId), [tokenId]);
+export function useTokenTrades(tokenId: string) {
+  return useQuery({
+    queryKey: ["token-trades", tokenId.toLowerCase()],
+    enabled: !!tokenId,
+    queryFn: async () => {
+      const client = getGraphQLClient();
+      const res = await client.request<{ trades: unknown[] }>(
+        QUERY_TRADES_BY_TOKEN,
+        { tokenId: tokenId.toLowerCase(), limit: 50 }
+      );
+      return ((res.trades as unknown[]) ?? []).map((r) => toBigIntTrade(r));
+    },
+  });
 }
 
 export function useProfile(address: string) {
-  return useMemo(() => getMockProfile(address), [address]);
+  return useQuery({
+    queryKey: ["profile", address.toLowerCase()],
+    enabled: !!address,
+    queryFn: async () => {
+      const client = getGraphQLClient();
+      const res = await client.request<{ profile: unknown | null }>(
+        QUERY_PROFILE,
+        { address: address.toLowerCase() }
+      );
+      if (!res.profile) return null;
+      return toBigIntProfile(res.profile);
+    },
+  });
 }
 
 export function useTokensByCreator(creator: string) {
-  return useMemo(() => {
-    return getMockTokensByCreator(creator).map((t) => ({
-      ...t,
-      progress: getGraduationProgress(t.realMon),
-      price: getTokenPrice(t.realMon, t.soldTokens),
-    }));
-  }, [creator]);
+  return useQuery({
+    queryKey: ["tokens-by-creator", creator.toLowerCase()],
+    enabled: !!creator,
+    queryFn: async () => {
+      const client = getGraphQLClient();
+      const res = await client.request<{ tokens: unknown[] }>(QUERY_ALL_TOKENS, {
+        limit: 100,
+        where: { creator: { _eq: creator.toLowerCase() } },
+      });
+      return ((res.tokens as unknown[]) ?? []).map((r) =>
+        decorateToken(toBigIntToken(r))
+      );
+    },
+  });
 }
 
 export function useAllProfiles() {
-  return useMemo(() => mockProfiles, []);
+  return useQuery({
+    queryKey: ["all-profiles"],
+    queryFn: async () => {
+      const client = getGraphQLClient();
+      const res = await client.request<{ profiles: unknown[] }>(QUERY_ALL_PROFILES);
+      return ((res.profiles as unknown[]) ?? []).map((r) => toBigIntProfile(r));
+    },
+  });
 }
 
 export function useLeaderboard(limit: number = 20) {
-  return useMemo(() => {
-    return [...mockProfiles]
-      .sort((a, b) => b.graduatedCount - a.graduatedCount)
-      .slice(0, limit)
-      .map((p) => ({ ...p }));
-  }, [limit]);
+  return useQuery({
+    queryKey: ["leaderboard", limit],
+    queryFn: async () => {
+      const client = getGraphQLClient();
+      const res = await client.request<{ profiles: unknown[] }>(QUERY_LEADERBOARD, {
+        limit,
+      });
+      return ((res.profiles as unknown[]) ?? []).map((r) => toBigIntProfile(r));
+    },
+  });
 }
 
-export function useAllMarkets() {
-  return useMemo(() => {
-    return mockMarkets.map((m) => {
-      const token = mockTokens.find((t) => t.id === m.tokenId);
-      return {
-        ...m,
-        token,
-        odds: getMockOdds(m.tokenId),
-        totalPool: m.totalYesMON + m.totalNoMON,
-      };
-    });
-  }, []);
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* Prediction market hooks (still mock-based, consistent { data, isLoading, error } */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+function decorateMarket(m: (typeof mockMarkets)[number]) {
+  const token = mockTokens.find((t) => t.id === m.tokenId);
+  return {
+    ...m,
+    token,
+    odds: getMockOdds(m.tokenId),
+    totalPool: m.totalYesMON + m.totalNoMON,
+  };
 }
 
-export function useMarket(tokenId: string) {
-  return useMemo(() => {
+type DecoratedMarket = ReturnType<typeof decorateMarket>;
+
+export function useAllMarkets(): {
+  data: DecoratedMarket[];
+  isLoading: boolean;
+  error: Error | null;
+} {
+  const data = useMemo(() => mockMarkets.map((m) => decorateMarket(m)), []);
+  return { data, isLoading: false, error: null };
+}
+
+export function useMarket(tokenId: string): {
+  data: DecoratedMarket | null;
+  isLoading: boolean;
+  error: Error | null;
+} {
+  const data = useMemo(() => {
     const m = mockMarkets.find((m) => m.tokenId === tokenId.toLowerCase());
     if (!m) return null;
-    const token = mockTokens.find((t) => t.id === tokenId.toLowerCase());
-    return {
-      ...m,
-      token,
-      odds: getMockOdds(tokenId),
-      totalPool: m.totalYesMON + m.totalNoMON,
-    };
+    return decorateMarket(m);
   }, [tokenId]);
+  return { data, isLoading: false, error: null };
 }
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
@@ -120,8 +245,8 @@ export function computeReputation(profile: ProfileEntity): {
   const DAY = 86400n;
   const accountAgeDays = Number((now - profile.createdAt) / DAY);
 
-  // Simple scoring: base on tokens + graduation rate + volume
-  const gradRate = profile.tokenCount > 0 ? profile.graduatedCount / profile.tokenCount : 0;
+  const gradRate =
+    profile.tokenCount > 0 ? profile.graduatedCount / profile.tokenCount : 0;
   const volumeScore = Number(profile.totalBuyVolume) / 1e18;
 
   let rawScore =
@@ -133,12 +258,10 @@ export function computeReputation(profile: ProfileEntity): {
 
   rawScore = Math.min(Math.max(Math.round(rawScore), 0), 100);
 
-  // Tier
   let tier: Tier = "Starter";
   if (rawScore >= 70) tier = "Verified";
   else if (rawScore >= 30) tier = "Established";
 
-  // Badges
   const badges: Badge[] = [];
   if (profile.tokenCount >= 1) badges.push("First Token");
   if (profile.graduatedCount >= 3) badges.push("Triple Graduate");
@@ -149,7 +272,8 @@ export function computeReputation(profile: ProfileEntity): {
   if (gradRate >= 0.95) badges.push("Pre-buy Honest");
   if (profile.totalBuyVolume > VOLUME_MAKER_THRESHOLD) badges.push("Volume Maker");
   if (rawScore >= 70) badges.push("Verified Founder");
-  if (accountAgeDays >= 365 && profile.graduatedCount >= OG_MIN_GRADS) badges.push("OG");
+  if (accountAgeDays >= 365 && profile.graduatedCount >= OG_MIN_GRADS)
+    badges.push("OG");
 
   return { score: rawScore, tier, badges };
 }

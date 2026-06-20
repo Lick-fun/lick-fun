@@ -3,14 +3,15 @@
 import { useState } from "react";
 import { useAllTokens } from "@/lib/hooks/useData";
 import { TokenCard } from "@/components/token/TokenCard";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
+import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type SortKey = "newest" | "progress" | "volume";
 type FilterKey = "all" | "live" | "graduated";
 
 export default function DiscoverPage() {
-  const tokens = useAllTokens();
+  const { data: tokens = [], isLoading, error, refetch } = useAllTokens();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -86,11 +87,13 @@ export default function DiscoverPage() {
 
         {/* Sort */}
         <div className="flex gap-2">
-          {([
-            { key: "newest", label: "Newest" },
-            { key: "progress", label: "Progress" },
-            { key: "volume", label: "Volume" },
-          ] as { key: SortKey; label: string }[]).map(({ key, label }) => (
+          {(
+            [
+              { key: "newest", label: "Newest" },
+              { key: "progress", label: "Progress" },
+              { key: "volume", label: "Volume" },
+            ] as { key: SortKey; label: string }[]
+          ).map(({ key, label }) => (
             <button
               key={key}
               onClick={() => setSort(key)}
@@ -108,7 +111,14 @@ export default function DiscoverPage() {
       </div>
 
       {/* Grid */}
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <LoadingSpinner label="Loading tokens..." />
+      ) : error ? (
+        <ErrorState
+          message={(error as Error).message}
+          onRetry={() => refetch()}
+        />
+      ) : filtered.length === 0 ? (
         <div className="text-center py-20 text-muted-foreground">
           <p className="text-lg mb-2">No tokens found</p>
           <p className="text-sm">Try a different search or filter.</p>
