@@ -24,7 +24,3 @@ chains:
       - name: Factory
         address: "${ENVIO_FACTORY_ADDRESS}"
       - name: BondingCurve
-        factory:
-          event_name: "CurveCreate"
-          field: "curve"
-          contract: "Factory"
