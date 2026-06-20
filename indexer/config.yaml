@@ -18,7 +18,7 @@ contracts:
 
 chains:
   - id: 10143
-    hypersync:
+    hypersync_config:
       url: https://monad-testnet.hypersync.xyz
     start_block: 39291000
     contracts:
