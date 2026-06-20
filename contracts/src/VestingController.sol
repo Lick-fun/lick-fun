@@ -139,7 +139,7 @@ contract VestingController is ReentrancyGuard {
         uint256 totalAmount,
         Tier tier,
         uint256 startTime
-    ) external onlyOwner nonReentrant returns (address vestingWallet) {
+    ) external nonReentrant returns (address vestingWallet) {
         if (allocations[token].initialized) revert AlreadyInitialized();
         if (token == address(0) || beneficiary == address(0)) revert ZeroAddress();
         if (totalAmount == 0) revert ZeroAddress();
