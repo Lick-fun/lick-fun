@@ -1,12 +1,5 @@
-"""
-Lick.fun Envio HyperIndex — GraphQL Schema
-Stage 3: Token, Trade, Profile entities populated from on-chain events.
-"""
-
-"""
-One entry per token launched through the Factory.
-Keyed by token (ERC-20) address.
-"""
+# One entry per token launched through the Factory.
+# Keyed by token (ERC-20) address.
 type Token {
   id: ID!                     # token address (lowercase hex)
   creator: String!            # creator wallet address
@@ -29,10 +22,8 @@ type Token {
   totalSellVolume: BigInt!    # cumulative MON received selling (sum of amountOut on sells)
 }
 
-"""
-One entry per buy or sell trade.
-Keyed by txHash-logIndex for uniqueness.
-"""
+# One entry per buy or sell trade.
+# Keyed by txHash-logIndex for uniqueness.
 type Trade {
   id: ID!                     # "${txHash}-${logIndex}"
   token: Token!               # the token being traded
@@ -45,11 +36,9 @@ type Trade {
   penaltyBps: Int!            # anti-sniping penalty applied (0 if after block 7+)
 }
 
-"""
-One entry per unique creator address.
-Keyed by creator wallet address.
-Tokens field is derived from Token.creator — no manual maintenance needed.
-"""
+# One entry per unique creator address.
+# Keyed by creator wallet address.
+# Tokens field is derived from Token.creator — no manual maintenance needed.
 type Profile {
   id: ID!                     # creator wallet address (lowercase hex)
   createdAt: BigInt!          # block.timestamp of their FIRST token launch
