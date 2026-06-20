@@ -35,7 +35,7 @@ export function useCreateToken(): UseCreateTokenResult {
     hash: txHash,
   });
 
-  // Parse CurveCreate event from receipt to get the new token address
+  // Parse TokenCreated event from receipt to get the new token address
   if (isSuccess && receipt && !tokenAddress) {
     for (const log of receipt.logs) {
       try {
@@ -43,14 +43,14 @@ export function useCreateToken(): UseCreateTokenResult {
           abi: FactoryABI,
           data: log.data,
           topics: log.topics,
-          eventName: "CurveCreate" as const,
+          eventName: "TokenCreated" as const,
         });
         if (decoded.args.token) {
           setTokenAddress(decoded.args.token as `0x${string}`);
         }
         break;
       } catch {
-        // not a CurveCreate log, skip
+        // not a TokenCreated log, skip
       }
     }
   }

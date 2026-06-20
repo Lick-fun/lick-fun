@@ -39,14 +39,11 @@ export const FactoryABI = [
   },
   {
     type: "event",
-    name: "CurveCreate",
+    name: "TokenCreated",
     inputs: [
-      { name: "creator", type: "address", indexed: true, internalType: "address" },
-      { name: "token", type: "address", indexed: true, internalType: "address" },
-      { name: "curve", type: "address", indexed: true, internalType: "address" },
-      { name: "virtualMon", type: "uint256", indexed: false, internalType: "uint256" },
-      { name: "virtualTokens", type: "uint256", indexed: false, internalType: "uint256" },
-      { name: "startTime", type: "uint256", indexed: false, internalType: "uint256" },
+      { name: "token", type: "address", indexed: true },
+      { name: "curve", type: "address", indexed: true },
+      { name: "creator", type: "address", indexed: true },
     ],
   },
 ] as const satisfies Abi;
