@@ -28,16 +28,11 @@ import {
   deriveRealMon,
 } from "./utils";
 
-import { indexer } from "envio";
-
 // Register BondingCurve contracts dynamically when Factory emits CurveCreate
-indexer.contractRegister(
-  { contract: "Factory", event: "CurveCreate" },
-  ({ event, context }) => {
-    context.chain.BondingCurve.add(event.params.curve);
-    context.log.info(`Registered BondingCurve at ${event.params.curve.toLowerCase()}`);
-  },
-);
+Factory.CurveCreate.contractRegister(({ event, context }) => {
+  context.chain.BondingCurve.add(event.params.curve);
+  context.log.info(`Registered BondingCurve at ${event.params.curve.toLowerCase()}`);
+});
 
 /* ════════════════════════════ FACTORY: CurveCreate ════════════════════════════════ */
 
