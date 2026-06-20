@@ -1,42 +1,30 @@
-# Envio HyperIndex configuration for Lick.fun
-# Stage 3: Real event signatures from deployed contracts
-# Docs: https://docs.envio.dev/docs/configuration-file
-#
-# IMPORTANT: Replace placeholder addresses after Stage 6 deployment.
-# Set FACTORY_ADDRESS and start_block in .env or directly here.
-
 name: lick-fun-indexer
 
-networks:
-  - id: 10143  # Monad testnet
-    rpc_config:
-      url: ${ENVIO_RPC_URL}
-    start_block: 0  # TODO: set to Factory deployment block after Stage 6
-    contracts:
-      # ── Factory ─────────────────────────────────────────────────────────────
-      # Emits CurveCreate on every new token launch. Dynamically tracks each
-      # deployed BondingCurve via the factory pattern below.
-      - name: Factory
-        address:
-          - "${ENVIO_FACTORY_ADDRESS}"  # TODO: fill after Stage 6 deploy
-        abi_file_path: "./abis/Factory.json"
-        handler: "./src/EventHandlers.ts"
-        events:
-          - event: "CurveCreate(address indexed creator, address indexed token, address indexed curve, uint256 virtualMon, uint256 virtualTokens, uint256 startTime)"
+contracts:
+  - name: Factory
+    abi_file_path: "./abis/Factory.json"
+    handler: "./src/EventHandlers.ts"
+    events:
+      - event: "CurveCreate(address indexed creator, address indexed token, address indexed curve, uint256 virtualMon, uint256 virtualTokens, uint256 startTime)"
 
-      # ── BondingCurve (dynamically registered via Factory) ────────────────────
-      # Each token launch deploys a new BondingCurve. Envio tracks these via the
-      # factory field: when CurveCreate fires, the `curve` address is registered.
+  - name: BondingCurve
+    abi_file_path: "./abis/BondingCurve.json"
+    handler: "./src/EventHandlers.ts"
+    events:
+      - event: "CurveLaunch(address indexed token, uint256 startTime, uint256 startBlock)"
+      - event: "CurveBuy(address indexed buyer, address indexed token, uint256 amountIn, uint256 amountOut)"
+      - event: "CurveSell(address indexed seller, address indexed token, uint256 amountIn, uint256 amountOut)"
+      - event: "CurveGraduate(address indexed token, address indexed pool)"
+
+chains:
+  - id: 10143
+    rpc: ${ENVIO_RPC_URL}
+    start_block: 0
+    contracts:
+      - name: Factory
+        address: "${ENVIO_FACTORY_ADDRESS}"
       - name: BondingCurve
-        # No static address — discovered dynamically from CurveCreate.curve
         factory:
           event_name: "CurveCreate"
           field: "curve"
           contract: "Factory"
-        abi_file_path: "./abis/BondingCurve.json"
-        handler: "./src/EventHandlers.ts"
-        events:
-          - event: "CurveLaunch(address indexed token, uint256 startTime, uint256 startBlock)"
-          - event: "CurveBuy(address indexed buyer, address indexed token, uint256 amountIn, uint256 amountOut)"
-          - event: "CurveSell(address indexed seller, address indexed token, uint256 amountIn, uint256 amountOut)"
-          - event: "CurveGraduate(address indexed token, address indexed pool)"
