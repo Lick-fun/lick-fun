@@ -20,7 +20,7 @@ chains:
   - id: 10143
     hypersync_config:
       url: https://monad-testnet.hypersync.xyz
-    start_block: 39486303
+    start_block: 39486047
     contracts:
       - name: Factory
         address: "0xe5a63a3496952bb12e4802264244d476a8f36eed"
