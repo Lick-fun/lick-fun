@@ -58,14 +58,14 @@ export function TokenCardSkeleton() {
 export function TrendingSkeletonCard() {
   return (
     <div
-      className="flex flex-col items-center gap-[45px] animate-pulse w-[350px] h-[343px] bg-figma-white-card rounded-panel px-[25px] py-[60px_25px_16px] relative overflow-hidden"
+      className="flex flex-col items-center gap-[45px] animate-pulse w-[245px] h-[343px] bg-figma-purple rounded-panel px-[25px] pt-[60px] pb-[16px] relative overflow-hidden"
     >
-      <div className="w-[137px] h-[137px] rounded-full bg-gray-200" />
-      <div className="h-6 w-32 bg-gray-200 rounded" />
-      <div className="h-4 w-40 bg-gray-200 rounded" />
+      <div className="w-[100px] h-[100px] rounded-full bg-figma-purple-soft/40" />
+      <div className="h-6 w-28 bg-figma-purple-soft/40 rounded" />
+      <div className="h-4 w-36 bg-figma-purple-soft/40 rounded" />
       <div className="flex items-center justify-between w-full">
-        <div className="h-4 w-28 bg-gray-200 rounded" />
-        <div className="h-4 w-12 bg-gray-200 rounded" />
+        <div className="h-4 w-24 bg-figma-purple-soft/40 rounded" />
+        <div className="h-4 w-10 bg-figma-purple-soft/40 rounded" />
       </div>
     </div>
   );

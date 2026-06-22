@@ -60,11 +60,11 @@ export default function HomePage() {
   const { data: recentTrades = [], isLoading: tradesLoading } = useRecentTrades(10);
   const [activeSort, setActiveSort] = useState<SortOption>("largestMC");
 
-  /* Top 3 by market cap for trending section */
+  /* Top 4 by market cap for trending section */
   const trendingTokens = useMemo(() => {
     return [...tokens]
       .sort((a, b) => b.price.marketCapMon - a.price.marketCapMon)
-      .slice(0, 3);
+      .slice(0, 4);
   }, [tokens]);
 
   /* Sorted token list for the grid */
@@ -111,90 +111,13 @@ export default function HomePage() {
 
   return (
     <div className="relative bg-figma-bg min-h-[1024px] pl-sidebar">
-      {/* ── Trending Now Section ── */}
-      <h2 className="text-figma-3xl text-figma-white font-bold pt-[172px]">
-        🔥 Trending Now
-      </h2>
-
-      {/* Trending cards row */}
-      <div className="flex gap-[45px] mt-[25px] pr-5">
-        {isLoading ? (
-          <>
-            <TrendingSkeletonCard />
-            <TrendingSkeletonCard />
-            <TrendingSkeletonCard />
-          </>
-        ) : trendingTokens.length === 0 ? (
-          <span className="text-figma-sm text-figma-muted font-medium">
-            No tokens yet
+      {/* ── Lick.fun Banner Placeholder ── */}
+      <div className="pt-[172px]">
+        <div className="flex items-center justify-center w-full h-[80px] rounded-panel border-2 border-dashed border-figma-green/40 bg-figma-green/5">
+          <span className="text-figma-3xl text-figma-green font-bold tracking-widest opacity-60">
+            Lick.fun
           </span>
-        ) : (
-          trendingTokens.map((token) => (
-            <Link
-              key={token.id}
-              href={`/token/${token.id}`}
-              className="no-underline"
-            >
-              <div className="flex flex-col items-center gap-[45px] cursor-pointer w-[350px] h-[343px] bg-figma-white-card rounded-panel px-[25px] pt-[60px] pb-[16px] relative overflow-hidden">
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 trending-card-overlay" />
-
-                {/* Token avatar — uses IPFS image or gradient placeholder */}
-                <TokenAvatar
-                  tokenAddress={token.id}
-                  tokenName={getTokenDisplayName(token.name, token.id)}
-                  size="3xl"
-                />
-                {/* Token name */}
-                <span className="text-figma-2xl text-figma-card-fg font-bold text-center">
-                  {getTokenDisplayName(token.name, token.id)}
-                </span>
-                {/* TXNS / VOL */}
-                <span className="text-figma-sm text-figma-green font-medium text-center">
-                  {formatTxCount(token.buyCount, token.sellCount)} Txns /{" "}
-                  {formatVolume(token.totalBuyVolume, token.totalSellVolume)} 24h VOL
-                </span>
-                {/* MC Row */}
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-figma-lg text-figma-card-fg font-bold">
-                    MC: {formatMarketCap(token.price.marketCapMon)}
-                  </span>
-                  <svg width="54" height="23" viewBox="0 0 54 23" fill="none">
-                    <path
-                      d="M1 22L12 5L22 18L35 1L48 14L53 8"
-                      stroke="#2CC054"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </Link>
-          ))
-        )}
-      </div>
-
-      {/* ── Sort / Filter Bar ── */}
-      <div className="flex items-center gap-3 mt-[99px]">
-        {sortButtons.map(({ key, label }) => {
-          const isActive = activeSort === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setActiveSort(key)}
-              className={`flex items-center gap-2 h-[31px] px-[18px] rounded-pill border-0 outline-none cursor-pointer transition-colors ${
-                isActive
-                  ? "bg-figma-green text-figma-bg"
-                  : "bg-figma-surface text-figma-white"
-              }`}
-            >
-              <span className="text-figma-sm font-medium whitespace-nowrap">
-                {label}
-              </span>
-            </button>
-          );
-        })}
+        </div>
       </div>
 
       {/* ── Buys & Sells Ticker ── */}
@@ -260,16 +183,99 @@ export default function HomePage() {
         <div className="absolute right-0 top-0 bottom-0 w-[34px] gradient-fade-left pointer-events-none" />
       </div>
 
-      {/* ── Token Box Grid ── */}
-      <div className="grid grid-cols-3 gap-[11px] mt-[30px] max-w-content pb-[60px]">
+      {/* ── Trending Section ── */}
+      {/* Trending cards row */}
+      <div className="flex gap-[45px] mt-[25px] pr-5">
         {isLoading ? (
           <>
-            {Array.from({ length: 9 }).map((_, i) => (
+            <TrendingSkeletonCard />
+            <TrendingSkeletonCard />
+            <TrendingSkeletonCard />
+            <TrendingSkeletonCard />
+          </>
+        ) : trendingTokens.length === 0 ? (
+          <span className="text-figma-sm text-figma-muted font-medium">
+            No tokens yet
+          </span>
+        ) : (
+          trendingTokens.map((token) => (
+            <Link
+              key={token.id}
+              href={`/token/${token.id}`}
+              className="no-underline"
+            >
+              <div className="flex flex-col items-center gap-[45px] cursor-pointer w-[245px] h-[343px] bg-figma-purple rounded-panel px-[25px] pt-[60px] pb-[16px] relative overflow-hidden">
+                {/* Gradient overlay */}
+                <div className="absolute inset-0 trending-card-overlay" />
+
+                {/* Token avatar — uses IPFS image or gradient placeholder */}
+                <TokenAvatar
+                  tokenAddress={token.id}
+                  tokenName={getTokenDisplayName(token.name, token.id)}
+                  size="3xl"
+                />
+                {/* Token name */}
+                <span className="text-figma-2xl text-figma-white font-bold text-center">
+                  {getTokenDisplayName(token.name, token.id)}
+                </span>
+                {/* TXNS / VOL */}
+                <span className="text-figma-sm text-figma-green font-medium text-center">
+                  {formatTxCount(token.buyCount, token.sellCount)} Txns /{" "}
+                  {formatVolume(token.totalBuyVolume, token.totalSellVolume)} 24h VOL
+                </span>
+                {/* MC Row */}
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-figma-lg text-figma-white font-bold">
+                    MC: {formatMarketCap(token.price.marketCapMon)}
+                  </span>
+                  <svg width="54" height="23" viewBox="0 0 54 23" fill="none">
+                    <path
+                      d="M1 22L12 5L22 18L35 1L48 14L53 8"
+                      stroke="#2CC054"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+
+      {/* ── Sort / Filter Bar ── */}
+      <div className="flex items-center gap-3 mt-[99px]">
+        {sortButtons.map(({ key, label }) => {
+          const isActive = activeSort === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveSort(key)}
+              className={`flex items-center gap-2 h-[31px] px-[18px] rounded-pill border-0 outline-none cursor-pointer transition-colors ${
+                isActive
+                  ? "bg-figma-green text-figma-bg"
+                  : "bg-figma-surface text-figma-white"
+              }`}
+            >
+              <span className="text-figma-sm font-medium whitespace-nowrap">
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Token Box Grid ── */}
+      <div className="grid grid-cols-4 gap-[11px] mt-[30px] max-w-content pb-[60px]">
+        {isLoading ? (
+          <>
+            {Array.from({ length: 12 }).map((_, i) => (
               <TokenCardSkeleton key={i} />
             ))}
           </>
         ) : sortedTokens.length === 0 ? (
-          <div className="col-span-3 flex items-center justify-center h-[200px]">
+          <div className="col-span-4 flex items-center justify-center h-[200px]">
             <span className="text-figma-lg text-figma-muted font-medium">
               No tokens launched yet
             </span>
