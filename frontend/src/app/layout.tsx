@@ -25,6 +25,22 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Root layout — shell for all pages.
+ *
+ *   ┌─────────────────────────────────────────────────────────┐
+ *   │ Sidebar (lg+) | Header                                  │
+ *   │               ├─────────────────────────────────────────┤
+ *   │               │                                         │
+ *   │               │  Main  (children)                       │
+ *   │               │                                         │
+ *   │               └─────────────────────────────────────────┤
+ *   │ BottomNav (mobile)                                       │
+ *   └─────────────────────────────────────────────────────────┘
+ *
+ * Pages own their own padding (most use `pl-sidebar` to offset
+ * the sidebar via the `--sidebar-w` token — no `marginLeft` hacks).
+ */
 export default function RootLayout({
   children,
 }: {
@@ -32,13 +48,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
+      <body
+        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-figma-bg text-figma-white`}
+      >
         <Providers>
-          <div className="flex h-screen overflow-hidden bg-background">
+          <div className="flex h-screen overflow-hidden bg-figma-bg">
             <Sidebar />
             <div className="flex flex-1 flex-col overflow-hidden">
               <Header />
-              <main className="flex-1 overflow-y-auto scrollbar-thin p-6 pb-20 lg:pb-6">
+              <main className="flex-1 overflow-y-auto scrollbar-thin pb-20 lg:pb-0">
                 {children}
               </main>
             </div>
