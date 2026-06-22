@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useAllMarkets, formatMon, formatTimeAgo } from "@/lib/hooks/useData";
+import { useAllMarkets, formatTimeAgo } from "@/lib/hooks/useData";
 import { BetForm } from "@/components/markets/BetForm";
 import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
 import {
@@ -19,7 +18,7 @@ export default function MarketsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto pl-sidebar pr-5">
         <LoadingSpinner label="Loading markets..." />
       </div>
     );
@@ -27,7 +26,7 @@ export default function MarketsPage() {
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto pl-sidebar pr-5">
         <ErrorState message={(error as Error).message} />
       </div>
     );
@@ -46,11 +45,13 @@ export default function MarketsPage() {
     .slice(0, 10);
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="bg-figma-bg min-h-screen pl-sidebar pr-5 pb-20">
       {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Prediction Markets</h1>
-        <p className="text-muted-foreground">
+      <div className="pt-8 mb-8">
+        <h1 className="text-figma-3xl text-figma-white font-bold mb-2">
+          Prediction Markets
+        </h1>
+        <p className="text-figma-md text-figma-muted">
           Bet on whether tokens will graduate. Yes/No binary outcome markets.
         </p>
       </div>
@@ -59,29 +60,29 @@ export default function MarketsPage() {
         {/* Left: Active Markets */}
         <div className="lg:col-span-1 space-y-6">
           {/* Active Markets List */}
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="font-semibold text-foreground mb-4">
+          <div className="rounded-card border border-figma-card bg-figma-card p-5">
+            <h3 className="text-figma-md text-figma-white font-semibold mb-4">
               Active Markets ({active.length})
             </h3>
             {active.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No active markets</p>
+              <p className="text-figma-sm text-figma-muted">No active markets</p>
             ) : (
               <div className="space-y-3">
                 {active.map((m) => (
                   <button
                     key={m.tokenId}
                     onClick={() => setSelectedTokenId(m.tokenId)}
-                    className={`w-full text-left rounded-lg border p-4 transition-all ${
+                    className={`w-full text-left rounded-pill border p-4 transition-all ${
                       selectedTokenId === m.tokenId
-                        ? "border-lick-orange/50 bg-lick-orange/5"
-                        : "border-border hover:border-lick-orange/20"
+                        ? "border-figma-green/50 bg-figma-green/5"
+                        : "border-figma-surface hover:border-figma-card-alt"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-sm">
+                      <span className="font-medium text-figma-sm text-figma-white">
                         {m.token?.name ?? m.tokenName}
                       </span>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <span className="text-figma-xs text-figma-muted flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {m.token?.createdAt
                           ? formatTimeAgo(m.token.createdAt)
@@ -89,18 +90,18 @@ export default function MarketsPage() {
                       </span>
                     </div>
                     <div className="flex gap-2">
-                      <div className="flex-1 rounded bg-green-500/10 px-2 py-1 text-center">
-                        <div className="text-green-400 text-xs font-bold">
+                      <div className="flex-1 rounded-pill bg-figma-green/10 px-2 py-1 text-center">
+                        <div className="text-figma-green-soft text-figma-xs font-bold">
                           YES {m.odds.yesOdds.toFixed(0)}%
                         </div>
                       </div>
-                      <div className="flex-1 rounded bg-red-500/10 px-2 py-1 text-center">
-                        <div className="text-red-400 text-xs font-bold">
+                      <div className="flex-1 rounded-pill bg-figma-red/10 px-2 py-1 text-center">
+                        <div className="text-figma-red-soft text-figma-xs font-bold">
                           NO {m.odds.noOdds.toFixed(0)}%
                         </div>
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-2">
+                    <div className="text-figma-xs text-figma-muted mt-2">
                       Pool: {Number(m.totalPool) / 1e18} MON
                     </div>
                   </button>
@@ -110,12 +111,12 @@ export default function MarketsPage() {
           </div>
 
           {/* Resolved Markets */}
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="font-semibold text-foreground mb-4">
+          <div className="rounded-card border border-figma-card bg-figma-card p-5">
+            <h3 className="text-figma-md text-figma-white font-semibold mb-4">
               Resolved ({resolved.length})
             </h3>
             {resolved.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
+              <p className="text-figma-sm text-figma-muted">
                 No resolved markets yet
               </p>
             ) : (
@@ -123,19 +124,19 @@ export default function MarketsPage() {
                 {resolved.map((m) => (
                   <div
                     key={m.tokenId}
-                    className="flex items-center justify-between rounded-lg border border-border p-3"
+                    className="flex items-center justify-between rounded-pill border border-figma-surface p-3"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">
+                      <span className="text-figma-sm text-figma-white font-medium">
                         {m.token?.name ?? m.tokenName}
                       </span>
                       {m.outcome ? (
-                        <CheckCircle className="w-4 h-4 text-green-400" />
+                        <CheckCircle className="w-4 h-4 text-figma-green-soft" />
                       ) : (
-                        <XCircle className="w-4 h-4 text-red-400" />
+                        <XCircle className="w-4 h-4 text-figma-red-soft" />
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-figma-xs text-figma-muted">
                       {m.outcome ? "Graduated" : "Didn't"}
                     </span>
                   </div>
@@ -159,38 +160,38 @@ export default function MarketsPage() {
               claimed={selected.claimed}
             />
           ) : (
-            <div className="rounded-xl border border-border bg-card p-5 text-center text-muted-foreground">
+            <div className="rounded-card border border-figma-card bg-figma-card p-5 text-center text-figma-muted">
               <TrendingUp className="w-8 h-8 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Select a market to place a bet</p>
+              <p className="text-figma-sm">Select a market to place a bet</p>
             </div>
           )}
         </div>
 
         {/* Right: Leaderboard */}
         <div className="lg:col-span-1">
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-amber-400" />
+          <div className="rounded-card border border-figma-card bg-figma-card p-5">
+            <h3 className="text-figma-md text-figma-white font-semibold mb-4 flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-figma-green-soft" />
               Top Predictors
             </h3>
             {leaderboard.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No data yet</p>
+              <p className="text-figma-sm text-figma-muted">No data yet</p>
             ) : (
               <div className="space-y-2">
                 {leaderboard.map((m, i) => (
                   <div
                     key={m.tokenId}
-                    className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                    className="flex items-center justify-between py-2 border-b border-figma-surface last:border-0"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-muted-foreground w-5">
+                      <span className="text-figma-xs font-bold text-figma-muted w-5">
                         {i + 1}
                       </span>
-                      <span className="text-sm">
+                      <span className="text-figma-sm text-figma-white">
                         {m.token?.name ?? m.tokenName}
                       </span>
                     </div>
-                    <span className="text-xs text-muted-foreground font-mono">
+                    <span className="text-figma-xs text-figma-muted font-mono">
                       {Number(m.totalPool) / 1e18} MON pool
                     </span>
                   </div>
