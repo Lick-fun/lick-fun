@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useWriteContract, useAccount, useWaitForTransactionReceipt } from "wagmi";
 import { decodeEventLog } from "viem";
 import { FactoryABI, FACTORY_ADDRESS } from "@/lib/wagmi/contracts";
-import { uploadTokenToIPFS, IPFSUploadError } from "@/lib/ipfs";
 
 export interface UseCreateTokenResult {
   createToken: (params: {
@@ -23,6 +22,13 @@ export interface UseCreateTokenResult {
   metadataUri: string | null;
   imageUri: string | null;
   reset: () => void;
+}
+
+class IPFSUploadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "IPFSUploadError";
+  }
 }
 
 export function useCreateToken(): UseCreateTokenResult {
@@ -98,18 +104,33 @@ export function useCreateToken(): UseCreateTokenResult {
     setImageUri(null);
     setUploadStatus("idle");
 
-    // Step 1: Upload image + metadata to IPFS if an image was provided
+    // Step 1: Upload image + metadata to IPFS via the server-safe API route
     if (imageFile) {
       setUploadStatus("uploading");
       try {
-        const result = await uploadTokenToIPFS({
-          name,
-          symbol,
-          description,
-          imageFile,
-          // tokenAddress is not yet known at this point; we'll update external_url
-          // via the register-metadata call after the tx confirms
+        const formData = new FormData();
+        formData.append("image", imageFile);
+        formData.append("name", name);
+        formData.append("symbol", symbol);
+        if (description) formData.append("description", description);
+
+        const res = await fetch("/api/upload-token", {
+          method: "POST",
+          body: formData,
         });
+
+        if (!res.ok) {
+          const payload = await res.json().catch(() => ({}));
+          throw new IPFSUploadError(
+            payload.error ?? `IPFS upload failed (${res.status})`
+          );
+        }
+
+        const result = (await res.json()) as {
+          imageUri: string;
+          metadataUri: string;
+        };
+
         setMetadataUri(result.metadataUri);
         setImageUri(result.imageUri);
         setUploadStatus("done");

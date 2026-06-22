@@ -14,7 +14,17 @@ import "@rainbow-me/rainbowkit/styles.css";
  * (#70E000 — `var(--color-green)`) rather than the legacy orange.
  */
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+            refetchOnWindowFocus: false,
+          },
+        },
+      })
+  );
 
   const lickTheme = darkTheme({
     accentColor: "#70E000",

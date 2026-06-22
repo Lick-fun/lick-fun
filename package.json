@@ -1,0 +1,19 @@
+{
+  "name": "lick-fun",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lick.fun - Web3 project with frontend, indexer, and contracts",
+  "scripts": {
+    "dev": "frontend\\dev.cmd",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:indexer": "npm --prefix indexer run dev",
+    "dev:all": "concurrently \"npm:dev:frontend\" \"npm:dev:indexer\"",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run start",
+    "install:all": "npm install --prefix frontend && npm install --prefix indexer"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^6.0.3"
+  }
+}

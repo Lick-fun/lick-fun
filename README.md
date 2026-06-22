@@ -7,7 +7,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 
-**Status:** ✅ All 9 build stages complete · ✅ 2 security audit passes · ✅ Live on Monad testnet (chain 10143) · ✅ Frontend gas limits tightened · ✅ Envio indexer v3 rewrite (ESM fixed) · ✅ Frontend dev server running (port 3001) · ⏳ Envio cloud deploy next
+**Status:** ✅ All 9 build stages complete · ✅ 2 security audit passes · ✅ Live on Monad testnet (chain 10143) · ✅ Frontend gas limits tightened · ✅ Envio indexer v3 rewrite (ESM fixed) · ✅ Frontend dev server running (port 3001) · ✅ **UI overhaul (Figma design tokens)** · ⏳ Envio cloud deploy next
 
 ---
 
@@ -162,25 +162,32 @@ lick-fun/
 │   │   └── types.ts              — Shared type definitions
 │   └── src/__tests__/            — 46 vitest tests (scoring + broadcasts)
 └── frontend/            — Next.js 15.5 app
-    ├── src/app/                  — 7 pages
+    ├── src/app/                  — 9 pages
     │   ├── page.tsx              — Landing page
-    │   ├── create/page.tsx       — Token creation wizard
+    │   ├── create/page.tsx       — Token creation wizard (Pinata IPFS upload + Factory tx)
     │   ├── discover/page.tsx     — Token discovery feed
     │   ├── how-it-works/page.tsx — Platform walkthrough
     │   ├── markets/page.tsx      — Prediction markets dashboard
+    │   ├── ranking/page.tsx      — 24h volume, gainers, market cap leaderboards
+    │   ├── rewards/page.tsx      — Hold & Earn campaigns + airdrops
     │   ├── profile/[address]/    — Creator profile pages
     │   └── token/[id]/           — Token detail + trading pages
+    ├── src/app/api/              — Next.js route handlers
+    │   ├── upload-token/         — Server-side Pinata IPFS upload (image + metadata JSON)
+    │   ├── register-metadata/    — Token address → IPFS URI lookup index (JSON on disk)
+    │   └── token-image/[address] — IPFS gateway-converted image URL resolver
     ├── src/lib/                  — Core library
     │   ├── wagmi/                — RainbowKit + wagmi config, contract ABIs + addresses
     │   ├── graphql/              — Envio GraphQL client + queries
-    │   ├── hooks/                — useCreateToken, useData (mock + live fallback)
+    │   ├── hooks/                — useCreateToken, useTokenImage, useData (mock + live fallback)
+    │   ├── ipfs.ts               — IPFS URI helpers, fallback gateway cycling (Pinata/ipfs.io/Cloudflare)
     │   ├── mock/data.ts          — Mock tokens, trades, profiles, prediction markets
     │   └── utils.ts              — Tailwind class merging (cn)
     └── src/components/           — UI components
-        ├── layout/              — Header, Sidebar, BottomNav
-        ├── token/               — TokenCard, TradePanel, CurveChart
-        ├── markets/             — BetForm
-        └── ui/                  — LoadingSpinner
+        ├── layout/               — Header, Sidebar, BottomNav (Figma tokens)
+        ├── token/                — TokenCard, TradePanel, CurveChart
+        ├── markets/              — BetForm
+        └── ui/                   — Badge, Button, ProgressBar, Skeleton, StatCard, Tooltip, TokenImage
 ```
 
 ---
@@ -254,7 +261,7 @@ ProfileRegistry.sol         — Wallet linking (0.1 MON bond refundable),
 | 4 | Reputation engine (scoring, badges, tiers, Merkle anchor) | ✅ |
 | 5 | Engagement layer (PredictionMarket, broadcasts, AMA, staking types) | ✅ |
 | 6 | FeeRouter + VestingController + GraduationPool + locker validation | ✅ |
-| 7 | Frontend (Next.js, 7 pages, RainbowKit, wagmi) | ✅ |
+| 7 | Frontend (Next.js, 9 pages, RainbowKit, wagmi) | ✅ |
 | 8 | ProfileRegistry (wallet linking, Merkle anchor, creator betting ban) | ✅ |
 | + | GraduationRouter + LickPair + LickFactory (V2 DEX, migration, LP lock) | ✅ |
 | + | Security audit pass 1 (all CRITICAL/HIGH/MEDIUM fixed) | ✅ |
@@ -263,13 +270,18 @@ ProfileRegistry.sol         — Wallet linking (0.1 MON bond refundable),
 | + | Testnet deploy (all 8 contracts on Monad 10143) | ✅ |
 | + | Frontend gas-limit tightening (Monad declared-gas billing) | ✅ |
 | + | Envio indexer v3 API rewrite + NodeNext ESM fix | ✅ |
+| + | Live Envio GraphQL integration (replace mock data) | ✅ |
+| + | Factory event alignment (CurveCreate → TokenCreated, new address) | ✅ |
+| + | Token creation page + `useCreateToken` hook (Factory ABI, wagmi) | ✅ |
+| + | Token image system (Pinata IPFS upload, register API, gateway fallback) | ✅ |
+| → | **UI overhaul — Figma design tokens, 9 pages, new components** | 🔄 |
 | → | Envio indexer deploy (point to live addresses) | ⏳ |
 | → | LP locker validation (UNCX / Team Finance) | ⏳ |
 | → | Frontend wire to live Envio + Vercel deploy | ⏳ |
 | → | Founder-first-token launch | ⏳ |
 | → | Mainnet launch | PENDING |
 
-> 103+ Forge tests · 46 vitest tests · 11 contracts · 7 pages · All green
+> **103+ Forge tests · 46 vitest tests · 11 contracts · 9 pages · 8+ UI components · All green**
 
 ---
 
