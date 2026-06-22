@@ -1,249 +1,290 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import {
-  useProfile,
-  useTokensByCreator,
-  computeReputation,
-  formatAddress,
-  formatMon,
-  formatTimeAgo,
-  tierColor,
-  tierBg,
-  reputationColor,
-} from "@/lib/hooks/useData";
-import type { Badge, Tier } from "@/lib/hooks/useData";
-import { TokenCard } from "@/components/token/TokenCard";
-import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
-import {
-  ArrowLeft,
-  Award,
-  Coins,
-} from "lucide-react";
+import { Search, Copy, Check } from "lucide-react";
+import { useState } from "react";
+import { TokenImage } from "@/components/ui/TokenImage";
 
-const BADGE_DESCRIPTIONS: Record<Badge, string> = {
-  "First Token": "Launched your first token on Lick.fun",
-  "Triple Graduate": "Three of your tokens successfully graduated",
-  "Deca Graduate": "Ten tokens graduated — you're a launch machine",
-  "Locked & Honest — 180d": "No rugs for 180+ days",
-  "Locked & Honest — 365d": "Perfect record for a full year",
-  "Never Rug": "Profile older than 30 days with zero rug events",
-  "Pre-buy Honest": "95%+ pre-buy honesty rate",
-  "Volume Maker": "Cumulative volume exceeded 100K MON",
-  "Verified Founder": "Reputation score of 70+",
-  OG: "365+ days old with at least 3 graduates",
-};
+const transactions = [
+  { type: "sell" as const, token: "PepeBNB", amount: "37779", bnb: "+1,31 BNB" },
+  { type: "buy" as const, token: "PepeBNB", amount: "37779", bnb: "-1,21 BNB" },
+  { type: "sell" as const, token: "PepeBNB", amount: "13379", bnb: "+1,31 BNB" },
+  { type: "buy" as const, token: "PepeBNB", amount: "37779", bnb: "-1,21 BNB" },
+  { type: "sell" as const, token: "PepeBNB", amount: "13379", bnb: "+1,31 BNB" },
+];
 
-const BADGE_ICONS: Record<Badge, string> = {
-  "First Token": "🪙",
-  "Triple Graduate": "🎓",
-  "Deca Graduate": "🏆",
-  "Locked & Honest — 180d": "🛡️",
-  "Locked & Honest — 365d": "🔒",
-  "Never Rug": "✅",
-  "Pre-buy Honest": "🤝",
-  "Volume Maker": "📊",
-  "Verified Founder": "👑",
-  OG: "🐉",
-};
+const holdings = [
+  { name: "ShibaInu BNB", change: "+0,23%", amount: "884123", bnb: "=0,312 BNB", address: "0x0000000000000000000000000000000000000001" },
+  { name: "DogeCoin BNB", change: "+1,12%", amount: "512000", bnb: "=0,185 BNB", address: "0x0000000000000000000000000000000000000002" },
+  { name: "PepeBNB", change: "-0,45%", amount: "245000", bnb: "=0,089 BNB", address: "0x0000000000000000000000000000000000000003" },
+  { name: "WowDoge", change: "+3,21%", amount: "1200000", bnb: "=0,420 BNB", address: "0x0000000000000000000000000000000000000004" },
+];
 
 export default function ProfilePage() {
   const { address } = useParams<{ address: string }>();
   const addr = (address as string) ?? "";
+  const [copied, setCopied] = useState(false);
 
-  const {
-    data: profile,
-    isLoading: profileLoading,
-    error: profileError,
-    refetch: refetchProfile,
-  } = useProfile(addr);
-
-  const {
-    data: tokens = [],
-    isLoading: tokensLoading,
-  } = useTokensByCreator(addr);
-
-  // Loading state
-  if (profileLoading || tokensLoading) {
-    return (
-      <div className="max-w-5xl mx-auto">
-        <LoadingSpinner label="Loading profile..." />
-      </div>
-    );
-  }
-
-  // Error state
-  if (profileError) {
-    return (
-      <div className="max-w-5xl mx-auto">
-        <ErrorState
-          message={(profileError as Error).message}
-          onRetry={() => refetchProfile()}
-        />
-      </div>
-    );
-  }
-
-  // Not found
-  if (!profile) {
-    return (
-      <div className="max-w-5xl mx-auto text-center py-20">
-        <h2 className="text-2xl font-bold mb-2">Profile not found</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          No profile data for this address yet. Profiles are created when a
-          creator launches their first token.
-        </p>
-        <Link href="/discover" className="text-lick-orange-light hover:underline">
-          Explore Tokens
-        </Link>
-      </div>
-    );
-  }
-
-  const rep = computeReputation(profile);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(addr);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
-    <div className="max-w-5xl mx-auto">
-      {/* Back */}
-      <Link
-        href="/discover"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6"
+    <div className="relative" style={{ background: "#0E0E0E", minHeight: "1024px" }}>
+      {/* ── Profile Card ── */}
+      <div
+        className="flex flex-col items-end gap-[18px]"
+        style={{
+          width: "709px",
+          marginLeft: "291px",
+          marginTop: "130px",
+          background: "#000000",
+          borderRadius: "34px",
+          padding: "26px 37px 25px",
+        }}
       >
-        <ArrowLeft className="w-4 h-4" />
-        Back
-      </Link>
-
-      {/* Profile Header */}
-      <section className="rounded-xl border border-border bg-card p-8 mb-8">
-        <div className="flex flex-col sm:flex-row items-start gap-6">
-          {/* Avatar */}
-          <div className="w-20 h-20 rounded-full gradient-lick flex items-center justify-center shrink-0">
-            <span className="text-3xl">🦎</span>
-          </div>
-
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-3 mb-2">
-              <h1 className="text-2xl font-bold font-mono">
-                {formatAddress(profile.id)}
-              </h1>
-              <span
-                className={`text-sm px-3 py-1 rounded-full border ${tierBg(rep.tier)} ${tierColor(rep.tier)} font-medium`}
-              >
-                {rep.tier}
+        {/* Top row: Avatar + Welcome */}
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-[23px]">
+            {/* Avatar */}
+            <div className="w-[49px] h-[49px] rounded-full bg-figma-purple flex items-center justify-center text-white font-bold text-lg shrink-0">
+              {addr.slice(2, 4).toUpperCase()}
+            </div>
+            {/* Welcome + Username */}
+            <div className="flex flex-col gap-[6px]">
+              <span className="text-figma-white font-figma-regular text-figma-13">Welcome Back</span>
+              <span className="text-figma-white font-figma-bold text-figma-16">
+                @{addr.slice(0, 8)}...
               </span>
             </div>
+          </div>
+          {/* Edit profile */}
+          <div
+            className="flex items-center justify-center h-[32px]"
+            style={{
+              background: "#7DC832",
+              borderRadius: "9px",
+              padding: "9px 28px",
+            }}
+          >
+            <span className="text-figma-gray font-figma-regular text-figma-11">edit profile</span>
+          </div>
+        </div>
 
-            {/* Score */}
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex items-center gap-2">
-                <Award className={`w-5 h-5 ${reputationColor(rep.score)}`} />
-                <span
-                  className={`text-3xl font-bold ${reputationColor(rep.score)}`}
-                >
-                  {rep.score}
-                </span>
-                <span className="text-sm text-muted-foreground">/ 100</span>
-              </div>
+        {/* Connected Wallets */}
+        <div className="flex flex-col gap-[15px] w-[635px]">
+          <span className="text-figma-white font-figma-bold text-figma-15">Connected Wallets:</span>
 
-              {/* Score bar */}
-              <div className="flex-1 max-w-xs">
-                <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      rep.score >= 70
-                        ? "bg-green-500"
-                        : rep.score >= 30
-                          ? "bg-blue-500"
-                          : "bg-yellow-500"
-                    }`}
-                    style={{ width: `${rep.score}%` }}
-                  />
-                </div>
-              </div>
+          {/* Solana */}
+          <div className="flex flex-col gap-0">
+            <span className="text-figma-inactive font-figma-regular text-figma-11">Solana</span>
+            <div
+              className="flex items-center gap-[16px] w-[624px] h-[47px]"
+              style={{
+                background: "#7DC832",
+                borderRadius: "12px",
+                padding: "15px 28px",
+              }}
+            >
+              <svg width="19" height="15" viewBox="0 0 19 15" fill="none">
+                <circle cx="9.5" cy="7.5" r="7" fill="white" />
+              </svg>
+              <span className="text-figma-white font-figma-regular text-figma-14 flex-1">
+                9AM7qUcUZzU4DpwTXzcF8cQzWpzDm8fFfZktSg3aBufL
+              </span>
+              <button onClick={handleCopy}>
+                {copied ? <Check className="w-[22px] h-[22px] text-white" /> : <Copy className="w-[22px] h-[22px] text-white" />}
+              </button>
             </div>
+          </div>
 
-            {/* Stats Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-4 border-t border-border">
-              <div>
-                <div className="text-lg font-semibold">{profile.tokenCount}</div>
-                <div className="text-xs text-muted-foreground">
-                  Tokens Launched
-                </div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold text-green-400">
-                  {profile.graduatedCount}
-                </div>
-                <div className="text-xs text-muted-foreground">Graduated</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold">
-                  {formatMon(profile.totalBuyVolume)}
-                </div>
-                <div className="text-xs text-muted-foreground">Total Volume</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold">
-                  {formatMon(profile.totalSellVolume)}
-                </div>
-                <div className="text-xs text-muted-foreground">Sell Volume</div>
-              </div>
-              <div>
-                <div className="text-lg font-semibold">
-                  {formatTimeAgo(profile.createdAt)}
-                </div>
-                <div className="text-xs text-muted-foreground">Profile Age</div>
-              </div>
+          {/* Binance */}
+          <div className="flex flex-col gap-0">
+            <span className="text-figma-inactive font-figma-regular text-figma-11">Binance smart chain</span>
+            <div
+              className="flex items-center gap-[15px] w-[624px] h-[47px]"
+              style={{
+                background: "#7DC832",
+                borderRadius: "12px",
+                padding: "13px 28px",
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" fill="#F0B90B" />
+              </svg>
+              <span className="text-figma-white font-figma-regular text-figma-14 flex-1">
+                9AM7qUcUZzU4DpwTXzcF8cQzWpzDm8fFfZktSg3aBufL
+              </span>
+              <button onClick={handleCopy}>
+                <Copy className="w-[22px] h-[22px] text-white" />
+              </button>
+            </div>
+          </div>
+
+          {/* Ethereum */}
+          <div className="flex flex-col gap-0">
+            <span className="text-figma-inactive font-figma-regular text-figma-11">Ethereum</span>
+            <div
+              className="flex items-center gap-[18px] w-[624px] h-[50px]"
+              style={{
+                background: "#7DC832",
+                borderRadius: "12px",
+                padding: "11px 29px",
+              }}
+            >
+              <svg width="16" height="26" viewBox="0 0 16 26" fill="none">
+                <path d="M8 0L0 13L8 18L16 13L8 0Z" fill="white" />
+              </svg>
+              <span className="text-figma-white font-figma-regular text-figma-14 flex-1">
+                9AM7qUcUZzU4DpwTXzcF8cQzWpzDm8fFfZktSg3aBufL
+              </span>
+              <button onClick={handleCopy}>
+                <Copy className="w-[22px] h-[22px] text-white" />
+              </button>
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Badges */}
-      <section className="mb-8">
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <Award className="w-5 h-5 text-lick-orange-light" />
-          Badges
-        </h2>
-        {rep.badges.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No badges earned yet.</p>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {rep.badges.map((badge) => (
+      {/* ── Earnings Panel ── */}
+      <div
+        className="flex flex-col gap-[43px]"
+        style={{
+          position: "absolute",
+          left: "1036px",
+          top: "130px",
+          width: "345px",
+          background: "#000000",
+          borderRadius: "30px",
+          padding: "34px 35px",
+        }}
+      >
+        {/* Earnings info */}
+        <div className="flex flex-col gap-[13px]">
+          <div className="flex flex-col gap-[7px]">
+            <span className="text-figma-white font-figma-semibold text-figma-22">Earnings</span>
+            <span className="text-figma-green font-figma-medium text-figma-15">Total Expense</span>
+          </div>
+          <span className="text-figma-purple font-figma-bold" style={{ fontSize: "32px" }}>
+            $6078.76
+          </span>
+          <span className="text-figma-green font-figma-medium text-figma-14">
+            Keep Pumping Those Numbers
+          </span>
+        </div>
+
+        {/* Donut chart placeholder */}
+        <div className="relative w-[269px] h-[130px] mx-auto">
+          <svg width="269" height="130" viewBox="0 0 269 130">
+            <circle cx="135" cy="130" r="120" fill="none" stroke="#1B1B1B" strokeWidth="20" />
+            <circle cx="135" cy="130" r="120" fill="none" stroke="#6E44D2" strokeWidth="20"
+              strokeDasharray="377" strokeDashoffset="75" strokeLinecap="round" />
+            <text x="135" y="90" textAnchor="middle" fill="white" fontSize="37" fontWeight="bold" fontFamily="Inter">80%</text>
+          </svg>
+        </div>
+      </div>
+
+      {/* ── Latest Transactions ── */}
+      <div
+        className="flex flex-col gap-[12px]"
+        style={{
+          position: "absolute",
+          left: "1036px",
+          top: "530px",
+          width: "345px",
+          background: "#000000",
+          borderRadius: "30px",
+          padding: "26px 23px",
+        }}
+      >
+        <div className="flex flex-col gap-[7px]">
+          <span className="text-figma-white font-figma-semibold text-figma-22">Latest Transactions</span>
+        </div>
+
+        {transactions.map((tx, i) => (
+          <div key={i}>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-figma-white font-figma-medium text-figma-12">
+                {tx.type === "sell" ? "Sold" : "Bought"} {tx.amount} {tx.token}
+              </span>
               <div
-                key={badge}
-                className="rounded-xl border border-border bg-card p-4 flex items-start gap-3 card-hover"
+                className="flex items-center justify-center h-[29px]"
+                style={{
+                  background: "#7DC832",
+                  borderRadius: "4px",
+                  padding: "7px 15px",
+                }}
               >
-                <span className="text-2xl shrink-0">{BADGE_ICONS[badge]}</span>
-                <div>
-                  <div className="font-medium text-sm">{badge}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {BADGE_DESCRIPTIONS[badge]}
-                  </div>
+                <span className={tx.type === "buy" ? "text-figma-red" : "text-figma-purple"} style={{ fontSize: "12px" }}>
+                  {tx.bnb}
+                </span>
+              </div>
+            </div>
+            {i < transactions.length - 1 && (
+              <hr className="border-0 h-px my-[3px]" style={{ background: "rgba(255,255,255,0.25)", opacity: 0.25 }} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Holdings ── */}
+      <div
+        className="flex flex-col gap-[10px]"
+        style={{
+          width: "709px",
+          marginLeft: "291px",
+          marginTop: "29px",
+          background: "#000000",
+          borderRadius: "34px",
+          padding: "31px 37px",
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between w-full">
+          <span className="text-figma-white font-figma-semibold text-figma-22">Holdings</span>
+          <span className="text-figma-white font-figma-regular text-figma-16">
+            Total networth: $9,231 / <span className="font-semibold text-figma-purple">**+43%**</span>
+          </span>
+        </div>
+
+        {/* Holding rows */}
+        <div className="flex flex-col gap-[12px]">
+          {holdings.map((h, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between w-full"
+              style={{
+                background: "#7DC832",
+                borderRadius: "12px",
+                padding: "18px 26px 16px 26px",
+              }}
+            >
+              {/* Left: icon + name */}
+              <div className="flex items-center gap-[21px]">
+                <TokenImage
+                  tokenAddress={h.address}
+                  tokenName={h.name}
+                  size="md"
+                  round
+                />
+                <div className="flex flex-col gap-[3px]">
+                  <span className="text-figma-card font-figma-semibold text-figma-16">{h.name}</span>
+                  <span className="text-figma-purple font-figma-semibold text-figma-16">{h.change}</span>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Token Gallery */}
-      <section>
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <Coins className="w-5 h-5 text-lick-orange-light" />
-          Tokens Launched ({tokens.length})
-        </h2>
-        {tokens.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No tokens launched yet.</p>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tokens.map((token) => (
-              <TokenCard key={token.id} token={token} />
-            ))}
-          </div>
-        )}
-      </section>
+              {/* Right: amount + BNB value */}
+              <div className="flex flex-col gap-[3px] items-end">
+                <span className="text-figma-card font-figma-semibold text-figma-16 text-right">{h.amount}</span>
+                <span className="text-figma-card font-figma-regular text-figma-16 text-right" style={{ opacity: 0.53 }}>
+                  {h.bnb}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

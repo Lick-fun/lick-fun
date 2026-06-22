@@ -13,6 +13,7 @@ import {
   QUERY_PROFILE,
   QUERY_ALL_PROFILES,
   QUERY_LEADERBOARD,
+  QUERY_RECENT_TRADES,
   type TokenEntity,
   type TradeEntity,
   type ProfileEntity,
@@ -175,6 +176,20 @@ export function useLeaderboard(limit: number = 20) {
       });
       return ((res.Profile as unknown[]) ?? []).map((r) => toBigIntProfile(r));
     },
+  });
+}
+
+export function useRecentTrades(limit: number = 10) {
+  return useQuery({
+    queryKey: ["recent-trades", limit],
+    queryFn: async () => {
+      const client = getGraphQLClient();
+      const res = await client.request<{ Trade: unknown[] }>(QUERY_RECENT_TRADES, {
+        limit,
+      });
+      return ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
+    },
+    refetchInterval: 15_000, // refresh every 15s for live feed
   });
 }
 

@@ -1,88 +1,137 @@
 "use client";
 
-import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { formatMon, formatTimeAgo, formatAddress, useTokenMeta } from "@/lib/hooks/useData";
-import { GraduationCap, Clock, TrendingUp } from "lucide-react";
+import { TokenImage } from "@/components/ui/TokenImage";
 
 interface TokenCardProps {
-  token: {
-    id: string;
-    name: string;
-    symbol: string;
-    creator: string;
-    realMon: bigint;
-    soldTokens: bigint;
-    graduated: boolean;
-    createdAt: bigint;
-    progress: number;
-    price: { monPerToken: number; marketCapMon: number };
-    buyCount: number;
-  };
+  tokenAddress?: string;     // contract address — used for image lookup
+  tokenName: string;
+  symbol: string;
+  description?: string;
+  mc: string;
+  percentage: string;
+  volume: string;
+  txCount: string;
+  /** @deprecated Pass tokenAddress instead; kept for backwards compat */
+  imageUrl?: string;
+  progress?: number;
+  isAnimated?: boolean;
 }
 
-export function TokenCard({ token }: TokenCardProps) {
-  // Resolve name/symbol from contract if indexer stored empty strings
-  const { name, symbol } = useTokenMeta(token.id, token.name, token.symbol);
-
+export function TokenCard({
+  tokenAddress,
+  tokenName,
+  symbol,
+  description = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.",
+  mc,
+  percentage,
+  volume,
+  txCount,
+  imageUrl,
+  progress = 65,
+  isAnimated = false,
+}: TokenCardProps) {
   return (
-    <Link
-      href={`/token/${token.id}`}
-      className="block rounded-xl border border-border bg-card p-5 card-hover group"
+    <div
+      className={cn(
+        "flex flex-col gap-[10px] w-[350px] p-[13px_18px]",
+        isAnimated
+          ? "border border-figma-purple"
+          : "border border-black"
+      )}
+      style={{
+        background: "#000000",
+        borderRadius: "12px",
+      }}
     >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h3 className="font-semibold text-foreground group-hover:text-lick-orange-light transition-colors">
-            {name || token.id.slice(0, 10) + "..."}
-          </h3>
-          <p className="text-xs text-muted-foreground font-mono">${symbol || "???"}</p>
-        </div>
-        {token.graduated ? (
-          <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-medium">
-            <GraduationCap className="w-3 h-3" />
-            Graduated
-          </span>
+      {/* Top row: image + name/desc */}
+      <div className="flex gap-[15px] items-start">
+        {/* Token image */}
+        {tokenAddress ? (
+          <TokenImage
+            tokenAddress={tokenAddress}
+            tokenName={tokenName}
+            size="lg"
+            directImageUrl={imageUrl}
+          />
         ) : (
-          <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-lick-orange/10 border border-lick-orange/20 text-lick-orange-light text-xs font-medium">
-            <TrendingUp className="w-3 h-3" />
-            Live
-          </span>
+          <div
+            className="w-[58px] h-[58px] shrink-0 overflow-hidden"
+            style={{ borderRadius: "7px" }}
+          >
+            <div className="w-full h-full bg-figma-card-alt flex items-center justify-center text-xl font-bold text-white">
+              {tokenName.slice(0, 2).toUpperCase()}
+            </div>
+          </div>
         )}
+
+        {/* Name + Description */}
+        <div className="flex flex-col gap-[3px] flex-1 min-w-0">
+          <span
+            className="text-figma-white font-figma-bold"
+            style={{ fontSize: "14px", lineHeight: "1.2" }}
+          >
+            {tokenName}{" "}
+            <span className="text-figma-muted font-figma-bold">(${symbol})</span>
+          </span>
+          <span
+            className="text-figma-muted font-figma-regular truncate"
+            style={{ fontSize: "10px", lineHeight: "1.3" }}
+          >
+            {description}
+          </span>
+        </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="mb-3">
-        <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-          <span>{token.progress.toFixed(1)}% to graduate</span>
-          <span>{formatMon(token.realMon)} / 100K MON</span>
+      {/* Bottom row: metrics + progress */}
+      <div className="flex flex-col gap-[5px]">
+        {/* Stats row */}
+        <div className="flex items-center justify-between w-full">
+          {/* Left group: icon + % + MC */}
+          <div className="flex items-center gap-[3px]">
+            {/* mini icon */}
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="5" cy="5" r="4.5" fill={isAnimated ? "#6E44D2" : "#2CC054"} />
+            </svg>
+            {/* Percentage */}
+            <span className="text-figma-purple font-figma-bold" style={{ fontSize: "8px", lineHeight: "10px" }}>
+              {percentage}
+            </span>
+            {/* MC */}
+            <span className="text-figma-green font-figma-bold" style={{ fontSize: "8px", lineHeight: "10px" }}>
+              MC: <span className="text-figma-white">{mc}</span>
+            </span>
+          </div>
+
+          {/* Right: Txns / Vol */}
+          <span className="text-figma-green font-figma-bold" style={{ fontSize: "8px", lineHeight: "10px" }}>
+            {txCount} Txs / {volume} 24h VOL
+          </span>
         </div>
-        <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+
+        {/* Progress bar */}
+        <div
+          className="w-full overflow-hidden"
+          style={{ height: "9px", borderRadius: "24px", background: "#1B1B1B" }}
+        >
           <div
-            className={cn(
-              "h-full rounded-full transition-all duration-500",
-              token.graduated
-                ? "bg-green-500"
-                : token.progress > 75
-                  ? "bg-lick-orange"
-                  : "bg-lick-orange/60"
-            )}
-            style={{ width: `${Math.min(token.progress, 100)}%` }}
+            className="h-full rounded-full"
+            style={{
+              width: `${progress}%`,
+              background: isAnimated
+                ? "linear-gradient(90deg, #6E44D2 0%, #9B6FFF 100%)"
+                : "linear-gradient(90deg, #2CC054 0%, #70E000 100%)",
+              borderRadius: "24px",
+              transition: "width 0.3s ease",
+            }}
           />
         </div>
       </div>
-
-      {/* Stats */}
-      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Clock className="w-3 h-3" />
-          {formatTimeAgo(token.createdAt)} ago
-        </span>
-        <span>{token.buyCount} buys</span>
-        <span className="text-foreground/70 font-mono">
-          {formatAddress(token.creator)}
-        </span>
-      </div>
-    </Link>
+    </div>
   );
+}
+
+/** Animated variant with purple border */
+export function TokenCardAnimated(props: TokenCardProps) {
+  return <TokenCard {...props} isAnimated />;
 }

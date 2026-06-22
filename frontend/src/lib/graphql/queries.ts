@@ -191,3 +191,15 @@ export const QUERY_LEADERBOARD = gql`
   }
   ${PROFILE_FRAGMENT}
 `;
+
+export const QUERY_RECENT_TRADES = gql`
+  query GetRecentTrades($limit: Int!) {
+    Trade(
+      order_by: { blockTimestamp: desc }
+      limit: $limit
+    ) {
+      ...TradeFields
+    }
+  }
+  ${TRADE_FRAGMENT}
+`;
