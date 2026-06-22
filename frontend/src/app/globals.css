@@ -2,77 +2,148 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --radius: 0.625rem;
-    --background: 20 15% 4%;
-    --foreground: 30 20% 90%;
-    --card: 20 15% 8%;
-    --card-foreground: 30 20% 90%;
-    --popover: 20 15% 8%;
-    --popover-foreground: 30 20% 90%;
-    --primary: 25 95% 55%;
-    --primary-foreground: 0 0% 5%;
-    --secondary: 20 15% 14%;
-    --secondary-foreground: 30 20% 85%;
-    --muted: 20 15% 14%;
-    --muted-foreground: 30 10% 50%;
-    --accent: 25 70% 45%;
-    --accent-foreground: 0 0% 5%;
-    --destructive: 0 62% 40%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 20 15% 18%;
-    --input: 20 15% 18%;
-    --ring: 25 95% 55%;
-    --chart-1: 25 95% 55%;
-    --chart-2: 150 60% 45%;
-    --chart-3: 200 80% 60%;
-    --chart-4: 340 70% 55%;
-    --chart-5: 270 70% 55%;
-  }
+/* ────────────────────────────────────────────────────────────────────────── */
+/* Design tokens — extracted from Figma (file CU3oZmvNUl8b722gjtQvNa).         */
+/* Components should reference these via Tailwind tokens (see tailwind.config), */
+/* never via hardcoded hex literals.                                            */
+/* ────────────────────────────────────────────────────────────────────────── */
 
+:root {
+  /* Surfaces */
+  --color-bg:           #0E0E0E;
+  --color-surface:      #1B1B1B;
+  --color-card:         #000000;
+  --color-card-alt:     #1B1B1B;
+  --color-white-card:   #FFFFFF;
+
+  /* Text */
+  --color-text:         #FFFFFF;
+  --color-text-muted:   rgba(255, 255, 255, 0.5);
+  --color-card-fg:      #0E0E0E;
+
+  /* Accents */
+  --color-green:        #70E000;
+  --color-green-soft:   #9EF01A;
+  --color-chart-green:  #2CC054;
+  --color-purple:       #6E44D2;
+  --color-purple-soft:  #9B6FFF;
+  --color-red:          #E00004;
+  --color-red-soft:     #F01A1E;
+
+  /* Figma spacing primitives used across components */
+  --sidebar-w:          291px;
+  --content-max-w:      1110px;
+  --card-w:             350px;
+  --card-h:             343px;
+  --ticker-w:           211px;
+  --ticker-h:           46px;
+
+  /* Radius */
+  --radius-card:        12px;
+  --radius-pill:        8px;
+  --radius-panel:       23px;
+}
+
+@layer base {
   * {
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  html, body {
+    background: var(--color-bg);
+    color: var(--color-text);
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  body {
+    @apply font-sans antialiased;
   }
 }
 
 @layer components {
+  /* Green brand gradient (was the orange lick-gradient) */
   .gradient-lick {
-    background: linear-gradient(135deg, hsl(25, 95%, 55%), hsl(15, 90%, 45%));
+    background: linear-gradient(135deg, var(--color-green) 0%, var(--color-green-soft) 100%);
   }
 
   .text-gradient-lick {
-    background: linear-gradient(135deg, hsl(25, 95%, 55%), hsl(15, 90%, 45%));
+    background: linear-gradient(135deg, var(--color-green) 0%, var(--color-chart-green) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  .card-hover {
-    @apply transition-all duration-200 hover:border-lick-orange/50 hover:shadow-lg hover:shadow-lick-orange/5;
-  }
-
+  /* Button styles — semantic tokens */
   .btn-lick {
-    @apply bg-gradient-to-r from-lick-orange to-lick-orange-dark text-black font-semibold rounded-lg px-6 py-3 
-           hover:from-lick-orange-light hover:to-lick-orange transition-all duration-200
+    @apply rounded-lg px-6 py-3 font-semibold transition-all duration-200
            disabled:opacity-50 disabled:cursor-not-allowed;
+    background: linear-gradient(90deg, var(--color-green) 0%, var(--color-green-soft) 100%);
+    color: var(--color-card-fg);
+  }
+  .btn-lick:hover {
+    filter: brightness(1.05);
   }
 
   .btn-lick-outline {
-    @apply border border-lick-orange/50 text-lick-orange-light rounded-lg px-6 py-3 
-           hover:bg-lick-orange/10 transition-all duration-200 font-semibold;
+    border: 1px solid var(--color-green);
+    color: var(--color-green);
+    @apply rounded-lg px-6 py-3 font-semibold transition-all duration-200
+           hover:bg-[rgba(112,224,0,0.1)];
+  }
+
+  /* Fade edges for the trade ticker */
+  .gradient-fade-right {
+    background: linear-gradient(270deg, rgba(14, 14, 14, 0) 0%, rgba(14, 14, 14, 1) 100%);
+  }
+  .gradient-fade-left {
+    background: linear-gradient(90deg, rgba(14, 14, 14, 1) 0%, rgba(14, 14, 14, 0) 100%);
+  }
+
+  /* Progress bar fill — animated token-card style */
+  .progress-gradient-green {
+    background: linear-gradient(90deg, var(--color-chart-green) 0%, var(--color-green) 100%);
+  }
+  .progress-gradient-purple {
+    background: linear-gradient(90deg, var(--color-purple) 0%, var(--color-purple-soft) 100%);
+  }
+
+  /* Buy/sell ticker pill — semantic green/red fills */
+  .pill-buy {
+    background: rgba(112, 224, 0, 0.55);
+    border: 0.86px solid rgba(99, 181, 17, 0.55);
+    box-shadow: 0px 1.725px 6.9px 0px rgba(158, 240, 26, 0.25);
+  }
+  .pill-sell {
+    background: rgba(224, 0, 4, 0.55);
+    border: 0.86px solid rgba(168, 0, 3, 0.55);
+    box-shadow: 0px 1.725px 6.9px 0px rgba(240, 26, 30, 0.25);
+  }
+  .badge-buy {
+    background: rgba(158, 240, 26, 0.55);
+  }
+  .badge-sell {
+    background: rgba(240, 26, 30, 0.55);
+  }
+
+  /* Trending-card radial overlay */
+  .trending-card-overlay {
+    background: radial-gradient(circle at 50% -56%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 100%);
+  }
+
+  /* Trade panel semantic colors — Tailwind classes for legacy refs */
+  .card-hover {
+    @apply transition-all duration-200;
+  }
+  .card-hover:hover {
+    border-color: var(--color-green);
+    box-shadow: 0 0 0 1px rgba(112, 224, 0, 0.2);
   }
 }
 
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: hsl(20, 15%, 18%) transparent;
+    scrollbar-color: var(--color-card-alt) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
@@ -84,7 +155,12 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: hsl(20, 15%, 18%);
+    background: var(--color-card-alt);
     border-radius: 3px;
   }
+
+  /* Sidebar offset — replaces `style={{ marginLeft: '291px' }}` */
+  .ml-sidebar    { margin-left: var(--sidebar-w); }
+  .pl-sidebar    { padding-left: var(--sidebar-w); }
+  .max-w-content { max-width: var(--content-max-w); }
 }
