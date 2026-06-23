@@ -68,6 +68,25 @@ export default function HomePage() {
      show real names instead of falling back to the contract address. */
   const tokensWithMeta = useTokensMeta(tokens);
 
+  /* Recent trades can reference tokens outside the useAllTokens() result (which is
+     capped at limit: 100). Build synthetic placeholders for those trade-only tokens
+     so their names can also be resolved on-chain via useTokensMeta below. */
+  const tradeOnlyTokens = useMemo(() => {
+    const have = new Set(tokens.map((t) => t.id.toLowerCase()));
+    const seen = new Set<string>();
+    const out: { id: string; name: string; symbol: string }[] = [];
+    for (const trade of recentTrades) {
+      const id = trade.token_id.toLowerCase();
+      if (!have.has(id) && !seen.has(id)) {
+        seen.add(id);
+        out.push({ id: trade.token_id, name: "", symbol: "" });
+      }
+    }
+    return out;
+  }, [tokens, recentTrades]);
+
+  const tradeTokensWithMeta = useTokensMeta(tradeOnlyTokens);
+
   /* Changing the sort filter resets pagination back to page 1 */
   const handleSortChange = (key: SortOption) => {
     setActiveSort(key);
@@ -113,14 +132,23 @@ export default function HomePage() {
     return sortedTokens.slice(start, start + TOKENS_PER_PAGE);
   }, [sortedTokens, currentPage]);
 
-  /* Token lookup map for the trade ticker */
+  /* Token lookup map for the trade ticker.
+     Merges entries from useAllTokens() (already includes on-chain name resolution)
+     with entries from useTokensMeta(tradeOnlyTokens) (covers trades whose token
+     falls outside the useAllTokens() limit: 100 cap). */
   const tokenMap = useMemo(() => {
     const map = new Map<string, { name: string; symbol: string; id: string }>();
     for (const t of tokensWithMeta) {
       map.set(t.id.toLowerCase(), { name: t.name, symbol: t.symbol, id: t.id });
     }
+    for (const t of tradeTokensWithMeta) {
+      const key = t.id.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, { name: t.name, symbol: t.symbol, id: t.id });
+      }
+    }
     return map;
-  }, [tokensWithMeta]);
+  }, [tokensWithMeta, tradeTokensWithMeta]);
 
   /* Sort button definitions */
   const sortButtons: { key: SortOption; label: string }[] = [
@@ -146,17 +174,16 @@ export default function HomePage() {
           ) : (
             recentTrades.map((trade) => {
               const tokenInfo = tokenMap.get(trade.token_id.toLowerCase());
-              const tokenLabel = tokenInfo
-                ? getTokenDisplayName(tokenInfo.name, trade.token_id)
-                : `${trade.token_id.slice(0, 6)}…`;
+              const tokenLabel = getTokenDisplayName(tokenInfo?.name ?? "", trade.token_id);
               const monAmt = formatAmountMon(trade.isBuy ? trade.amountIn : trade.amountOut);
               const amountLabel = `${monAmt} MON of ${tokenLabel}`;
               const traderDisplay = formatTraderAddress(trade.trader);
 
               return (
-                <div
+                <Link
                   key={trade.id}
-                  className={`flex items-center gap-2 px-3 shrink-0 w-[211px] h-[46px] rounded-pill ${
+                  href={`/token/${trade.token_id}`}
+                  className={`flex items-center gap-2 px-3 shrink-0 w-[211px] h-[46px] rounded-pill no-underline cursor-pointer ${
                     trade.isBuy ? "pill-buy" : "pill-sell"
                   }`}
                 >
@@ -185,7 +212,7 @@ export default function HomePage() {
                       {trade.isBuy ? "Bought" : "Sold"}
                     </span>
                   </div>
-                </div>
+                </Link>
               );
             })
           )}

@@ -8,5 +8,10 @@
     "metadataUri": "ipfs://QmUL3H5fYg4zQr55yAZK9gccgiQXNrAd2SKNzaUh6cvtuy",
     "imageUri": "ipfs://QmdnnRZP1ukR8kraWCxmNmZno1LVNk8TWRPX5JdQuWc9VX",
     "registeredAt": 1782197538326
+  },
+  "0x39b2ae2f00df9f47de8218a5be863d5108992dd7": {
+    "metadataUri": "ipfs://QmbitcZnDrKdhxKHPqR6rBsEabiPPCNrTnQJxr64UBzCj9",
+    "imageUri": "ipfs://QmdyEsr6tmWmt2CYhaAFRokmC4baKUgUxgaHgPv1vQ6nVD",
+    "registeredAt": 1782212262896
   }
 }
