@@ -9,7 +9,7 @@ import {
   TrendingSkeletonCard,
   TickerSkeletonCard,
 } from "@/components/ui/Skeleton";
-import { useAllTokens, useRecentTrades } from "@/lib/hooks/useData";
+import { useAllTokens, useRecentTrades, useTokensMeta } from "@/lib/hooks/useData";
 
 type SortOption = "lastTrade" | "largestMC" | "newestCreated" | "highestReputation";
 
@@ -63,6 +63,11 @@ export default function HomePage() {
   const [activeSort, setActiveSort] = useState<SortOption>("largestMC");
   const [currentPage, setCurrentPage] = useState(1);
 
+  /* Resolve any empty token names/symbols by reading them from the contract directly.
+     This makes the trending cards, the buys/sells ticker, and the token grid below
+     show real names instead of falling back to the contract address. */
+  const tokensWithMeta = useTokensMeta(tokens);
+
   /* Changing the sort filter resets pagination back to page 1 */
   const handleSortChange = (key: SortOption) => {
     setActiveSort(key);
@@ -71,14 +76,14 @@ export default function HomePage() {
 
   /* Top 6 by market cap for trending section */
   const trendingTokens = useMemo(() => {
-    return [...tokens]
+    return [...tokensWithMeta]
       .sort((a, b) => b.price.marketCapMon - a.price.marketCapMon)
       .slice(0, 6);
-  }, [tokens]);
+  }, [tokensWithMeta]);
 
   /* Sorted token list for the grid */
   const sortedTokens = useMemo(() => {
-    const list = [...tokens];
+    const list = [...tokensWithMeta];
     switch (activeSort) {
       case "lastTrade":
         return list.sort(
@@ -99,7 +104,7 @@ export default function HomePage() {
       default:
         return list;
     }
-  }, [tokens, activeSort]);
+  }, [tokensWithMeta, activeSort]);
 
   /* Pagination — slice the sorted list to the current page (60 tokens = 10 rows) */
   const totalPages = Math.max(1, Math.ceil(sortedTokens.length / TOKENS_PER_PAGE));
@@ -111,11 +116,11 @@ export default function HomePage() {
   /* Token lookup map for the trade ticker */
   const tokenMap = useMemo(() => {
     const map = new Map<string, { name: string; symbol: string; id: string }>();
-    for (const t of tokens) {
+    for (const t of tokensWithMeta) {
       map.set(t.id.toLowerCase(), { name: t.name, symbol: t.symbol, id: t.id });
     }
     return map;
-  }, [tokens]);
+  }, [tokensWithMeta]);
 
   /* Sort button definitions */
   const sortButtons: { key: SortOption; label: string }[] = [
@@ -127,17 +132,8 @@ export default function HomePage() {
 
   return (
     <div className="relative bg-figma-bg min-h-screen px-5 pb-20">
-      {/* ── Lick.fun Banner Placeholder ── */}
-      <div className="pt-6">
-        <div className="flex items-center justify-center w-full h-[80px] rounded-panel border-2 border-dashed border-figma-green/40 bg-figma-green/5">
-          <span className="text-figma-3xl text-figma-green font-bold tracking-widest opacity-60">
-            Lick.fun
-          </span>
-        </div>
-      </div>
-
       {/* ── Buys & Sells Ticker ── */}
-      <div className="flex overflow-hidden relative mt-[17px] h-[58px]">
+      <div className="flex overflow-hidden relative items-start mt-[17px] h-[58px]">
         <div className="flex gap-0 overflow-hidden ml-2 mt-[6px]">
           {tradesLoading ? (
             Array.from({ length: 5 }).map((_, i) => <TickerSkeletonCard key={i} />)

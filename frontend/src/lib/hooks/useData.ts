@@ -233,6 +233,73 @@ export function useTokenMeta(tokenId: string, indexerName: string, indexerSymbol
   return { name, symbol };
 }
 
+/**
+ * Batch version of useTokenMeta — multicalls name() and symbol() for every token in `tokens`
+ * whose indexer-supplied name or symbol is empty, and returns a new array with those values
+ * filled in. Tokens that already have a non-empty name/symbol from the indexer are returned
+ * unchanged. If there is nothing to resolve, no on-chain read is performed.
+ */
+export function useTokensMeta<T extends { id: string; name: string; symbol: string }>(
+  tokens: T[]
+): T[] {
+  // Build a stable list of token ids that still need on-chain resolution
+  const toResolve = useMemo(
+    () =>
+      tokens.filter((t) => !t.name || !t.symbol).map((t) => t.id.toLowerCase()),
+    [tokens]
+  );
+
+  // Two contracts per token (name, symbol). Only fire the multicall when there is work to do.
+  const contracts = useMemo(
+    () =>
+      toResolve.flatMap((id) => [
+        {
+          address: id as `0x${string}`,
+          abi: ERC20_NAME_SYMBOL_ABI,
+          functionName: "name" as const,
+        },
+        {
+          address: id as `0x${string}`,
+          abi: ERC20_NAME_SYMBOL_ABI,
+          functionName: "symbol" as const,
+        },
+      ]),
+    [toResolve]
+  );
+
+  const { data } = useReadContracts({
+    contracts,
+    query: { enabled: contracts.length > 0 },
+  });
+
+  return useMemo(() => {
+    if (!data || toResolve.length === 0) return tokens;
+
+    // Build a lookup map: tokenId (lowercased) → { name, symbol }
+    const resolved = new Map<string, { name: string; symbol: string }>();
+    for (let i = 0; i < toResolve.length; i++) {
+      const id = toResolve[i];
+      const nameResult = data[i * 2]?.result as string | undefined;
+      const symbolResult = data[i * 2 + 1]?.result as string | undefined;
+      resolved.set(id, {
+        name: nameResult ?? "",
+        symbol: symbolResult ?? "",
+      });
+    }
+
+    return tokens.map((t) => {
+      const id = t.id.toLowerCase();
+      const r = resolved.get(id);
+      if (!r) return t;
+      return {
+        ...t,
+        name: t.name && t.name.trim() ? t.name : r.name,
+        symbol: t.symbol && t.symbol.trim() ? t.symbol : r.symbol,
+      };
+    });
+  }, [tokens, data, toResolve]);
+}
+
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Prediction market hooks (still mock-based, consistent { data, isLoading, error } */
 /* ──────────────────────────────────────────────────────────────────────────────── */
