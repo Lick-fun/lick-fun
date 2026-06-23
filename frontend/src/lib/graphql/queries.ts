@@ -203,3 +203,25 @@ export const QUERY_RECENT_TRADES = gql`
   }
   ${TRADE_FRAGMENT}
 `;
+
+/**
+ * Earliest trade for each token in the last 24h. Used as a reference price
+ * for computing 24h percentage change without requiring stored snapshots.
+ *
+ * Envio does not support `_in` with `_gte` composite filters across many IDs
+ * in one query for dynamic lists, so callers iterate per token or keep limit
+ * high enough to capture all relevant trades. This query is intentionally
+ * simple and additive only.
+ */
+export const QUERY_TRADES_24H = gql`
+  query GetTrades24h($since: BigInt!, $tokenId: String!, $limit: Int!) {
+    Trade(
+      where: { blockTimestamp: { _gte: $since }, token_id: { _eq: $tokenId } }
+      order_by: { blockTimestamp: asc }
+      limit: $limit
+    ) {
+      ...TradeFields
+    }
+  }
+  ${TRADE_FRAGMENT}
+`;

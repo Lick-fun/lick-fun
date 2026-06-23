@@ -9,7 +9,13 @@ import {
   TrendingSkeletonCard,
   TickerSkeletonCard,
 } from "@/components/ui/Skeleton";
-import { useAllTokens, useRecentTrades, useTokensMeta } from "@/lib/hooks/useData";
+import {
+  useAllTokens,
+  useRecentTrades,
+  useTokensMeta,
+  useTokenPriceChanges,
+  formatPriceChange,
+} from "@/lib/hooks/useData";
 
 type SortOption = "lastTrade" | "largestMC" | "newestCreated" | "highestReputation";
 
@@ -45,6 +51,14 @@ function formatAmountMon(wei: bigint): string {
   return num.toFixed(6);
 }
 
+function formatPriceMon(monPerToken: number): string {
+  if (monPerToken === 0) return "0 MON";
+  if (monPerToken >= 1) return `${monPerToken.toFixed(4)} MON`;
+  if (monPerToken >= 0.001) return `${monPerToken.toFixed(6)} MON`;
+  if (monPerToken >= 0.000_001) return `${monPerToken.toFixed(9)} MON`;
+  return `${monPerToken.toFixed(12)} MON`;
+}
+
 function getTokenDisplayName(name: string, id: string): string {
   if (name && name.trim()) return name;
   return `${id.slice(0, 6)}…${id.slice(-4)}`;
@@ -67,6 +81,14 @@ export default function HomePage() {
      This makes the trending cards, the buys/sells ticker, and the token grid below
      show real names instead of falling back to the contract address. */
   const tokensWithMeta = useTokensMeta(tokens);
+
+  /* Fetch 24h percentage-change reference prices for all displayed tokens */
+  const tokenIdsForPriceChanges = useMemo(() => {
+    return tokensWithMeta.map((t) => t.id);
+  }, [tokensWithMeta]);
+
+  const { data: priceChangeMap = new Map<string, number>() } =
+    useTokenPriceChanges(tokenIdsForPriceChanges);
 
   /* Recent trades can reference tokens outside the useAllTokens() result (which is
      capped at limit: 100). Build synthetic placeholders for those trade-only tokens
@@ -222,9 +244,17 @@ export default function HomePage() {
         <div className="absolute right-0 top-0 bottom-0 w-[34px] gradient-fade-left pointer-events-none" />
       </div>
 
+      {/* ── Trending Now Banner ── */}
+      <div className="flex items-center justify-center gap-3 mt-[20px]">
+        <span className="text-3xl">🔥</span>
+        <span className="text-3xl text-figma-white font-bold tracking-wide">
+          Trending Now
+        </span>
+      </div>
+
       {/* ── Trending Section ── */}
       {/* Trending cards row — same 6-col grid as Token Box Grid for column alignment */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-[11px] mt-[25px]">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-[11px] mt-[14px]">
         {isLoading ? (
           <>
             <TrendingSkeletonCard />
@@ -239,54 +269,89 @@ export default function HomePage() {
             No tokens yet
           </span>
         ) : (
-          trendingTokens.map((token) => (
-            <Link
-              key={token.id}
-              href={`/token/${token.id}`}
-              className="no-underline"
-            >
-              <div className="flex flex-col items-center gap-[45px] cursor-pointer w-full h-[343px] bg-figma-purple rounded-panel px-[25px] pt-[60px] pb-[16px] relative overflow-hidden">
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 trending-card-overlay" />
+          trendingTokens.map((token) => {
+            const change = formatPriceChange(priceChangeMap.get(token.id.toLowerCase()));
+            const priceLabel = formatPriceMon(token.price.monPerToken);
 
-                {/* Token avatar — uses IPFS image or gradient placeholder */}
-                <TokenAvatar
-                  tokenAddress={token.id}
-                  tokenName={getTokenDisplayName(token.name, token.id)}
-                  size="3xl"
-                />
-                {/* Token name */}
-                <span className="text-figma-2xl text-figma-white font-bold text-center">
-                  {getTokenDisplayName(token.name, token.id)}
-                </span>
-                {/* TXNS / VOL */}
-                <span className="text-figma-sm text-figma-green font-medium text-center">
-                  {formatTxCount(token.buyCount, token.sellCount)} Txns /{" "}
-                  {formatVolume(token.totalBuyVolume, token.totalSellVolume)} 24h VOL
-                </span>
-                {/* MC Row */}
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-figma-lg text-figma-white font-bold">
-                    MC: {formatMarketCap(token.price.marketCapMon)}
+            return (
+              <Link
+                key={token.id}
+                href={`/token/${token.id}`}
+                className="no-underline"
+              >
+                <div className="flex flex-col items-center justify-between cursor-pointer w-full h-[343px] bg-figma-purple rounded-panel px-[25px] pt-[16px] pb-[16px] relative overflow-hidden">
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 trending-card-overlay" />
+
+                  {/* Token name + ticker — at the top */}
+                  <div className="relative z-10 flex flex-col items-center gap-[4px] w-full">
+                    {/* Token name */}
+                    <span className="text-figma-xl text-figma-white font-bold text-center px-2 truncate w-full">
+                      {getTokenDisplayName(token.name, token.id)}
+                    </span>
+                    {/* Ticker badge */}
+                    <span className="text-figma-xs text-gray-400 font-medium px-[8px] py-[2px] rounded-[4px] bg-black/70">
+                      ${getTokenDisplaySymbol(token.symbol)}
+                    </span>
+                  </div>
+
+                  {/* Token avatar — uses IPFS image or gradient placeholder */}
+                  <TokenAvatar
+                    tokenAddress={token.id}
+                    tokenName={getTokenDisplayName(token.name, token.id)}
+                    size="3xl"
+                  />
+
+                  {/* LIVE price in MON */}
+                  <span className="relative z-10 text-figma-2xl text-figma-white font-bold text-center">
+                    {priceLabel}
                   </span>
-                  <svg width="54" height="23" viewBox="0 0 54 23" fill="none">
-                    <path
-                      d="M1 22L12 5L22 18L35 1L48 14L53 8"
-                      stroke="#2CC054"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
+
+                  {/* 24h percentage change badge */}
+                  <span
+                    className={`relative z-10 text-figma-sm font-bold text-center ${
+                      change.isPositive
+                        ? "text-green-400"
+                        : change.isNegative
+                        ? "text-red-500"
+                        : "text-figma-white"
+                    }`}
+                  >
+                    {change.isPositive && "▲ "}
+                    {change.isNegative && "▼ "}
+                    {change.text}
+                  </span>
+
+                  {/* TXNS / VOL */}
+                  <span className="relative z-10 text-figma-sm text-figma-green font-medium text-center">
+                    {formatTxCount(token.buyCount, token.sellCount)} Txns /{" "}
+                    {formatVolume(token.totalBuyVolume, token.totalSellVolume)} 24h VOL
+                  </span>
+
+                  {/* MC Row */}
+                  <div className="relative z-10 flex items-center justify-between w-full">
+                    <span className="text-figma-lg text-figma-white font-bold">
+                      MC: {formatMarketCap(token.price.marketCapMon)}
+                    </span>
+                    <svg width="54" height="23" viewBox="0 0 54 23" fill="none">
+                      <path
+                        d="M1 22L12 5L22 18L35 1L48 14L53 8"
+                        stroke="#2CC054"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))
+              </Link>
+            );
+          })
         )}
       </div>
 
       {/* ── Sort / Filter Bar ── */}
-      <div className="flex items-center gap-3 mt-[99px]">
+      <div className="flex items-center gap-3 mt-[20px]">
         {sortButtons.map(({ key, label }) => {
           const isActive = activeSort === key;
           return (
@@ -335,7 +400,7 @@ export default function HomePage() {
       )}
 
       {/* ── Token Box Grid ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-[11px] mt-[30px] pb-[60px]">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-[11px] mt-[20px] pb-[60px]">
         {isLoading ? (
           <>
             {Array.from({ length: 18 }).map((_, i) => (
@@ -349,39 +414,47 @@ export default function HomePage() {
             </span>
           </div>
         ) : (
-          paginatedTokens.map((token, i) => (
-            <Link
-              key={token.id}
-              href={`/token/${token.id}`}
-              className="no-underline"
-            >
-              {i === 0 ? (
-                <TokenCardAnimated
-                  tokenAddress={token.id}
-                  tokenName={getTokenDisplayName(token.name, token.id)}
-                  symbol={getTokenDisplaySymbol(token.symbol)}
-                  description=""
-                  mc={formatMarketCap(token.price.marketCapMon)}
-                  percentage={`${token.progress.toFixed(0)}%`}
-                  volume={formatVolume(token.totalBuyVolume, token.totalSellVolume)}
-                  txCount={formatTxCount(token.buyCount, token.sellCount)}
-                  progress={token.progress}
-                />
-              ) : (
-                <TokenCard
-                  tokenAddress={token.id}
-                  tokenName={getTokenDisplayName(token.name, token.id)}
-                  symbol={getTokenDisplaySymbol(token.symbol)}
-                  description=""
-                  mc={formatMarketCap(token.price.marketCapMon)}
-                  percentage={`${token.progress.toFixed(0)}%`}
-                  volume={formatVolume(token.totalBuyVolume, token.totalSellVolume)}
-                  txCount={formatTxCount(token.buyCount, token.sellCount)}
-                  progress={token.progress}
-                />
-              )}
-            </Link>
-          ))
+          paginatedTokens.map((token, i) => {
+            const pct = priceChangeMap.get(token.id.toLowerCase());
+
+            return (
+              <Link
+                key={token.id}
+                href={`/token/${token.id}`}
+                className="no-underline"
+              >
+                {i === 0 ? (
+                  <TokenCardAnimated
+                    tokenAddress={token.id}
+                    tokenName={getTokenDisplayName(token.name, token.id)}
+                    symbol={getTokenDisplaySymbol(token.symbol)}
+                    description=""
+                    mc={formatMarketCap(token.price.marketCapMon)}
+                    percentage={`${token.progress.toFixed(0)}%`}
+                    volume={formatVolume(token.totalBuyVolume, token.totalSellVolume)}
+                    txCount={formatTxCount(token.buyCount, token.sellCount)}
+                    progress={token.progress}
+                    priceMon={formatPriceMon(token.price.monPerToken)}
+                    priceChangePct={pct}
+                  />
+                ) : (
+                  <TokenCard
+                    tokenAddress={token.id}
+                    tokenName={getTokenDisplayName(token.name, token.id)}
+                    symbol={getTokenDisplaySymbol(token.symbol)}
+                    description=""
+                    mc={formatMarketCap(token.price.marketCapMon)}
+                    percentage={`${token.progress.toFixed(0)}%`}
+                    volume={formatVolume(token.totalBuyVolume, token.totalSellVolume)}
+                    txCount={formatTxCount(token.buyCount, token.sellCount)}
+                    progress={token.progress}
+                    priceMon={formatPriceMon(token.price.monPerToken)}
+                    priceChangePct={pct}
+                  />
+                )}
+              </Link>
+            );
+          })
         )}
       </div>
     </div>

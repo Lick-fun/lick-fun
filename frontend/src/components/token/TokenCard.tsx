@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { TokenImage } from "@/components/ui/TokenImage";
+import { formatPriceChange } from "@/lib/hooks/useData";
 
 interface TokenCardProps {
   tokenAddress?: string;     // contract address — used for image lookup
@@ -16,6 +17,10 @@ interface TokenCardProps {
   imageUrl?: string;
   progress?: number;
   isAnimated?: boolean;
+  /** Live price per token in MON (optional) */
+  priceMon?: string;
+  /** Optional 24h percentage change number, e.g. +12.34 or -5.67 */
+  priceChangePct?: number;
 }
 
 export function TokenCard({
@@ -30,7 +35,11 @@ export function TokenCard({
   imageUrl,
   progress = 65,
   isAnimated = false,
+  priceMon,
+  priceChangePct,
 }: TokenCardProps) {
+  const change = formatPriceChange(priceChangePct);
+
   return (
     <div
       className={cn(
@@ -108,6 +117,39 @@ export function TokenCard({
             {txCount} Txs / {volume} 24h VOL
           </span>
         </div>
+
+        {/* LIVE price + 24h change */}
+        {(priceMon || priceChangePct !== undefined) && (
+          <div className="flex items-center justify-between w-full mt-[2px]">
+            {priceMon ? (
+              <span
+                className="text-figma-white font-figma-bold"
+                style={{ fontSize: "10px", lineHeight: "12px" }}
+              >
+                {priceMon}
+              </span>
+            ) : (
+              <span />
+            )}
+            {priceChangePct !== undefined && (
+              <span
+                className={cn(
+                  "font-figma-bold",
+                  change.isPositive
+                    ? "text-green-400"
+                    : change.isNegative
+                    ? "text-red-500"
+                    : "text-figma-muted"
+                )}
+                style={{ fontSize: "10px", lineHeight: "12px" }}
+              >
+                {change.isPositive && "▲ "}
+                {change.isNegative && "▼ "}
+                {change.text}
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Progress bar */}
         <div
