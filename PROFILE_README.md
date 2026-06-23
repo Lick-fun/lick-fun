@@ -57,7 +57,7 @@ We're actively rebuilding the frontend with Figma-sourced design tokens — a fu
 
 ## Repo
 
-**[github.com/Lick-fun/lick-fun](https://github.com/Lick-fun/lick-fun)** — MIT licensed
+**[github.com/Lick-fun/lick-fun](https://github.com/Lick-fun/lick-fun)** — Proprietary
 
 ```
 103+ Forge tests · 46 vitest tests · 11 contracts · 9 pages

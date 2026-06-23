@@ -104,6 +104,16 @@ export function useCreateToken(): UseCreateTokenResult {
     setImageUri(null);
     setUploadStatus("idle");
 
+    // Guard: fail fast with a clear error if factory address is not configured
+    if (FACTORY_ADDRESS === "0x0000000000000000000000000000000000000000") {
+      const err = new Error(
+        "Factory contract address not configured. Set NEXT_PUBLIC_FACTORY_ADDRESS in .env.local"
+      );
+      console.error("[useCreateToken]", err.message);
+      setError(err);
+      throw err;
+    }
+
     // Step 1: Upload image + metadata to IPFS via the server-safe API route
     if (imageFile) {
       setUploadStatus("uploading");
@@ -114,6 +124,7 @@ export function useCreateToken(): UseCreateTokenResult {
         formData.append("symbol", symbol);
         if (description) formData.append("description", description);
 
+        console.log("[useCreateToken] Uploading image + metadata to IPFS...");
         const res = await fetch("/api/upload-token", {
           method: "POST",
           body: formData,
@@ -131,11 +142,13 @@ export function useCreateToken(): UseCreateTokenResult {
           metadataUri: string;
         };
 
+        console.log("[useCreateToken] IPFS upload complete:", result);
         setMetadataUri(result.metadataUri);
         setImageUri(result.imageUri);
         setUploadStatus("done");
       } catch (err) {
         setUploadStatus("error");
+        console.error("[useCreateToken] IPFS upload failed:", err);
         if (err instanceof IPFSUploadError) {
           setError(err);
           throw err;
@@ -148,7 +161,13 @@ export function useCreateToken(): UseCreateTokenResult {
       }
     }
 
-    // Step 2: Deploy token on-chain
+    // Step 2: Deploy token on-chain (ONE wallet signature)
+    console.log("[useCreateToken] Calling createToken on-chain:", {
+      factory: FACTORY_ADDRESS,
+      name,
+      symbol,
+      creator: address,
+    });
     try {
       await writeContractAsync({
         address: FACTORY_ADDRESS,
@@ -157,6 +176,7 @@ export function useCreateToken(): UseCreateTokenResult {
         args: [name, symbol, address, 0n],
       });
     } catch (err) {
+      console.error("[useCreateToken] writeContractAsync failed:", err);
       setError(err instanceof Error ? err : new Error(String(err)));
       throw err;
     }

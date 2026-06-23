@@ -1,1 +1,12 @@
-{} 
+{
+  "0x1819883aa69fda8863ac477d0d15a67408112231": {
+    "metadataUri": "ipfs://Qmd4gsh6YfukR7jaT3FkVeYE9Zg3qRf7ohZiMZHPC8ixFk",
+    "imageUri": "ipfs://QmQCzMYhhRfTuooFT9Q9c1tgYou8JzivcM8moHvVECsTZY",
+    "registeredAt": 1782130185279
+  },
+  "0x2da7bfe7e788204427574042413599ba46d1b969": {
+    "metadataUri": "ipfs://QmUL3H5fYg4zQr55yAZK9gccgiQXNrAd2SKNzaUh6cvtuy",
+    "imageUri": "ipfs://QmdnnRZP1ukR8kraWCxmNmZno1LVNk8TWRPX5JdQuWc9VX",
+    "registeredAt": 1782197538326
+  }
+}

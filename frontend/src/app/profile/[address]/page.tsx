@@ -32,14 +32,12 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="relative" style={{ background: "#0E0E0E", minHeight: "1024px" }}>
+    <div className="relative bg-figma-bg min-h-screen px-5 pb-20">
       {/* ── Profile Card ── */}
       <div
-        className="flex flex-col items-end gap-[18px]"
+        className="flex flex-col items-end gap-[18px] mt-8"
         style={{
           width: "709px",
-          marginLeft: "291px",
-          marginTop: "130px",
           background: "#000000",
           borderRadius: "34px",
           padding: "26px 37px 25px",
@@ -231,11 +229,9 @@ export default function ProfilePage() {
 
       {/* ── Holdings ── */}
       <div
-        className="flex flex-col gap-[10px]"
+        className="flex flex-col gap-[10px] mt-[29px]"
         style={{
           width: "709px",
-          marginLeft: "291px",
-          marginTop: "29px",
           background: "#000000",
           borderRadius: "34px",
           padding: "31px 37px",

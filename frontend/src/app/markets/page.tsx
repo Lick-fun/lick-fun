@@ -18,7 +18,7 @@ export default function MarketsPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-6xl mx-auto pl-sidebar pr-5">
+      <div className="max-w-6xl mx-auto px-5">
         <LoadingSpinner label="Loading markets..." />
       </div>
     );
@@ -26,7 +26,7 @@ export default function MarketsPage() {
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto pl-sidebar pr-5">
+      <div className="max-w-6xl mx-auto px-5">
         <ErrorState message={(error as Error).message} />
       </div>
     );
@@ -45,7 +45,7 @@ export default function MarketsPage() {
     .slice(0, 10);
 
   return (
-    <div className="bg-figma-bg min-h-screen pl-sidebar pr-5 pb-20">
+    <div className="bg-figma-bg min-h-screen px-5 pb-20">
       {/* Page Header */}
       <div className="pt-8 mb-8">
         <h1 className="text-figma-3xl text-figma-white font-bold mb-2">

@@ -125,29 +125,23 @@ export default function RankingPage() {
   );
 
   return (
-    <div className="relative" style={{ background: "#0E0E0E", minHeight: "1024px" }}>
+    <div className="bg-figma-bg min-h-screen px-5 pb-20">
       {/* Title */}
-      <h1
-        className="text-figma-white font-figma-bold"
-        style={{ fontSize: "36px", paddingTop: "159px", marginLeft: "291px" }}
-      >
-        🏆 Ranking
-      </h1>
-      <p
-        className="text-figma-green font-figma-medium text-figma-14"
-        style={{ marginLeft: "291px", marginTop: "10px" }}
-      >
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempura.
-      </p>
+      <div className="pt-8 mb-4">
+        <h1 className="text-figma-white font-bold text-[36px]">
+          🏆 Ranking
+        </h1>
+        <p className="text-figma-green text-figma-md mt-2">
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempura.
+        </p>
+      </div>
 
       {/* Network filter */}
       <div
-        className="flex items-center gap-2 h-[31px]"
+        className="flex items-center gap-2 h-[31px] mb-8"
         style={{
           background: "#1B1B1B",
           borderRadius: "8px",
-          marginLeft: "290px",
-          marginTop: "15px",
           width: "127px",
           padding: "7px 18px",
         }}
@@ -166,7 +160,7 @@ export default function RankingPage() {
       </div>
 
       {/* Ranking tables grid */}
-      <div className="flex gap-[15px]" style={{ marginLeft: "290px", marginTop: "35px" }}>
+      <div className="flex gap-[15px]">
         {/* Left column: 24h Volume + Gainers */}
         <div className="flex flex-col gap-[12px]">
           <RankingTable title={rankings[0].title} columns={rankings[0].columns} rows={rankings[0].rows} />

@@ -84,13 +84,31 @@ function NavLink({
       className={cn(
         "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-150 border-l-2",
         active
-          ? "bg-figma-surface text-figma-green border-figma-green"
+          ? "bg-figma-surface text-figma-white border-figma-purple"
           : "border-transparent text-figma-muted hover:text-figma-white hover:bg-figma-surface"
       )}
     >
-      <Icon className="w-5 h-5" />
+      <Icon className={cn("w-5 h-5", active ? "text-figma-purple" : "")} />
       {label}
     </Link>
+  );
+}
+
+function DisabledNavLink({
+  label,
+  icon: Icon,
+}: {
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  return (
+    <span
+      className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium border-l-2 border-transparent text-figma-muted opacity-40 cursor-not-allowed select-none"
+      title="Connect wallet to view profile"
+    >
+      <Icon className="w-5 h-5" />
+      {label}
+    </span>
   );
 }
 
@@ -138,16 +156,34 @@ export function Sidebar() {
         <div className="pt-4 mt-4 border-t border-figma-surface" />
 
         {extraLinks.map((link) => {
-          const href = link.href === "/profile" && address
-            ? `/profile/${address}`
-            : link.href;
+          if (link.href === "/profile") {
+            if (!address) {
+              return (
+                <DisabledNavLink
+                  key={link.href}
+                  label={link.label}
+                  icon={link.icon}
+                />
+              );
+            }
+            const href = `/profile/${address}`;
+            return (
+              <NavLink
+                key={link.href}
+                href={href}
+                label={link.label}
+                icon={link.icon}
+                active={isActiveLink(pathname, href)}
+              />
+            );
+          }
           return (
             <NavLink
               key={link.href}
-              href={href}
+              href={link.href}
               label={link.label}
               icon={link.icon}
-              active={isActiveLink(pathname, href)}
+              active={isActiveLink(pathname, link.href)}
             />
           );
         })}

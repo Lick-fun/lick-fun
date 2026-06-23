@@ -88,7 +88,7 @@ export default function DiscoverPage() {
   }, [tokens, search, sort, filter]);
 
   return (
-    <div className="bg-figma-bg min-h-screen pl-sidebar pr-5 pb-20 lg:pb-10">
+    <div className="bg-figma-bg min-h-screen px-5 pb-20 lg:pb-10">
       {/* Page Header */}
       <div className="pt-8 mb-8">
         <h1 className="text-figma-3xl text-figma-white font-bold mb-1">

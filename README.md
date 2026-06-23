@@ -2,7 +2,7 @@
 
 > A meme lake on liquidity fun. Social-first token launchpad on Monad with earned creator reputation.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.27-blue)](https://soliditylang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
@@ -350,7 +350,7 @@ All contracts use OpenZeppelin audited libraries (ERC-20, VestingWallet, Reentra
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+Proprietary — All Rights Reserved. See [LICENSE](LICENSE).
 
 ---
 

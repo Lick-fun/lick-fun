@@ -34,7 +34,7 @@ export function TokenCard({
   return (
     <div
       className={cn(
-        "flex flex-col gap-[10px] w-[350px] p-[13px_18px]",
+        "flex flex-col gap-[10px] w-full p-[13px_18px]",
         isAnimated
           ? "border border-figma-purple"
           : "border border-black"

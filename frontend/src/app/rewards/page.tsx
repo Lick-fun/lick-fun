@@ -113,49 +113,39 @@ export default function RewardsPage() {
   );
 
   return (
-    <div className="relative" style={{ background: "#0E0E0E", minHeight: "1024px" }}>
+    <div className="bg-figma-bg min-h-screen px-5 pb-20">
       {/* Title */}
-      <h1
-        className="text-figma-white font-figma-bold"
-        style={{ fontSize: "36px", paddingTop: "159px", marginLeft: "291px" }}
-      >
-        🎁 Rewards
-      </h1>
-      <p
-        className="text-figma-green font-figma-medium text-figma-14"
-        style={{ marginLeft: "291px", marginTop: "10px", maxWidth: "558px" }}
-      >
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempura.
-      </p>
+      <div className="pt-8 mb-4">
+        <h1 className="text-figma-white font-bold text-[36px]">
+          🎁 Rewards
+        </h1>
+        <p className="text-figma-green text-figma-md mt-2 max-w-[558px]">
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempura.
+        </p>
+      </div>
 
       {/* ── Hold and Earn ── */}
-      <h2
-        className="text-figma-white font-figma-semibold"
-        style={{ fontSize: "24px", marginLeft: "305px", marginTop: "82px" }}
-      >
+      <h2 className="text-figma-white font-semibold text-[24px] mt-10 mb-5">
         🪙 Hold and Earn
       </h2>
 
-      <div className="flex gap-[15px]" style={{ marginLeft: "291px", marginTop: "20px" }}>
+      <div className="flex flex-wrap gap-[15px] mb-10">
         {holdCampaigns.map((campaign, i) => (
           <CampaignCard key={i} {...campaign} />
         ))}
       </div>
 
       {/* ── Airdrops ── */}
-      <div className="flex items-center justify-between" style={{ marginRight: "291px" }}>
-        <h2
-          className="text-figma-white font-figma-semibold"
-          style={{ fontSize: "24px", marginLeft: "305px", marginTop: "80px" }}
-        >
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-figma-white font-semibold text-[24px]">
           🪂 Airdrops
         </h2>
-        <span className="text-figma-white font-figma-bold text-figma-16" style={{ marginTop: "80px" }}>
+        <span className="text-figma-white font-bold text-figma-lg cursor-pointer hover:text-figma-green transition-colors">
           View more
         </span>
       </div>
 
-      <div className="flex gap-[15px]" style={{ marginLeft: "291px", marginTop: "20px", paddingBottom: "40px" }}>
+      <div className="flex flex-wrap gap-[15px] pb-10">
         {airdropCampaigns.map((campaign, i) => (
           <CampaignCard key={i} {...campaign} />
         ))}

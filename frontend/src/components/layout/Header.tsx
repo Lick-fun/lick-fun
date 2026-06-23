@@ -2,39 +2,99 @@
 
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useAccount } from "wagmi";
+import { Search, Home, Compass, TrendingUp, BookOpen, Plus, User, Trophy, Gift } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const navLinks = [
+  { href: "/",             label: "Home",         icon: Home },
+  { href: "/discover",     label: "Discover",     icon: Compass },
+  { href: "/create",       label: "Create Token", icon: Plus },
+  { href: "/markets",      label: "Markets",      icon: TrendingUp },
+  { href: "/how-it-works", label: "How It Works", icon: BookOpen },
+  { href: "/ranking",      label: "Ranking",      icon: Trophy },
+  { href: "/rewards",      label: "Rewards",      icon: Gift },
+];
+
+function isActiveLink(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 /**
- * Figma-sourced header:
- *   - Slim top bar (64px) with search pill in center
- *   - ConnectButton on the right
- *   - Mobile shows logo + wallet only
+ * Full-width top navigation bar:
+ *   Logo → Nav links → Search pill → Wallet connect
  */
 export function Header() {
+  const pathname = usePathname();
+  const { address } = useAccount();
+
   return (
-    <header className="flex items-center justify-between gap-4 h-16 px-6 border-b border-figma-surface bg-figma-bg shrink-0">
-      {/* Mobile logo */}
-      <Link href="/" className="flex items-center gap-2 lg:hidden">
+    <header className="flex items-center gap-4 h-16 px-6 border-b border-figma-surface bg-figma-bg shrink-0 w-full">
+      {/* Logo */}
+      <Link href="/" className="flex items-center gap-2 shrink-0">
         <div className="w-8 h-8 rounded-lg gradient-lick flex items-center justify-center text-black text-lg">
           🦎
         </div>
-        <span className="font-bold text-gradient-lick">Lick.fun</span>
+        <span className="font-bold text-gradient-lick text-lg">Lick.fun</span>
       </Link>
 
-      {/* Desktop: search pill in center */}
-      <div className="hidden lg:flex flex-1 max-w-xl mx-auto">
+      {/* Desktop nav links */}
+      <nav className="hidden lg:flex items-center gap-1 ml-2">
+        {navLinks.map((link) => {
+          // Profile link — disabled without wallet
+          if (link.href === "/profile") return null;
+
+          const active = isActiveLink(pathname, link.href);
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150",
+                active
+                  ? "bg-figma-surface text-figma-white"
+                  : "text-figma-muted hover:text-figma-white hover:bg-figma-surface"
+              )}
+            >
+              <link.icon className={cn("w-4 h-4", active ? "text-figma-green" : "")} />
+              {link.label}
+            </Link>
+          );
+        })}
+
+        {/* Profile — only shown when wallet connected */}
+        {address && (
+          <Link
+            href={`/profile/${address}`}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150",
+              isActiveLink(pathname, `/profile/${address}`)
+                ? "bg-figma-surface text-figma-white"
+                : "text-figma-muted hover:text-figma-white hover:bg-figma-surface"
+            )}
+          >
+            <User className={cn("w-4 h-4", isActiveLink(pathname, `/profile/${address}`) ? "text-figma-green" : "")} />
+            Profile
+          </Link>
+        )}
+      </nav>
+
+      {/* Search pill — grows to fill remaining space */}
+      <div className="hidden lg:flex flex-1 max-w-sm ml-auto">
         <div className="relative w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-figma-muted" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-figma-muted" />
           <input
             type="text"
-            placeholder="Search tokens, creators, addresses..."
-            className="w-full pl-11 pr-4 py-2.5 rounded-pill border border-figma-surface bg-figma-card text-sm text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors"
+            placeholder="Search tokens, creators..."
+            className="w-full pl-9 pr-4 py-2 rounded-pill border border-figma-surface bg-figma-card text-sm text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors"
           />
         </div>
       </div>
 
-      {/* Spacer (desktop, when search is hidden — keeps wallet right) */}
-      <div className="hidden lg:block" />
+      {/* Mobile: logo only (nav handled by BottomNav) */}
+      <div className="flex items-center gap-2 lg:hidden ml-auto" />
 
       {/* Wallet */}
       <ConnectButton

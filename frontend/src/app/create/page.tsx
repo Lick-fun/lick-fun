@@ -94,8 +94,9 @@ export default function CreateTokenPage() {
         description: description.trim() || undefined,
         imageFile,
       });
-    } catch {
-      // error captured in hook state
+    } catch (err) {
+      console.error("[CreateToken] handleSubmit error:", err);
+      // error is captured in hook state and displayed in the UI
     }
   };
 
@@ -110,7 +111,7 @@ export default function CreateTokenPage() {
   /* ── Disconnected ── */
   if (!isConnected) {
     return (
-      <div className="max-w-lg mx-auto pl-sidebar pr-5">
+      <div className="max-w-lg mx-auto px-5">
         <div className="mb-8 pt-8">
           <h1 className="text-figma-3xl text-figma-white font-bold mb-1">
             Create Token
@@ -140,7 +141,7 @@ export default function CreateTokenPage() {
   /* ── Success ── */
   if (isSuccess && tokenAddress) {
     return (
-      <div className="max-w-lg mx-auto pl-sidebar pr-5">
+      <div className="max-w-lg mx-auto px-5">
         <div className="mb-8 pt-8">
           <h1 className="text-figma-3xl text-figma-white font-bold mb-1">
             Create Token
@@ -202,7 +203,7 @@ export default function CreateTokenPage() {
 
   /* ── Form ── */
   return (
-    <div className="max-w-lg mx-auto pl-sidebar pr-5">
+    <div className="max-w-lg mx-auto px-5">
       <div className="mb-8 pt-8">
         <h1 className="text-figma-3xl text-figma-white font-bold mb-1">
           Create Token
@@ -411,10 +412,10 @@ export default function CreateTokenPage() {
             <Loader2 className="w-4 h-4 text-figma-green-soft animate-spin shrink-0" />
             <div>
               <p className="text-figma-sm font-medium text-figma-green-soft">
-                Uploading to IPFS…
+                Creating Token!
               </p>
               <p className="text-figma-xs text-figma-muted">
-                Pinning image and metadata to NFT.storage
+                Pinning image and metadata to IPFS…
               </p>
             </div>
           </div>
@@ -449,7 +450,7 @@ export default function CreateTokenPage() {
           )}
         >
           {uploadStatus === "uploading" ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Uploading to IPFS…</>
+            <><Loader2 className="w-4 h-4 animate-spin" /> Creating Token!</>
           ) : isPending ? (
             <><Loader2 className="w-4 h-4 animate-spin" /> Confirm in wallet…</>
           ) : isConfirming ? (

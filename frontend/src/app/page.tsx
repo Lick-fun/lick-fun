@@ -60,11 +60,11 @@ export default function HomePage() {
   const { data: recentTrades = [], isLoading: tradesLoading } = useRecentTrades(10);
   const [activeSort, setActiveSort] = useState<SortOption>("largestMC");
 
-  /* Top 4 by market cap for trending section */
+  /* Top 6 by market cap for trending section */
   const trendingTokens = useMemo(() => {
     return [...tokens]
       .sort((a, b) => b.price.marketCapMon - a.price.marketCapMon)
-      .slice(0, 4);
+      .slice(0, 6);
   }, [tokens]);
 
   /* Sorted token list for the grid */
@@ -110,9 +110,9 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="relative bg-figma-bg min-h-[1024px] pl-sidebar">
+    <div className="relative bg-figma-bg min-h-screen px-5 pb-20">
       {/* ── Lick.fun Banner Placeholder ── */}
-      <div className="pt-[172px]">
+      <div className="pt-6">
         <div className="flex items-center justify-center w-full h-[80px] rounded-panel border-2 border-dashed border-figma-green/40 bg-figma-green/5">
           <span className="text-figma-3xl text-figma-green font-bold tracking-widest opacity-60">
             Lick.fun
@@ -121,7 +121,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Buys & Sells Ticker ── */}
-      <div className="flex overflow-hidden relative mt-[17px] h-[58px] max-w-content">
+      <div className="flex overflow-hidden relative mt-[17px] h-[58px]">
         <div className="flex gap-0 overflow-hidden ml-2 mt-[6px]">
           {tradesLoading ? (
             Array.from({ length: 5 }).map((_, i) => <TickerSkeletonCard key={i} />)
@@ -184,10 +184,12 @@ export default function HomePage() {
       </div>
 
       {/* ── Trending Section ── */}
-      {/* Trending cards row */}
-      <div className="flex gap-[45px] mt-[25px] pr-5">
+      {/* Trending cards row — same 6-col grid as Token Box Grid for column alignment */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-[11px] mt-[25px]">
         {isLoading ? (
           <>
+            <TrendingSkeletonCard />
+            <TrendingSkeletonCard />
             <TrendingSkeletonCard />
             <TrendingSkeletonCard />
             <TrendingSkeletonCard />
@@ -204,7 +206,7 @@ export default function HomePage() {
               href={`/token/${token.id}`}
               className="no-underline"
             >
-              <div className="flex flex-col items-center gap-[45px] cursor-pointer w-[245px] h-[343px] bg-figma-purple rounded-panel px-[25px] pt-[60px] pb-[16px] relative overflow-hidden">
+              <div className="flex flex-col items-center gap-[45px] cursor-pointer w-full h-[343px] bg-figma-purple rounded-panel px-[25px] pt-[60px] pb-[16px] relative overflow-hidden">
                 {/* Gradient overlay */}
                 <div className="absolute inset-0 trending-card-overlay" />
 
@@ -267,15 +269,15 @@ export default function HomePage() {
       </div>
 
       {/* ── Token Box Grid ── */}
-      <div className="grid grid-cols-4 gap-[11px] mt-[30px] max-w-content pb-[60px]">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-[11px] mt-[30px] pb-[60px]">
         {isLoading ? (
           <>
-            {Array.from({ length: 12 }).map((_, i) => (
+            {Array.from({ length: 18 }).map((_, i) => (
               <TokenCardSkeleton key={i} />
             ))}
           </>
         ) : sortedTokens.length === 0 ? (
-          <div className="col-span-4 flex items-center justify-center h-[200px]">
+          <div className="col-span-6 flex items-center justify-center h-[200px]">
             <span className="text-figma-lg text-figma-muted font-medium">
               No tokens launched yet
             </span>

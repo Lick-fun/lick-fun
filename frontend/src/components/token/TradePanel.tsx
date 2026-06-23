@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useAccount } from "wagmi";
+import { useState } from "react";
+import { useAccount, useBalance, useReadContract, useWriteContract } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { parseEther } from "viem";
+import { parseEther, formatEther } from "viem";
 import { cn } from "@/lib/utils";
-import { formatMon, formatTokens } from "@/lib/hooks/useData";
-import { useBuyToken, useSellToken } from "@/lib/wagmi/contracts";
-import { Loader2, AlertCircle } from "lucide-react";
+import { useBuyToken, useSellToken, ERC20ABI } from "@/lib/wagmi/contracts";
+import { Loader2, AlertCircle, Wallet } from "lucide-react";
 
 interface TradePanelProps {
   tokenId: string;
@@ -26,9 +25,32 @@ export function TradePanel({
   monPerToken,
   curveAddress,
 }: TradePanelProps) {
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const [tab, setTab] = useState<"buy" | "sell">("buy");
   const [amount, setAmount] = useState("");
+  const [sellStep, setSellStep] = useState<"idle" | "approving" | "selling">("idle");
+
+  /* ── Balances ── */
+  const { data: monBalance } = useBalance({
+    address,
+    query: { enabled: !!address },
+  });
+
+  const { data: tokenBalanceRaw } = useReadContract({
+    address: tokenId as `0x${string}`,
+    abi: ERC20ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address && !!tokenId },
+  });
+  const tokenBalance = (tokenBalanceRaw as bigint) ?? 0n;
+
+  /* ── Approve write (for sell flow) ── */
+  const { writeContractAsync: approveAsync } = useWriteContract();
+
+  /* ── Trade hooks ── */
+  const { buy, isPending: isBuying } = useBuyToken();
+  const { sell, isPending: isSelling } = useSellToken();
 
   const amountNum = parseFloat(amount) || 0;
 
@@ -49,16 +71,27 @@ export function TradePanel({
 
   const slippage = 1;
 
-  /* Real write hooks */
-  const { buy, isPending: isBuying } = useBuyToken();
-  const { sell, isPending: isSelling } = useSellToken();
-  const isLoading = isBuying || isSelling;
+  const isLoading = isBuying || isSelling || sellStep !== "idle";
 
   const canTrade =
     isConnected &&
     !!curveAddress &&
     amountNum > 0 &&
     !isLoading;
+
+  /* ── Formatted balance strings ── */
+  const monBalanceNum = monBalance ? Number(formatEther(monBalance.value)) : 0;
+  const tokenBalanceNum = Number(tokenBalance) / 1e18;
+
+  function handleMax() {
+    if (tab === "buy") {
+      // Leave a small buffer for gas
+      const maxMon = Math.max(0, monBalanceNum - 0.01);
+      setAmount(maxMon > 0 ? maxMon.toFixed(4) : "");
+    } else {
+      setAmount(tokenBalanceNum > 0 ? tokenBalanceNum.toFixed(2) : "");
+    }
+  }
 
   async function handleTrade() {
     if (!curveAddress || amountNum <= 0) return;
@@ -67,18 +100,47 @@ export function TradePanel({
         await buy(
           curveAddress as `0x${string}`,
           parseEther(amount),
-          0n /* minTokensOut — slippage check would go here */
+          0n /* minTokensOut */
         );
       } else {
+        /* Sell: approve first, then sell */
+        const tokensInWei = parseEther(amount);
+
+        setSellStep("approving");
+        await approveAsync({
+          address: tokenId as `0x${string}`,
+          abi: ERC20ABI,
+          functionName: "approve",
+          args: [curveAddress as `0x${string}`, tokensInWei],
+        });
+
+        setSellStep("selling");
         await sell(
           curveAddress as `0x${string}`,
-          parseEther(amount),
+          tokensInWei,
           0n /* minMonOut */
         );
+
+        setSellStep("idle");
       }
     } catch {
+      setSellStep("idle");
       // errors surface via wagmi's onError handler in providers
     }
+  }
+
+  /* ── Button label ── */
+  function buttonLabel() {
+    if (sellStep === "approving") return (
+      <><Loader2 className="w-4 h-4 animate-spin" /> Approving {tokenSymbol}...</>
+    );
+    if (sellStep === "selling" || isSelling) return (
+      <><Loader2 className="w-4 h-4 animate-spin" /> Selling...</>
+    );
+    if (isBuying) return (
+      <><Loader2 className="w-4 h-4 animate-spin" /> Buying...</>
+    );
+    return <>{tab === "buy" ? "Buy" : "Sell"} {tokenSymbol}</>;
   }
 
   return (
@@ -90,7 +152,7 @@ export function TradePanel({
       {/* Buy/Sell Tabs */}
       <div className="flex rounded-pill bg-figma-surface p-1 mb-4">
         <button
-          onClick={() => setTab("buy")}
+          onClick={() => { setTab("buy"); setAmount(""); }}
           className={cn(
             "flex-1 py-2 rounded-pill text-figma-sm font-medium transition-all",
             tab === "buy"
@@ -101,7 +163,7 @@ export function TradePanel({
           Buy
         </button>
         <button
-          onClick={() => setTab("sell")}
+          onClick={() => { setTab("sell"); setAmount(""); }}
           className={cn(
             "flex-1 py-2 rounded-pill text-figma-sm font-medium transition-all",
             tab === "sell"
@@ -131,6 +193,31 @@ export function TradePanel({
         </div>
       ) : (
         <>
+          {/* Wallet Balances */}
+          <div className="flex items-center justify-between mb-3 px-1">
+            <div className="flex items-center gap-1.5 text-figma-xs text-figma-muted">
+              <Wallet className="w-3.5 h-3.5" />
+              <span>
+                {tab === "buy"
+                  ? `${monBalanceNum.toFixed(4)} MON`
+                  : `${tokenBalanceNum >= 1_000_000
+                      ? `${(tokenBalanceNum / 1_000_000).toFixed(2)}M`
+                      : tokenBalanceNum >= 1_000
+                      ? `${(tokenBalanceNum / 1_000).toFixed(2)}K`
+                      : tokenBalanceNum.toFixed(2)
+                    } ${tokenSymbol}`
+                }
+              </span>
+            </div>
+            <button
+              onClick={handleMax}
+              disabled={isLoading}
+              className="text-figma-xs text-figma-green hover:text-figma-green/80 font-semibold transition-colors disabled:opacity-50"
+            >
+              MAX
+            </button>
+          </div>
+
           {/* Input */}
           <div className="mb-3">
             <label className="text-figma-xs text-figma-muted mb-1 block">
@@ -181,6 +268,17 @@ export function TradePanel({
             </div>
           )}
 
+          {/* Sell step indicator */}
+          {tab === "sell" && sellStep !== "idle" && (
+            <div className="flex items-center gap-2 rounded-pill bg-figma-surface px-4 py-2 mb-3 text-figma-xs text-figma-muted">
+              <span className={cn("w-2 h-2 rounded-full", sellStep === "approving" ? "bg-figma-green animate-pulse" : "bg-figma-surface-alt")} />
+              <span className={sellStep === "approving" ? "text-figma-white" : "text-figma-muted"}>1. Approve</span>
+              <span className="mx-1">→</span>
+              <span className={cn("w-2 h-2 rounded-full", sellStep === "selling" ? "bg-figma-red animate-pulse" : "bg-figma-surface-alt")} />
+              <span className={sellStep === "selling" ? "text-figma-white" : "text-figma-muted"}>2. Sell</span>
+            </div>
+          )}
+
           {/* Action Button */}
           <button
             disabled={!canTrade}
@@ -192,18 +290,12 @@ export function TradePanel({
                 : "bg-figma-red text-figma-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {tab === "buy" ? "Buying..." : "Selling..."}
-              </>
-            ) : (
-              <>{tab === "buy" ? "Buy" : "Sell"} {tokenSymbol}</>
-            )}
+            {buttonLabel()}
           </button>
 
           <p className="text-[10px] text-figma-muted mt-3 text-center">
             Trades incur 1% protocol fee + 1% creator fee.
+            {tab === "sell" && " Selling requires 2 wallet confirmations (approve + sell)."}
           </p>
         </>
       )}

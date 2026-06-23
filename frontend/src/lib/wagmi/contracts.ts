@@ -258,13 +258,15 @@ export function getTokenPrice(
   realMon: bigint,
   soldTokens: bigint
 ): { monPerToken: number; marketCapMon: number } {
-  const remainingTokens = VIRTUAL_TOKENS - soldTokens;
-  if (remainingTokens === 0n) return { monPerToken: 0, marketCapMon: 0 };
-  const priceWei = K / (remainingTokens * remainingTokens);
-  const monPerToken = Number(priceWei) / 1e18;
-  const totalSupply = 1_000_000_000n * 10n ** 18n;
-  const marketCapWei = (totalSupply * priceWei) / 10n ** 18n;
-  return { monPerToken, marketCapMon: Number(marketCapWei) / 1e18 };
+  const reserveTokens = VIRTUAL_TOKENS - soldTokens;
+  if (reserveTokens <= 0n) return { monPerToken: 0, marketCapMon: 0 };
+  const reserveMon = VIRTUAL_MON + realMon;
+  // AMM spot price: reserveMon and reserveTokens are both in wei (1e18),
+  // so their ratio gives MON per token directly (units cancel).
+  const monPerToken = Number(reserveMon) / Number(reserveTokens);
+  const totalSupply = 1_000_000_000; // 1 billion tokens
+  const marketCapMon = monPerToken * totalSupply;
+  return { monPerToken, marketCapMon };
 }
 
 export function formatMon(wei: bigint): string {
@@ -452,6 +454,30 @@ export function useSellToken() {
 
   return { sell, ...rest };
 }
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* Minimal ERC-20 ABI (approve + balanceOf — used by TradePanel sell flow)          */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+export const ERC20ABI = [
+  {
+    type: "function",
+    name: "approve",
+    inputs: [
+      { name: "spender", type: "address", internalType: "address" },
+      { name: "amount", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "balanceOf",
+    inputs: [{ name: "account", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view",
+  },
+] as const satisfies Abi;
 
 export function useBetYes() {
   const { writeContractAsync, ...rest } = useWriteContract();
