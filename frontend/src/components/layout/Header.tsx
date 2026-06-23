@@ -34,9 +34,11 @@ export function Header() {
     <header className="flex items-center gap-4 h-16 px-6 border-b border-figma-surface bg-figma-bg shrink-0 w-full">
       {/* Logo */}
       <Link href="/" className="flex items-center gap-2 shrink-0">
-        <div className="w-8 h-8 rounded-lg gradient-lick flex items-center justify-center text-black text-lg">
-          🦎
-        </div>
+        <img
+          src="/logo-transparent.png"
+          alt="Lick.fun"
+          className="w-8 h-8 rounded-lg object-cover shrink-0"
+        />
         <span className="font-bold text-gradient-lick text-lg">Lick.fun</span>
       </Link>
 

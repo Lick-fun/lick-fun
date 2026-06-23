@@ -132,9 +132,11 @@ export function Sidebar() {
         href="/"
         className="flex items-center gap-3 px-6 h-16 border-b border-figma-surface"
       >
-        <div className="w-9 h-9 rounded-lg gradient-lick flex items-center justify-center text-black text-xl font-bold">
-          🦎
-        </div>
+        <img
+          src="/logo-transparent.png"
+          alt="Lick.fun"
+          className="w-9 h-9 rounded-lg object-cover shrink-0"
+        />
         <div>
           <h1 className="text-lg font-bold text-gradient-lick">Lick.fun</h1>
           <p className="text-figma-xs text-figma-muted leading-none">

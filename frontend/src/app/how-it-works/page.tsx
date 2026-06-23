@@ -26,9 +26,11 @@ export default function HowItWorksPage() {
       {/* What is Lick.fun */}
       <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-card gradient-lick flex items-center justify-center text-xl">
-            🦎
-          </div>
+          <img
+            src="/logo-transparent.png"
+            alt="Lick.fun"
+            className="w-10 h-10 rounded-card object-cover shrink-0"
+          />
           <h2 className="text-figma-2xl text-figma-white font-bold">What is Lick.fun?</h2>
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed mb-4">

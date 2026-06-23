@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   description:
     "Social-first token launchpad on Monad. Launch tokens with earned reputation.",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/logo-transparent.png",
   },
 };
 
