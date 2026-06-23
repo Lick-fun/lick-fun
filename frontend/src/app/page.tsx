@@ -13,6 +13,8 @@ import { useAllTokens, useRecentTrades } from "@/lib/hooks/useData";
 
 type SortOption = "lastTrade" | "largestMC" | "newestCreated" | "highestReputation";
 
+const TOKENS_PER_PAGE = 60; // 10 rows × 6 cols
+
 /* ─── Display helpers ─────────────────────────────────────────────────────────── */
 
 function formatMarketCap(mc: number): string {
@@ -59,6 +61,13 @@ export default function HomePage() {
   const { data: tokens = [], isLoading } = useAllTokens();
   const { data: recentTrades = [], isLoading: tradesLoading } = useRecentTrades(10);
   const [activeSort, setActiveSort] = useState<SortOption>("largestMC");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  /* Changing the sort filter resets pagination back to page 1 */
+  const handleSortChange = (key: SortOption) => {
+    setActiveSort(key);
+    setCurrentPage(1);
+  };
 
   /* Top 6 by market cap for trending section */
   const trendingTokens = useMemo(() => {
@@ -91,6 +100,13 @@ export default function HomePage() {
         return list;
     }
   }, [tokens, activeSort]);
+
+  /* Pagination — slice the sorted list to the current page (60 tokens = 10 rows) */
+  const totalPages = Math.max(1, Math.ceil(sortedTokens.length / TOKENS_PER_PAGE));
+  const paginatedTokens = useMemo(() => {
+    const start = (currentPage - 1) * TOKENS_PER_PAGE;
+    return sortedTokens.slice(start, start + TOKENS_PER_PAGE);
+  }, [sortedTokens, currentPage]);
 
   /* Token lookup map for the trade ticker */
   const tokenMap = useMemo(() => {
@@ -253,7 +269,7 @@ export default function HomePage() {
           return (
             <button
               key={key}
-              onClick={() => setActiveSort(key)}
+              onClick={() => handleSortChange(key)}
               className={`flex items-center gap-2 h-[31px] px-[18px] rounded-pill border-0 outline-none cursor-pointer transition-colors ${
                 isActive
                   ? "bg-figma-green text-figma-bg"
@@ -267,6 +283,33 @@ export default function HomePage() {
           );
         })}
       </div>
+
+      {/* ── Pagination Row (Prev / Next) — only shown when more than 1 page ── */}
+      {totalPages > 1 && (
+        <div className="flex items-center gap-3 mt-[18px]">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="flex items-center justify-center h-[31px] px-[18px] rounded-pill border-0 outline-none cursor-pointer transition-colors bg-figma-surface text-figma-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-figma-surface/80"
+          >
+            <span className="text-figma-sm font-medium whitespace-nowrap">
+              ← Prev
+            </span>
+          </button>
+          <span className="text-figma-sm text-figma-muted font-medium px-2">
+            Page {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="flex items-center justify-center h-[31px] px-[18px] rounded-pill border-0 outline-none cursor-pointer transition-colors bg-figma-surface text-figma-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-figma-surface/80"
+          >
+            <span className="text-figma-sm font-medium whitespace-nowrap">
+              Next →
+            </span>
+          </button>
+        </div>
+      )}
 
       {/* ── Token Box Grid ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-[11px] mt-[30px] pb-[60px]">
@@ -283,7 +326,7 @@ export default function HomePage() {
             </span>
           </div>
         ) : (
-          sortedTokens.map((token, i) => (
+          paginatedTokens.map((token, i) => (
             <Link
               key={token.id}
               href={`/token/${token.id}`}
