@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { useCreateToken } from "@/lib/hooks/useCreateToken";
 import {
   Loader2, CheckCircle2, AlertCircle, Rocket, ArrowRight,
-  Coins, Info, Upload, X, ImageIcon, Cloud,
+  Coins, Info, Upload, X, ImageIcon,
 } from "lucide-react";
 
 const MAX_IMAGE_SIZE_MB = 10;
@@ -102,8 +102,8 @@ export default function CreateTokenPage() {
 
   const uploadLabel = () => {
     switch (uploadStatus) {
-      case "uploading": return "Uploading to IPFS…";
-      case "done":     return "Uploaded to IPFS ✓";
+      case "uploading": return "Creating token…";
+      case "done":     return "Image ready ✓";
       default:         return null;
     }
   };
@@ -162,11 +162,6 @@ export default function CreateTokenPage() {
             <p className="text-figma-sm text-figma-muted">
               Your token is live on the bonding curve.
             </p>
-            {imageFile && (
-              <p className="text-figma-xs text-figma-green/70 mt-1 flex items-center justify-center gap-1">
-                <Cloud className="w-3 h-3" /> Image pinned to IPFS permanently
-              </p>
-            )}
           </div>
           <div className="w-full rounded-card border border-figma-surface bg-figma-card p-4 text-left">
             <p className="text-figma-xs text-figma-muted mb-1">Token Address</p>
@@ -222,7 +217,7 @@ export default function CreateTokenPage() {
               Token Image
             </h2>
             <span className="text-figma-xs text-figma-muted ml-auto">
-              Optional · Pinned to IPFS
+              Optional
             </span>
           </div>
 
@@ -241,10 +236,6 @@ export default function CreateTokenPage() {
                 <p className="text-figma-sm font-medium truncate">{imageFile?.name}</p>
                 <p className="text-figma-xs text-figma-muted mt-0.5">
                   {imageFile ? `${(imageFile.size / 1024 / 1024).toFixed(2)} MB` : ""}
-                </p>
-                <p className="text-figma-xs text-figma-green-soft mt-1 flex items-center gap-1">
-                  <Cloud className="w-3 h-3" />
-                  Will be uploaded to IPFS before deployment
                 </p>
                 <button
                   type="button"
@@ -392,10 +383,6 @@ export default function CreateTokenPage() {
               <span className="font-mono font-semibold text-figma-green">10 MON</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-figma-muted">IPFS storage</span>
-              <span className="font-mono text-figma-green-soft">Free (NFT.storage)</span>
-            </div>
-            <div className="flex justify-between">
               <span className="text-figma-muted">Trade fee (per tx)</span>
               <span className="font-mono">2% (1% protocol + 1% creator)</span>
             </div>
@@ -415,7 +402,7 @@ export default function CreateTokenPage() {
                 Creating Token!
               </p>
               <p className="text-figma-xs text-figma-muted">
-                Pinning image and metadata to IPFS…
+                Creating token…
               </p>
             </div>
           </div>

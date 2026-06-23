@@ -13,5 +13,15 @@
     "metadataUri": "ipfs://QmbitcZnDrKdhxKHPqR6rBsEabiPPCNrTnQJxr64UBzCj9",
     "imageUri": "ipfs://QmdyEsr6tmWmt2CYhaAFRokmC4baKUgUxgaHgPv1vQ6nVD",
     "registeredAt": 1782212262896
+  },
+  "0x745372297cd3967809b11ceef0530b1af63b49eb": {
+    "metadataUri": "ipfs://QmU7Qq6CHJZGS83GYtQ4dwbjYEiEq98B18r42FLw19hsBj",
+    "imageUri": "ipfs://QmdnnRZP1ukR8kraWCxmNmZno1LVNk8TWRPX5JdQuWc9VX",
+    "registeredAt": 1782220317226
+  },
+  "0xb7b1b33dfb292bcbc6907ab9d3ad449bead46635": {
+    "metadataUri": "ipfs://QmVPQmwVGHK3ayXT52W8rLQR4etqeTCCjRhQ7eVh5iDCRB",
+    "imageUri": "ipfs://QmU9NTndXMW2ui2DvXtguF3dk5yPQe9LUDHTtBh2QsyvYE",
+    "registeredAt": 1782220976629
   }
 }

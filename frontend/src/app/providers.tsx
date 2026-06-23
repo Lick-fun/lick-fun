@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { wagmiConfig } from "@/lib/wagmi/config";
+import "@rainbow-me/rainbowkit/styles.css";
 
 /**
  * Figma-sourced provider stack.
@@ -12,10 +13,10 @@ import { wagmiConfig } from "@/lib/wagmi/config";
  * RainbowKit accent color matches the Lick.fun Figma brand green
  * (#70E000 — `var(--color-green)`) rather than the legacy orange.
  *
- * Note: We intentionally do NOT import `@rainbow-me/rainbowkit/styles.css`
- * because its vanilla-extract CSS format conflicts with Next.js 15's
- * default CSS loader. RainbowKit components ship with inline styles for
- * the critical UI, so the page still renders correctly without it.
+ * The RainbowKit stylesheet is imported here — `next.config.ts` already
+ * has `transpilePackages: ["@rainbow-me/rainbowkit"]` so Next.js 15's
+ * CSS loader processes it correctly. Without it, the ConnectButton,
+ * network switcher, and account dropdown render unstyled/broken.
  */
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
