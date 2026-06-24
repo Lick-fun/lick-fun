@@ -12,8 +12,6 @@ import {
   Plus,
   Zap,
   User,
-  Trophy,
-  Gift,
 } from "lucide-react";
 
 const mainLinks = [
@@ -26,8 +24,6 @@ const mainLinks = [
 
 const extraLinks = [
   { href: "/profile", label: "Profile", icon: User },
-  { href: "/ranking", label: "Ranking", icon: Trophy },
-  { href: "/rewards", label: "Rewards", icon: Gift },
 ];
 
 // Simple SVG social icons (lucide doesn't ship Telegram/Instagram/Discord variants)

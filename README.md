@@ -6,8 +6,9 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.27-blue)](https://soliditylang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
+[![Tests](https://img.shields.io/badge/Tests-136%20Forge%20•%2046%20Vitest-green)](.)
 
-**Status:** 3 security audit passes · 136 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + tier system deployed · Phase 3 (USD MC display, founder token) next
+**Status:** 3 security audit passes · 136 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + tier system deployed · Profile & reputation live on frontend · Phase 3 (USD MC display, founder token) next
 
 ---
 
@@ -25,7 +26,7 @@ No open posting feed. No shilling. Your behavior is your content.
 A creator submits a token with a name, symbol, image, and fee tier. An optional 30-second delay provides anti-snipe protection.
 
 ### 2. Trade
-Anyone can buy/sell on the bonding curve. Symmetric anti-sniping penalties protect early traders (decays over 7 blocks, first buy exempt).
+Anyone can buy/sell on the bonding curve. Symmetric anti-sniping penalties protect early traders (decays over 7 blocks: 80% → 40% → 20% → 15% → 10% → 10% → 5% → 0%, first buy exempt).
 
 ### 3. Graduate
 When the curve accumulates 100,000 MON, GraduationRouter migrates all liquidity to a LickPair (V2-style AMM). LP tokens are burned to `0xdead` — permanent liquidity, strongest trust signal.
@@ -36,13 +37,16 @@ Creators choose a tier at launch. The 1% creator fee is split per-tier through F
 | Tier | Creator | LP Support | Buyback & Burn | Notes |
 |---|---|---|---|---|
 | Light | 10% | 80% | 10% | Entry tier |
-| Standard A | 30% | 60% | 10% | Creator-led |
-| Standard B | 20% | 70% | 10% | Protocol-health |
+| Standard A | 30% | 60% | 10% | Builder tier |
+| Standard B | 20% | 70% | 10% | Ecosystem-health tier |
 | Diamond | custom | min 80% LP | custom | Floor enforced on-chain |
 | ECOSYSTEM | 20% | 40% | 40% | Protocol reserve |
 
 ### 5. Earn Reputation
-Every on-chain action feeds an off-chain reputation engine. Scores are computed from graduation rates, lock fulfillment, pre-buy honesty, profile age, verified tenure, and volume. Anchored daily on-chain via Merkle root in ProfileRegistry.
+Every on-chain action feeds an off-chain reputation engine. Scores (0–100) computed from graduation rates, lock fulfillment, pre-buy honesty, profile age, verified tenure, and volume. Sigmoid formula: `100 / (1 + e^(-0.15 × (raw - 0.4)))`. Anchored daily on-chain via Merkle root in ProfileRegistry. 10 milestone badges auto-awarded.
+
+### 6. View Profile
+Connected wallet → click Profile in nav → see live trading stats, reputation score, tier badge, achievements, tokens created, and recent activity — all from the Envio indexer.
 
 ---
 
@@ -95,9 +99,59 @@ Envio: https://indexer.dev.hyperindex.xyz/6601ad1/v1/graphql
 ```
 lick-fun/
 ├── contracts/          Foundry project (13 Solidity contracts, 136 tests)
-│   ├── src/            13 contracts
+│   ├── src/            13 contracts (Factory, BondingCurve, FeeRouter, etc.)
 │   ├── script/         Deploy scripts
 │   └── test/           13 test files, 136 Forge tests
+├── frontend/           Next.js 15 app (7 pages, reputation UI components)
+│   ├── src/app/        Routes: / /create /discover /how-it-works /markets /profile/[address] /token/[id]
+│   └── src/components/ UI + layout + reputation (TierBadge, BadgeGrid, ReputationScore)
+├── indexer/            Envio HyperIndex v3 config + handlers (5 entities)
+├── reputation/         Off-chain TypeScript scoring engine (10 badges, 3 tiers, Merkle anchor)
+├── .memory/            RAG reference files (8 .txt files for Cline)
+└── script/             Utility scripts
+```
+
+---
+
+## Reputation Badges (10 total)
+
+| Badge | Condition |
+|---|---|
+| First Token | tokenCount ≥ 1 |
+| Triple Graduate | graduatedCount ≥ 3 |
+| Deca Graduate | graduatedCount ≥ 10 |
+| Locked & Honest — 180d | 100% lock fulfillment + age ≥ 180d |
+| Locked & Honest — 365d | 100% lock fulfillment + age ≥ 365d |
+| Never Rug | age ≥ 30d + zero rug events |
+| Pre-buy Honest | prebuy honesty rate ≥ 95% |
+| Volume Maker | cumulative grad volume > 100K MON |
+| Verified Founder | reputation score ≥ 70 |
+| OG | age ≥ 365d + ≥ 3 graduates |
+
+---
+
+## Quick Start
+
+```bash
+# Frontend
+cd frontend && pnpm install && pnpm dev   # → http://localhost:3010
+
+# Contracts (Forge)
+cd contracts && forge build --root . --config-path foundry.toml
+forge test --root . --config-path foundry.toml
+
+# Indexer
+cd indexer && pnpm install && pnpm dev
+
+# Reputation tests
+cd reputation && pnpm install && pnpm test
+```
+
+---
+
+## License
+
+Proprietary — see [LICENSE](LICENSE).
 ├── indexer/            Envio HyperSync (TypeScript + GraphQL)
 ├── reputation/         Off-chain reputation engine (TypeScript, 46 tests)
 └── frontend/           Next.js 15.5 (9 pages, wagmi, RainbowKit)

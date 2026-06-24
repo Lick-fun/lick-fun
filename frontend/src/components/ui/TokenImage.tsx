@@ -39,9 +39,10 @@ const GRADIENTS = [
 ];
 
 function getGradient(seed: string): string {
+  const safeSeed = seed ?? "";
   let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) & 0xffffffff;
+  for (let i = 0; i < safeSeed.length; i++) {
+    hash = (hash * 31 + safeSeed.charCodeAt(i)) & 0xffffffff;
   }
   return GRADIENTS[Math.abs(hash) % GRADIENTS.length];
 }
@@ -73,8 +74,9 @@ function Placeholder({
   className?: string;
 }) {
   const { px, className: sizeClass } = SIZE_MAP[size];
-  const gradient = getGradient(tokenAddress);
-  const initials = getInitials(tokenName ?? "", tokenAddress);
+  const safeAddress = tokenAddress ?? "0x0";
+  const gradient = getGradient(safeAddress);
+  const initials = getInitials(tokenName ?? "", safeAddress);
   void px;
 
   return (

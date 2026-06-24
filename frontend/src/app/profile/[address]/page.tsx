@@ -1,24 +1,37 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Search, Copy, Check } from "lucide-react";
+import { Search, Copy, Check, ExternalLink, TrendingUp, TrendingDown } from "lucide-react";
 import { useState } from "react";
 import { TokenImage } from "@/components/ui/TokenImage";
+import { TierBadge } from "@/components/reputation/TierBadge";
+import { ReputationScore } from "@/components/reputation/ReputationScore";
+import { BadgeGrid } from "@/components/reputation/BadgeGrid";
+import { useProfile, useTokensByCreator, useRecentTrades } from "@/lib/hooks/useData";
+import { useReputation } from "@/lib/hooks/useReputation";
 
-const transactions = [
-  { type: "sell" as const, token: "PepeBNB", amount: "37779", bnb: "+1,31 BNB" },
-  { type: "buy" as const, token: "PepeBNB", amount: "37779", bnb: "-1,21 BNB" },
-  { type: "sell" as const, token: "PepeBNB", amount: "13379", bnb: "+1,31 BNB" },
-  { type: "buy" as const, token: "PepeBNB", amount: "37779", bnb: "-1,21 BNB" },
-  { type: "sell" as const, token: "PepeBNB", amount: "13379", bnb: "+1,31 BNB" },
-];
+function formatMon(amount: bigint): string {
+  const mon = Number(amount) / 1e18;
+  if (mon >= 1000) return `${(mon / 1000).toFixed(2)}K`;
+  if (mon >= 1) return mon.toFixed(2);
+  return mon.toFixed(3);
+}
 
-const holdings = [
-  { name: "ShibaInu BNB", change: "+0,23%", amount: "884123", bnb: "=0,312 BNB", address: "0x0000000000000000000000000000000000000001" },
-  { name: "DogeCoin BNB", change: "+1,12%", amount: "512000", bnb: "=0,185 BNB", address: "0x0000000000000000000000000000000000000002" },
-  { name: "PepeBNB", change: "-0,45%", amount: "245000", bnb: "=0,089 BNB", address: "0x0000000000000000000000000000000000000003" },
-  { name: "WowDoge", change: "+3,21%", amount: "1200000", bnb: "=0,420 BNB", address: "0x0000000000000000000000000000000000000004" },
-];
+function formatAmount(amount: bigint): string {
+  const num = Number(amount) / 1e18;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+  return num.toFixed(0);
+}
+
+function timeAgo(timestamp: bigint): string {
+  const now = Math.floor(Date.now() / 1000);
+  const diff = now - Number(timestamp);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 export default function ProfilePage() {
   const { address } = useParams<{ address: string }>();
@@ -30,6 +43,18 @@ export default function ProfilePage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const { data: profile, isLoading: profileLoading } = useProfile(addr);
+  const { data: tokens = [], isLoading: tokensLoading } = useTokensByCreator(addr);
+  const { data: recentTrades = [] } = useRecentTrades(50);
+  const { data: reputation, isLoading: repLoading } = useReputation(addr);
+
+  // Filter trades where this address is the trader
+  const userTrades = recentTrades.filter(
+    (t) => t.trader.toLowerCase() === addr.toLowerCase()
+  ).slice(0, 5);
+
+  const isLoading = profileLoading || tokensLoading || repLoading;
 
   return (
     <div className="relative bg-figma-bg min-h-screen px-5 pb-20">
@@ -58,229 +83,194 @@ export default function ProfilePage() {
               </span>
             </div>
           </div>
-          {/* Edit profile */}
-          <div
-            className="flex items-center justify-center h-[32px]"
-            style={{
-              background: "#7DC832",
-              borderRadius: "9px",
-              padding: "9px 28px",
-            }}
+
+          {/* Tier Badge */}
+          {reputation && (
+            <TierBadge tier={reputation.tier} size="md" />
+          )}
+        </div>
+
+        {/* Address + Copy */}
+        <div className="flex items-center gap-[10px] w-full">
+          <span className="text-figma-muted font-figma-regular text-figma-13">
+            {addr.slice(0, 6)}...{addr.slice(-4)}
+          </span>
+          <button
+            onClick={handleCopy}
+            className="text-figma-muted hover:text-figma-white transition-colors"
           >
-            <span className="text-figma-gray font-figma-regular text-figma-11">edit profile</span>
-          </div>
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+          </button>
+          <a
+            href={`https://testnet.monadexplorer.com/address/${addr}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-figma-muted hover:text-figma-white transition-colors"
+          >
+            <ExternalLink size={14} />
+          </a>
         </div>
 
-        {/* Connected Wallets */}
-        <div className="flex flex-col gap-[15px] w-[635px]">
-          <span className="text-figma-white font-figma-bold text-figma-15">Connected Wallets:</span>
-
-          {/* Solana */}
-          <div className="flex flex-col gap-0">
-            <span className="text-figma-inactive font-figma-regular text-figma-11">Solana</span>
-            <div
-              className="flex items-center gap-[16px] w-[624px] h-[47px]"
-              style={{
-                background: "#7DC832",
-                borderRadius: "12px",
-                padding: "15px 28px",
-              }}
-            >
-              <svg width="19" height="15" viewBox="0 0 19 15" fill="none">
-                <circle cx="9.5" cy="7.5" r="7" fill="white" />
-              </svg>
-              <span className="text-figma-white font-figma-regular text-figma-14 flex-1">
-                9AM7qUcUZzU4DpwTXzcF8cQzWpzDm8fFfZktSg3aBufL
-              </span>
-              <button onClick={handleCopy}>
-                {copied ? <Check className="w-[22px] h-[22px] text-white" /> : <Copy className="w-[22px] h-[22px] text-white" />}
-              </button>
-            </div>
+        {/* Reputation Score */}
+        {reputation && (
+          <div className="w-full pt-2">
+            <ReputationScore score={reputation.reputation} />
           </div>
+        )}
 
-          {/* Binance */}
-          <div className="flex flex-col gap-0">
-            <span className="text-figma-inactive font-figma-regular text-figma-11">Binance smart chain</span>
-            <div
-              className="flex items-center gap-[15px] w-[624px] h-[47px]"
-              style={{
-                background: "#7DC832",
-                borderRadius: "12px",
-                padding: "13px 28px",
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" fill="#F0B90B" />
-              </svg>
-              <span className="text-figma-white font-figma-regular text-figma-14 flex-1">
-                9AM7qUcUZzU4DpwTXzcF8cQzWpzDm8fFfZktSg3aBufL
-              </span>
-              <button onClick={handleCopy}>
-                <Copy className="w-[22px] h-[22px] text-white" />
-              </button>
-            </div>
+        {/* Stats Row */}
+        <div className="flex items-center justify-between w-full pt-2">
+          <div className="flex flex-col gap-[4px]">
+            <span className="text-figma-muted font-figma-regular text-figma-11">Tokens</span>
+            <span className="text-figma-white font-figma-bold text-figma-16">
+              {profile?.tokenCount ?? 0}
+            </span>
           </div>
-
-          {/* Ethereum */}
-          <div className="flex flex-col gap-0">
-            <span className="text-figma-inactive font-figma-regular text-figma-11">Ethereum</span>
-            <div
-              className="flex items-center gap-[18px] w-[624px] h-[50px]"
-              style={{
-                background: "#7DC832",
-                borderRadius: "12px",
-                padding: "11px 29px",
-              }}
-            >
-              <svg width="16" height="26" viewBox="0 0 16 26" fill="none">
-                <path d="M8 0L0 13L8 18L16 13L8 0Z" fill="white" />
-              </svg>
-              <span className="text-figma-white font-figma-regular text-figma-14 flex-1">
-                9AM7qUcUZzU4DpwTXzcF8cQzWpzDm8fFfZktSg3aBufL
-              </span>
-              <button onClick={handleCopy}>
-                <Copy className="w-[22px] h-[22px] text-white" />
-              </button>
-            </div>
+          <div className="flex flex-col gap-[4px]">
+            <span className="text-figma-muted font-figma-regular text-figma-11">Graduated</span>
+            <span className="text-figma-white font-figma-bold text-figma-16">
+              {profile?.graduatedCount ?? 0}
+            </span>
+          </div>
+          <div className="flex flex-col gap-[4px]">
+            <span className="text-figma-muted font-figma-regular text-figma-11">Buy Vol</span>
+            <span className="text-figma-white font-figma-bold text-figma-16">
+              {profile ? formatMon(profile.totalBuyVolume) : "0"} MON
+            </span>
+          </div>
+          <div className="flex flex-col gap-[4px]">
+            <span className="text-figma-muted font-figma-regular text-figma-11">Sell Vol</span>
+            <span className="text-figma-white font-figma-bold text-figma-16">
+              {profile ? formatMon(profile.totalSellVolume) : "0"} MON
+            </span>
           </div>
         </div>
       </div>
 
-      {/* ── Earnings Panel ── */}
-      <div
-        className="flex flex-col gap-[43px]"
-        style={{
-          position: "absolute",
-          left: "1036px",
-          top: "130px",
-          width: "345px",
-          background: "#000000",
-          borderRadius: "30px",
-          padding: "34px 35px",
-        }}
-      >
-        {/* Earnings info */}
-        <div className="flex flex-col gap-[13px]">
-          <div className="flex flex-col gap-[7px]">
-            <span className="text-figma-white font-figma-semibold text-figma-22">Earnings</span>
-            <span className="text-figma-green font-figma-medium text-figma-15">Total Expense</span>
-          </div>
-          <span className="text-figma-purple font-figma-bold" style={{ fontSize: "32px" }}>
-            $6078.76
-          </span>
-          <span className="text-figma-green font-figma-medium text-figma-14">
-            Keep Pumping Those Numbers
-          </span>
+      {/* ── Badges Section ── */}
+      {reputation && reputation.badges.length > 0 && (
+        <div className="mt-6" style={{ width: "709px" }}>
+          <h2 className="text-figma-white font-figma-bold text-figma-16 mb-3">
+            Achievements
+          </h2>
+          <BadgeGrid earned={reputation.badges} />
         </div>
+      )}
 
-        {/* Donut chart placeholder */}
-        <div className="relative w-[269px] h-[130px] mx-auto">
-          <svg width="269" height="130" viewBox="0 0 269 130">
-            <circle cx="135" cy="130" r="120" fill="none" stroke="#1B1B1B" strokeWidth="20" />
-            <circle cx="135" cy="130" r="120" fill="none" stroke="#6E44D2" strokeWidth="20"
-              strokeDasharray="377" strokeDashoffset="75" strokeLinecap="round" />
-            <text x="135" y="90" textAnchor="middle" fill="white" fontSize="37" fontWeight="bold" fontFamily="Inter">80%</text>
-          </svg>
-        </div>
-      </div>
-
-      {/* ── Latest Transactions ── */}
-      <div
-        className="flex flex-col gap-[12px]"
-        style={{
-          position: "absolute",
-          left: "1036px",
-          top: "530px",
-          width: "345px",
-          background: "#000000",
-          borderRadius: "30px",
-          padding: "26px 23px",
-        }}
-      >
-        <div className="flex flex-col gap-[7px]">
-          <span className="text-figma-white font-figma-semibold text-figma-22">Latest Transactions</span>
-        </div>
-
-        {transactions.map((tx, i) => (
-          <div key={i}>
-            <div className="flex items-center justify-between w-full">
-              <span className="text-figma-white font-figma-medium text-figma-12">
-                {tx.type === "sell" ? "Sold" : "Bought"} {tx.amount} {tx.token}
-              </span>
+      {/* ── Holdings (Tokens Created) ── */}
+      <div className="mt-6" style={{ width: "709px" }}>
+        <h2 className="text-figma-white font-figma-bold text-figma-16 mb-3">
+          Tokens Created
+        </h2>
+        <div
+          className="flex flex-col gap-[10px]"
+          style={{
+            background: "#000000",
+            borderRadius: "24px",
+            padding: "20px",
+          }}
+        >
+          {tokensLoading ? (
+            <div className="text-figma-muted text-figma-13 py-4 text-center">
+              Loading tokens...
+            </div>
+          ) : tokens.length === 0 ? (
+            <div className="text-figma-muted text-figma-13 py-4 text-center">
+              No tokens created yet
+            </div>
+          ) : (
+            tokens.slice(0, 6).map((token) => (
               <div
-                className="flex items-center justify-center h-[29px]"
-                style={{
-                  background: "#7DC832",
-                  borderRadius: "4px",
-                  padding: "7px 15px",
-                }}
+                key={token.id}
+                className="flex items-center justify-between"
               >
-                <span className={tx.type === "buy" ? "text-figma-red" : "text-figma-purple"} style={{ fontSize: "12px" }}>
-                  {tx.bnb}
-                </span>
-              </div>
-            </div>
-            {i < transactions.length - 1 && (
-              <hr className="border-0 h-px my-[3px]" style={{ background: "rgba(255,255,255,0.25)", opacity: 0.25 }} />
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* ── Holdings ── */}
-      <div
-        className="flex flex-col gap-[10px] mt-[29px]"
-        style={{
-          width: "709px",
-          background: "#000000",
-          borderRadius: "34px",
-          padding: "31px 37px",
-        }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between w-full">
-          <span className="text-figma-white font-figma-semibold text-figma-22">Holdings</span>
-          <span className="text-figma-white font-figma-regular text-figma-16">
-            Total networth: $9,231 / <span className="font-semibold text-figma-purple">**+43%**</span>
-          </span>
-        </div>
-
-        {/* Holding rows */}
-        <div className="flex flex-col gap-[12px]">
-          {holdings.map((h, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between w-full"
-              style={{
-                background: "#7DC832",
-                borderRadius: "12px",
-                padding: "18px 26px 16px 26px",
-              }}
-            >
-              {/* Left: icon + name */}
-              <div className="flex items-center gap-[21px]">
-                <TokenImage
-                  tokenAddress={h.address}
-                  tokenName={h.name}
-                  size="md"
-                  round
-                />
-                <div className="flex flex-col gap-[3px]">
-                  <span className="text-figma-card font-figma-semibold text-figma-16">{h.name}</span>
-                  <span className="text-figma-purple font-figma-semibold text-figma-16">{h.change}</span>
+                <div className="flex items-center gap-[12px]">
+                  <TokenImage
+                    tokenAddress={token.id}
+                    tokenName={token.symbol}
+                    size="sm"
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-figma-white font-figma-bold text-figma-13">
+                      {token.name}
+                    </span>
+                    <span className="text-figma-muted font-figma-regular text-figma-11">
+                      {token.symbol}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-figma-white font-figma-bold text-figma-13">
+                    {formatMon(token.realMon)} MON
+                  </span>
+                  <span className="text-figma-muted font-figma-regular text-figma-11">
+                    {token.graduated ? "Graduated" : `${token.buyCount + token.sellCount} trades`}
+                  </span>
                 </div>
               </div>
-              {/* Right: amount + BNB value */}
-              <div className="flex flex-col gap-[3px] items-end">
-                <span className="text-figma-card font-figma-semibold text-figma-16 text-right">{h.amount}</span>
-                <span className="text-figma-card font-figma-regular text-figma-16 text-right" style={{ opacity: 0.53 }}>
-                  {h.bnb}
-                </span>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
+
+      {/* ── Recent Transactions ── */}
+      <div className="mt-6" style={{ width: "709px" }}>
+        <h2 className="text-figma-white font-figma-bold text-figma-16 mb-3">
+          Recent Activity
+        </h2>
+        <div
+          className="flex flex-col gap-[10px]"
+          style={{
+            background: "#000000",
+            borderRadius: "24px",
+            padding: "20px",
+          }}
+        >
+          {userTrades.length === 0 ? (
+            <div className="text-figma-muted text-figma-13 py-4 text-center">
+              No recent transactions
+            </div>
+          ) : (
+            userTrades.map((trade) => {
+              const token = tokens.find((t) => t.id === trade.token_id);
+              return (
+                <div
+                  key={trade.id}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-[12px]">
+                    {trade.isBuy ? (
+                      <TrendingUp size={16} className="text-green-400" />
+                    ) : (
+                      <TrendingDown size={16} className="text-red-400" />
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-figma-white font-figma-bold text-figma-13">
+                        {trade.isBuy ? "Buy" : "Sell"} {token?.symbol ?? "Token"}
+                      </span>
+                      <span className="text-figma-muted font-figma-regular text-figma-11">
+                        {timeAgo(trade.blockTimestamp)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-figma-white font-figma-bold text-figma-13">
+                      {formatAmount(trade.amountIn)} MON
+                    </span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Loading state */}
+      {isLoading && (
+        <div className="text-figma-muted text-figma-13 mt-4 text-center">
+          Loading profile data...
+        </div>
+      )}
     </div>
   );
 }

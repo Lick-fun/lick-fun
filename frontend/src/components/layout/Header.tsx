@@ -4,7 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
-import { Search, Home, Compass, TrendingUp, BookOpen, Plus, User, Trophy, Gift } from "lucide-react";
+import { Search, Home, Compass, TrendingUp, BookOpen, Plus, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
@@ -13,8 +13,6 @@ const navLinks = [
   { href: "/create",       label: "Create Token", icon: Plus },
   { href: "/markets",      label: "Markets",      icon: TrendingUp },
   { href: "/how-it-works", label: "How It Works", icon: BookOpen },
-  { href: "/ranking",      label: "Ranking",      icon: Trophy },
-  { href: "/rewards",      label: "Rewards",      icon: Gift },
 ];
 
 function isActiveLink(pathname: string, href: string): boolean {
