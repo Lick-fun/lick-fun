@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, type FormEvent, useEffect, useRef, useCallback, useMemo } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useBalance } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { parseEther, formatEther } from "viem";
 import { cn } from "@/lib/utils";
 import { useCreateToken } from "@/lib/hooks/useCreateToken";
 import { useReputation } from "@/lib/hooks/useReputation";
@@ -15,8 +16,12 @@ import {
   type CustomFeeConfig,
 } from "@/components/fee/FeeConfigSelector";
 import {
+  estimateDevBuyTokens,
+  formatTokens,
+} from "@/lib/wagmi/contracts";
+import {
   Loader2, CheckCircle2, AlertCircle, Rocket, ArrowRight,
-  Coins, Info, Upload, X, ImageIcon, Link2, Globe,
+  Coins, Info, Upload, X, ImageIcon, Link2, Globe, TrendingUp, Wallet,
 } from "lucide-react";
 
 const MAX_IMAGE_SIZE_MB = 10;
@@ -63,9 +68,12 @@ export default function CreateTokenPage() {
   const [feePreset, setFeePreset] = useState<FeePreset>("LIGHT");
   const [feeValid, setFeeValid] = useState(true);
 
+  // Dev purchase (optional creator pre-buy — exempt from anti-sniping)
+  const [devBuyAmount, setDevBuyAmount] = useState<string>("");
+
   const {
     createToken, isPending, isConfirming, isSuccess,
-    tokenAddress, txHash, error, reset, uploadStatus,
+    tokenAddress, txHash, error, reset, uploadStatus, step,
   } = useCreateToken();
   const router = useRouter();
 
@@ -77,11 +85,49 @@ export default function CreateTokenPage() {
     [tier],
   );
 
+  // Connected wallet's native MON balance (for the dev-purchase row).
+  const { data: monBalance } = useBalance({ address });
+  const walletMonDisplay = useMemo(() => {
+    if (!monBalance) return null;
+    const n = Number(formatEther(monBalance.value));
+    if (!Number.isFinite(n)) return null;
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(2)}k`;
+    if (n >= 1) return n.toFixed(3);
+    return n.toFixed(4);
+  }, [monBalance]);
+
   // Social link validation
   const telegramError = validateSocial(telegram, "https://t.me/");
   const twitterError = validateSocial(twitter, "https://x.com/");
   const websiteError = validateSocial(website, "https://");
   const socialsValid = !telegramError && !twitterError && !websiteError;
+
+  // Dev buy amount validation (optional — empty string means no dev buy)
+  const devBuyTrimmed = devBuyAmount.trim();
+  let devBuyError: string | null = null;
+  let devBuyMonFloat = 0;
+  if (devBuyTrimmed) {
+    const n = Number(devBuyTrimmed);
+    if (!Number.isFinite(n) || n <= 0) {
+      devBuyError = "Enter a positive number, or leave blank to skip";
+    } else if (n > 100_000) {
+      devBuyError = "Maximum 100,000 MON per dev buy";
+    } else {
+      devBuyMonFloat = n;
+    }
+  }
+  const devBuyValid = devBuyError === null;
+
+  // Estimated tokens the dev will receive (only meaningful when amount is set)
+  const estimatedDevBuyTokens = useMemo(() => {
+    if (!devBuyValid || devBuyMonFloat <= 0) return null;
+    try {
+      return estimateDevBuyTokens(parseEther(devBuyTrimmed));
+    } catch {
+      return null;
+    }
+  }, [devBuyValid, devBuyMonFloat, devBuyTrimmed]);
 
   const handleFeeChange = useCallback(
     (preset: FeePreset, _config?: CustomFeeConfig, isValid?: boolean) => {
@@ -147,7 +193,8 @@ export default function CreateTokenPage() {
     !!description.trim() &&
     !!imageFile &&
     socialsValid &&
-    feeValid;
+    feeValid &&
+    devBuyValid;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -158,6 +205,7 @@ export default function CreateTokenPage() {
       return;
     }
     if (!socialsValid || !feeValid) return;
+    if (!devBuyValid) return;
     try {
       await createToken({
         name: name.trim(),
@@ -168,6 +216,7 @@ export default function CreateTokenPage() {
         twitter: twitter.trim() || undefined,
         website: website.trim() || undefined,
         preset: feePreset,
+        devBuyAmountMon: devBuyMonFloat > 0 ? devBuyTrimmed : "",
       });
     } catch (err) {
       console.error("[CreateToken] handleSubmit error:", err);
@@ -273,9 +322,9 @@ export default function CreateTokenPage() {
 
   /* ── Form ── */
   return (
-    <div className="max-w-lg mx-auto px-5">
-      <div className="mb-8 pt-8">
-        <h1 className="text-figma-3xl text-figma-white font-bold mb-1">
+    <div className="max-w-3xl mx-auto px-5">
+      <div className="mb-4 pt-4">
+        <h1 className="text-figma-2xl text-figma-white font-bold mb-1">
           Create Token
         </h1>
         <p className="text-figma-sm text-figma-muted">
@@ -283,170 +332,162 @@ export default function CreateTokenPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* ── Token Image ── */}
-        <div className="rounded-card border border-figma-card bg-figma-card p-6 space-y-4">
-          <div className="flex items-center gap-2 mb-1">
-            <ImageIcon className="w-4 h-4 text-figma-green" />
-            <h2 className="text-figma-sm font-semibold text-figma-muted uppercase tracking-wider">
-              Token Image
-            </h2>
-            <span className="text-figma-xs text-figma-green ml-auto">
-              Required
-            </span>
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        {/* ── Top row: Image (left) + Token Details (right) ── */}
+        <div className="rounded-card border border-figma-card bg-figma-card p-4">
+          <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-4">
+            {/* Image uploader — compact square */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-figma-green" />
+                <h2 className="text-figma-xs font-semibold text-figma-muted uppercase tracking-wider">
+                  Image
+                </h2>
+                <span className="text-figma-xs text-figma-green ml-auto">
+                  Required
+                </span>
+              </div>
 
-          {imagePreview ? (
-            <div className="flex items-start gap-4">
-              <div className="relative w-24 h-24 rounded-card overflow-hidden shrink-0 border border-figma-surface">
-                <Image
-                  src={imagePreview}
-                  alt="Token image preview"
-                  fill
-                  className="object-cover"
-                  unoptimized
+              {imagePreview ? (
+                <div className="relative w-[140px] h-[140px] rounded-card overflow-hidden border border-figma-surface group">
+                  <Image
+                    src={imagePreview}
+                    alt="Token image preview"
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    disabled={isLoading}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-figma-bg/80 backdrop-blur flex items-center justify-center text-figma-white opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40"
+                    aria-label="Remove image"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                  onClick={() => !isLoading && fileInputRef.current?.click()}
+                  className={cn(
+                    "w-[140px] h-[140px] border-2 border-dashed rounded-card flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all",
+                    dragOver
+                      ? "border-figma-green/60 bg-figma-green/5"
+                      : "border-figma-surface hover:border-figma-card-alt hover:bg-figma-surface/30",
+                    isLoading && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <div className="w-9 h-9 rounded-card bg-figma-surface flex items-center justify-center">
+                    <Upload className="w-4 h-4 text-figma-muted" />
+                  </div>
+                  <p className="text-figma-xs text-figma-muted text-center px-2 leading-tight">
+                    {dragOver ? "Drop!" : "Drop / click"}
+                  </p>
+                </div>
+              )}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_IMAGE_TYPES.join(",")}
+                onChange={handleFileChange}
+                className="hidden"
+                disabled={isLoading}
+              />
+
+              {imageError && (
+                <p className="text-figma-xs text-figma-red flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {imageError}
+                </p>
+              )}
+            </div>
+
+            {/* Token details — name + ticker on one row, description below */}
+            <div className="space-y-3 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <Coins className="w-3.5 h-3.5 text-figma-green" />
+                <h2 className="text-figma-xs font-semibold text-figma-muted uppercase tracking-wider">
+                  Token Details
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
+                {/* Name */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="token-name" className="text-figma-xs font-medium">
+                      Name
+                    </label>
+                    <span className="text-figma-xs text-figma-muted">{name.length}/64</span>
+                  </div>
+                  <input
+                    id="token-name"
+                    type="text"
+                    placeholder="e.g. Lick Coin"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={isLoading}
+                    maxLength={64}
+                    required
+                    className="w-full px-3 py-2 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50 text-figma-sm"
+                  />
+                </div>
+
+                {/* Symbol */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="token-symbol" className="text-figma-xs font-medium">
+                      Ticker
+                    </label>
+                    <span className="text-figma-xs text-figma-muted">{symbol.length}/8</span>
+                  </div>
+                  <input
+                    id="token-symbol"
+                    type="text"
+                    placeholder="LICK"
+                    value={symbol}
+                    onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                    disabled={isLoading}
+                    maxLength={8}
+                    required
+                    className="w-full px-3 py-2 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50 text-figma-sm font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="token-desc" className="text-figma-xs font-medium">
+                    Description
+                  </label>
+                  <span className="text-figma-xs text-figma-muted">{description.length}/280</span>
+                </div>
+                <textarea
+                  id="token-desc"
+                  placeholder="Describe your token — what's the vibe?"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={isLoading}
+                  maxLength={280}
+                  rows={2}
+                  required
+                  className="w-full px-3 py-2 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50 text-figma-sm resize-none"
                 />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-figma-sm font-medium truncate">{imageFile?.name}</p>
-                <p className="text-figma-xs text-figma-muted mt-0.5">
-                  {imageFile ? `${(imageFile.size / 1024 / 1024).toFixed(2)} MB` : ""}
-                </p>
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  disabled={isLoading}
-                  className="mt-2 flex items-center gap-1 text-figma-xs text-figma-red hover:opacity-80 transition-colors disabled:opacity-40"
-                >
-                  <X className="w-3 h-3" /> Remove
-                </button>
-              </div>
             </div>
-          ) : (
-            <div
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-              onClick={() => !isLoading && fileInputRef.current?.click()}
-              className={cn(
-                "border-2 border-dashed rounded-card p-8 flex flex-col items-center gap-3 cursor-pointer transition-all",
-                dragOver
-                  ? "border-figma-green/60 bg-figma-green/5"
-                  : "border-figma-surface hover:border-figma-card-alt hover:bg-figma-surface/30",
-                isLoading && "opacity-50 cursor-not-allowed"
-              )}
-            >
-              <div className="w-12 h-12 rounded-card bg-figma-surface flex items-center justify-center">
-                <Upload className="w-5 h-5 text-figma-muted" />
-              </div>
-              <div className="text-center">
-                <p className="text-figma-sm font-medium">
-                  {dragOver ? "Drop it here!" : "Drop image or click to upload"}
-                </p>
-                <p className="text-figma-xs text-figma-muted mt-0.5">
-                  JPG, PNG, GIF, WebP, SVG · Max {MAX_IMAGE_SIZE_MB} MB
-                </p>
-              </div>
-            </div>
-          )}
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={ACCEPTED_IMAGE_TYPES.join(",")}
-            onChange={handleFileChange}
-            className="hidden"
-            disabled={isLoading}
-          />
-
-          {imageError && (
-            <p className="text-figma-xs text-figma-red flex items-center gap-1.5">
-              <AlertCircle className="w-3 h-3 shrink-0" /> {imageError}
-            </p>
-          )}
-        </div>
-
-        {/* ── Token Details ── */}
-        <div className="rounded-card border border-figma-card bg-figma-card p-6 space-y-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Coins className="w-4 h-4 text-figma-green" />
-            <h2 className="text-figma-sm font-semibold text-figma-muted uppercase tracking-wider">
-              Token Details
-            </h2>
-          </div>
-
-          {/* Name */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label htmlFor="token-name" className="text-figma-sm font-medium">
-                Token Name
-              </label>
-              <span className="text-figma-xs text-figma-muted">{name.length}/64</span>
-            </div>
-            <input
-              id="token-name"
-              type="text"
-              placeholder="e.g. Lick Coin"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isLoading}
-              maxLength={64}
-              required
-              className="w-full px-4 py-3 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50 text-figma-sm"
-            />
-          </div>
-
-          {/* Symbol */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label htmlFor="token-symbol" className="text-figma-sm font-medium">
-                Token Symbol
-              </label>
-              <span className="text-figma-xs text-figma-muted">{symbol.length}/8</span>
-            </div>
-            <input
-              id="token-symbol"
-              type="text"
-              placeholder="e.g. LICK"
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              disabled={isLoading}
-              maxLength={8}
-              required
-              className="w-full px-4 py-3 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50 text-figma-sm font-mono"
-            />
-            <p className="text-figma-xs text-figma-muted">
-              Max 8 characters, auto-uppercased.
-            </p>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label htmlFor="token-desc" className="text-figma-sm font-medium">
-                Description
-              </label>
-              <span className="text-figma-xs text-figma-muted">{description.length}/280</span>
-            </div>
-            <textarea
-              id="token-desc"
-              placeholder="Describe your token — what's the vibe?"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={isLoading}
-              maxLength={280}
-              rows={3}
-              required
-              className="w-full px-4 py-3 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50 text-figma-sm resize-none"
-            />
           </div>
         </div>
 
-        {/* ── Social Links ── */}
-        <div className="rounded-card border border-figma-card bg-figma-card p-6 space-y-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Link2 className="w-4 h-4 text-figma-green" />
-            <h2 className="text-figma-sm font-semibold text-figma-muted uppercase tracking-wider">
+        {/* ── Social Links — 3 columns ── */}
+        <div className="rounded-card border border-figma-card bg-figma-card p-4">
+          <div className="flex items-center gap-1.5 mb-3">
+            <Link2 className="w-3.5 h-3.5 text-figma-green" />
+            <h2 className="text-figma-xs font-semibold text-figma-muted uppercase tracking-wider">
               Social Links
             </h2>
             <span className="text-figma-xs text-figma-muted ml-auto">
@@ -454,93 +495,95 @@ export default function CreateTokenPage() {
             </span>
           </div>
 
-          {/* Telegram */}
-          <div className="space-y-1.5">
-            <label htmlFor="token-telegram" className="text-figma-sm font-medium">
-              Telegram
-            </label>
-            <input
-              id="token-telegram"
-              type="url"
-              inputMode="url"
-              placeholder="https://t.me/yourtoken"
-              value={telegram}
-              onChange={(e) => setTelegram(e.target.value)}
-              disabled={isLoading}
-              className={cn(
-                "w-full px-4 py-3 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
-                telegramError
-                  ? "border-figma-red focus:border-figma-red"
-                  : "border-figma-surface focus:border-figma-green"
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Telegram */}
+            <div className="space-y-1">
+              <label htmlFor="token-telegram" className="text-figma-xs font-medium">
+                Telegram
+              </label>
+              <input
+                id="token-telegram"
+                type="url"
+                inputMode="url"
+                placeholder="https://t.me/yourtoken"
+                value={telegram}
+                onChange={(e) => setTelegram(e.target.value)}
+                disabled={isLoading}
+                className={cn(
+                  "w-full px-3 py-2 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
+                  telegramError
+                    ? "border-figma-red focus:border-figma-red"
+                    : "border-figma-surface focus:border-figma-green"
+                )}
+              />
+              {telegramError && (
+                <p className="text-figma-xs text-figma-red flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {telegramError}
+                </p>
               )}
-            />
-            {telegramError && (
-              <p className="text-figma-xs text-figma-red flex items-center gap-1.5">
-                <AlertCircle className="w-3 h-3 shrink-0" /> {telegramError}
-              </p>
-            )}
-          </div>
+            </div>
 
-          {/* X / Twitter */}
-          <div className="space-y-1.5">
-            <label htmlFor="token-twitter" className="text-figma-sm font-medium">
-              X (Twitter)
-            </label>
-            <input
-              id="token-twitter"
-              type="url"
-              inputMode="url"
-              placeholder="https://x.com/yourtoken"
-              value={twitter}
-              onChange={(e) => setTwitter(e.target.value)}
-              disabled={isLoading}
-              className={cn(
-                "w-full px-4 py-3 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
-                twitterError
-                  ? "border-figma-red focus:border-figma-red"
-                  : "border-figma-surface focus:border-figma-green"
+            {/* X / Twitter */}
+            <div className="space-y-1">
+              <label htmlFor="token-twitter" className="text-figma-xs font-medium">
+                X (Twitter)
+              </label>
+              <input
+                id="token-twitter"
+                type="url"
+                inputMode="url"
+                placeholder="https://x.com/yourtoken"
+                value={twitter}
+                onChange={(e) => setTwitter(e.target.value)}
+                disabled={isLoading}
+                className={cn(
+                  "w-full px-3 py-2 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
+                  twitterError
+                    ? "border-figma-red focus:border-figma-red"
+                    : "border-figma-surface focus:border-figma-green"
+                )}
+              />
+              {twitterError && (
+                <p className="text-figma-xs text-figma-red flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {twitterError}
+                </p>
               )}
-            />
-            {twitterError && (
-              <p className="text-figma-xs text-figma-red flex items-center gap-1.5">
-                <AlertCircle className="w-3 h-3 shrink-0" /> {twitterError}
-              </p>
-            )}
-          </div>
+            </div>
 
-          {/* Website */}
-          <div className="space-y-1.5">
-            <label htmlFor="token-website" className="text-figma-sm font-medium flex items-center gap-1.5">
-              <Globe className="w-3.5 h-3.5 text-figma-muted" /> Website
-            </label>
-            <input
-              id="token-website"
-              type="url"
-              inputMode="url"
-              placeholder="https://yourtoken.com"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              disabled={isLoading}
-              className={cn(
-                "w-full px-4 py-3 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
-                websiteError
-                  ? "border-figma-red focus:border-figma-red"
-                  : "border-figma-surface focus:border-figma-green"
+            {/* Website */}
+            <div className="space-y-1">
+              <label htmlFor="token-website" className="text-figma-xs font-medium">
+                Website
+              </label>
+              <input
+                id="token-website"
+                type="url"
+                inputMode="url"
+                placeholder="https://yourtoken.com"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                disabled={isLoading}
+                className={cn(
+                  "w-full px-3 py-2 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
+                  websiteError
+                    ? "border-figma-red focus:border-figma-red"
+                    : "border-figma-surface focus:border-figma-green"
+                )}
+              />
+              {websiteError && (
+                <p className="text-figma-xs text-figma-red flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {websiteError}
+                </p>
               )}
-            />
-            {websiteError && (
-              <p className="text-figma-xs text-figma-red flex items-center gap-1.5">
-                <AlertCircle className="w-3 h-3 shrink-0" /> {websiteError}
-              </p>
-            )}
+            </div>
           </div>
         </div>
 
         {/* ── Fee Tier ── */}
-        <div className="rounded-card border border-figma-card bg-figma-card p-6 space-y-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Coins className="w-4 h-4 text-figma-green" />
-            <h2 className="text-figma-sm font-semibold text-figma-muted uppercase tracking-wider">
+        <div className="rounded-card border border-figma-card bg-figma-card p-4">
+          <div className="flex items-center gap-1.5 mb-3">
+            <Coins className="w-3.5 h-3.5 text-figma-green" />
+            <h2 className="text-figma-xs font-semibold text-figma-muted uppercase tracking-wider">
               Fee Tier
             </h2>
             <span className="text-figma-xs text-figma-muted ml-auto">
@@ -553,7 +596,7 @@ export default function CreateTokenPage() {
             onChange={handleFeeChange}
           />
           {feePreset === "DIAMOND" && (
-            <p className="text-figma-xs text-figma-muted flex items-start gap-1.5">
+            <p className="mt-2 text-figma-xs text-figma-muted flex items-start gap-1.5">
               <Info className="w-3 h-3 shrink-0 mt-0.5" />
               Custom splits are applied by an admin after launch via
               setCustomConfig. Your token deploys with the standard fee routing
@@ -562,51 +605,148 @@ export default function CreateTokenPage() {
           )}
         </div>
 
-        {/* ── Fee info ── */}
-        <div className="rounded-card border border-figma-card bg-figma-card p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Info className="w-4 h-4 text-figma-green-soft" />
-            <h2 className="text-figma-sm font-semibold text-figma-muted uppercase tracking-wider">
-              Deploy Cost
-            </h2>
+        {/* ── Bottom row: Dev Purchase (left) + Deploy Cost (right) ── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {/* Dev Purchase */}
+          <div className="rounded-card border border-figma-card bg-figma-card p-4 space-y-3">
+            <div className="flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-figma-green" />
+              <h2 className="text-figma-xs font-semibold text-figma-muted uppercase tracking-wider">
+                Initial Buy
+              </h2>
+              <span className="text-figma-xs text-figma-muted ml-auto">
+                Optional
+              </span>
+            </div>
+
+            {/* Wallet balance display */}
+            <div className="flex items-center justify-between rounded-card border border-figma-surface bg-figma-bg px-3 py-2">
+              <div className="flex items-center gap-1.5 text-figma-xs text-figma-muted">
+                <Wallet className="w-3 h-3" />
+                <span>Wallet balance</span>
+              </div>
+              <div className="flex items-center gap-1 text-figma-xs">
+                <span className="font-mono font-semibold text-figma-white">
+                  {walletMonDisplay !== null ? `${walletMonDisplay} MON` : "—"}
+                </span>
+                {monBalance && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const max = Number(formatEther(monBalance.value));
+                      if (Number.isFinite(max) && max > 0) {
+                        // Leave a small buffer for gas; cap at 100k limit.
+                        const capped = Math.min(max * 0.995, 100_000);
+                        setDevBuyAmount(capped.toFixed(4));
+                      }
+                    }}
+                    disabled={isLoading || !monBalance}
+                    className="ml-1 text-figma-green hover:opacity-80 transition-opacity disabled:opacity-40 font-semibold"
+                  >
+                    MAX
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label htmlFor="dev-buy-amount" className="text-figma-xs font-medium">
+                  Amount (MON)
+                </label>
+                <span className="text-figma-xs text-figma-muted">
+                  {estimatedDevBuyTokens !== null
+                    ? `≈ ${formatTokens(estimatedDevBuyTokens)} tokens`
+                    : ""}
+                </span>
+              </div>
+              <input
+                id="dev-buy-amount"
+                type="number"
+                inputMode="decimal"
+                step="any"
+                min="0"
+                placeholder="0 = skip"
+                value={devBuyAmount}
+                onChange={(e) => setDevBuyAmount(e.target.value)}
+                disabled={isLoading}
+                className={cn(
+                  "w-full px-3 py-2 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm font-mono",
+                  devBuyError
+                    ? "border-figma-red focus:border-figma-red"
+                    : "border-figma-surface focus:border-figma-green"
+                )}
+              />
+              {devBuyError && (
+                <p className="text-figma-xs text-figma-red flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" /> {devBuyError}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="space-y-2 text-figma-sm">
-            <div className="flex justify-between">
-              <span className="text-figma-muted">Deploy fee</span>
-              <span className="font-mono font-semibold text-figma-green">10 MON</span>
+
+          {/* Deploy Cost */}
+          <div className="rounded-card border border-figma-card bg-figma-card p-4">
+            <div className="flex items-center gap-1.5 mb-3">
+              <Info className="w-3.5 h-3.5 text-figma-green-soft" />
+              <h2 className="text-figma-xs font-semibold text-figma-muted uppercase tracking-wider">
+                Deploy Cost
+              </h2>
             </div>
-            <div className="flex justify-between">
-              <span className="text-figma-muted">Trade fee (per tx)</span>
-              <span className="font-mono">2% (1% protocol + 1% creator)</span>
+            <div className="space-y-2 text-figma-sm">
+              <div className="flex justify-between">
+                <span className="text-figma-muted">Deploy fee</span>
+                <span className="font-mono font-semibold text-figma-green">10 MON</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-figma-muted">Trade fee</span>
+                <span className="font-mono">2% (1% + 1%)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-figma-muted">Graduation</span>
+                <span className="font-mono">100,000 MON</span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-figma-muted">Graduation threshold</span>
-              <span className="font-mono">100,000 MON</span>
-            </div>
+            <p className="mt-3 text-figma-xs text-figma-muted flex items-start gap-1.5">
+              <Info className="w-3 h-3 shrink-0 mt-0.5" />
+              First buy on the curve is exempt from anti-sniping penalty.
+            </p>
           </div>
         </div>
 
-        {/* ── Upload status ── */}
-        {uploadStatus === "uploading" && (
-          <div className="flex items-center gap-3 rounded-card border border-figma-green-soft/30 bg-figma-green-soft/5 p-4">
-            <Loader2 className="w-4 h-4 text-figma-green-soft animate-spin shrink-0" />
-            <div>
-              <p className="text-figma-sm font-medium text-figma-green-soft">
-                Creating Token!
-              </p>
-              <p className="text-figma-xs text-figma-muted">
-                Creating token…
-              </p>
+        {/* ── Status display (per-step) ── */}
+        {(() => {
+          const hasDevBuy = devBuyMonFloat > 0;
+          // Step → user-facing label
+          const stepLabel: Record<string, string> = {
+            "idle": "",
+            "uploading": "Uploading image to IPFS",
+            "creating": "Confirm token creation in wallet",
+            "confirming-create": "Deploying token on-chain",
+            "dev-buying": "Confirm dev buy in wallet",
+            "confirming-buy": hasDevBuy
+              ? `Buying ${devBuyTrimmed} MON of your token`
+              : "Finalizing",
+            "done": "Done",
+          };
+          const label = stepLabel[step] ?? "";
+          if (!label || step === "done") return null;
+          return (
+            <div className="flex items-center gap-3 rounded-card border border-figma-green-soft/30 bg-figma-green-soft/5 p-4">
+              <Loader2 className="w-4 h-4 text-figma-green-soft animate-spin shrink-0" />
+              <div>
+                <p className="text-figma-sm font-medium text-figma-green-soft">
+                  {label}
+                </p>
+                <p className="text-figma-xs text-figma-muted">
+                  {hasDevBuy
+                    ? "Two transactions required — deploy + dev buy."
+                    : "One transaction required — deploy."}
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-
-        {uploadStatus === "done" && uploadLabel() && (
-          <div className="flex items-center gap-3 rounded-card border border-figma-green/30 bg-figma-green/5 p-4">
-            <CheckCircle2 className="w-4 h-4 text-figma-green shrink-0" />
-            <p className="text-figma-sm text-figma-green">{uploadLabel()}</p>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Error ── */}
         {error && (
@@ -629,14 +769,36 @@ export default function CreateTokenPage() {
               : "btn-lick shadow-md"
           )}
         >
-          {uploadStatus === "uploading" ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Creating Token!</>
-          ) : isPending ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Confirm in wallet…</>
-          ) : isConfirming ? (
-            <><Loader2 className="w-4 h-4 animate-spin" /> Confirming transaction…</>
+          {isLoading ? (
+            (() => {
+              const hasDevBuy = devBuyMonFloat > 0;
+              if (uploadStatus === "uploading") {
+                return <><Loader2 className="w-4 h-4 animate-spin" /> Uploading image…</>;
+              }
+              if (step === "creating") {
+                return <><Loader2 className="w-4 h-4 animate-spin" /> Confirm token creation…</>;
+              }
+              if (step === "confirming-create") {
+                return <><Loader2 className="w-4 h-4 animate-spin" /> Deploying token…</>;
+              }
+              if (step === "dev-buying") {
+                return <><Loader2 className="w-4 h-4 animate-spin" /> Confirm dev buy…</>;
+              }
+              if (step === "confirming-buy") {
+                return <><Loader2 className="w-4 h-4 animate-spin" /> Buying dev allocation…</>;
+              }
+              if (isConfirming) {
+                return <><Loader2 className="w-4 h-4 animate-spin" /> Confirming transaction…</>;
+              }
+              return <><Loader2 className="w-4 h-4 animate-spin" /> Confirm in wallet…</>;
+            })()
           ) : (
-            <><Rocket className="w-4 h-4" /> Create Token — 10 MON</>
+            <>
+              <Rocket className="w-4 h-4" />
+              {devBuyMonFloat > 0
+                ? `Create Token — 10 + ${devBuyTrimmed} MON`
+                : "Create Token — 10 MON"}
+            </>
           )}
         </button>
       </form>

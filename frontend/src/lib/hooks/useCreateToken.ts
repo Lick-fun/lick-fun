@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWriteContract, useAccount, useWaitForTransactionReceipt } from "wagmi";
-import { decodeEventLog } from "viem";
-import { FactoryABI, FACTORY_ADDRESS, FEE_ROUTER_ADDRESS } from "@/lib/wagmi/contracts";
+import { decodeEventLog, parseEther } from "viem";
+import {
+  FactoryABI,
+  BondingCurveABI,
+  FACTORY_ADDRESS,
+  FEE_ROUTER_ADDRESS,
+} from "@/lib/wagmi/contracts";
 import type { FeePreset } from "@/components/fee/FeeConfigSelector";
 
 /**
@@ -17,6 +22,20 @@ const PRESET_ENUM_INDEX: Record<FeePreset, number> = {
   DIAMOND: 5,
 };
 
+/**
+ * High-level state machine exposed to the UI.
+ * idle → uploading → creating → confirming-create → dev-buying → confirming-buy → done
+ * (dev-buying / confirming-buy are skipped when no dev buy amount is set)
+ */
+export type CreateStep =
+  | "idle"
+  | "uploading"
+  | "creating"
+  | "confirming-create"
+  | "dev-buying"
+  | "confirming-buy"
+  | "done";
+
 export interface UseCreateTokenResult {
   createToken: (params: {
     name: string;
@@ -28,12 +47,17 @@ export interface UseCreateTokenResult {
     website?: string;
     /** Selected fee preset. Defaults to LIGHT (Starter). */
     preset?: FeePreset;
+    /** Optional dev pre-buy amount in MON (string from input). "" / "0" = no dev buy. */
+    devBuyAmountMon?: string;
   }) => Promise<void>;
+  step: CreateStep;
   isPending: boolean;
   isConfirming: boolean;
   isSuccess: boolean;
   tokenAddress: `0x${string}` | null;
+  curveAddress: `0x${string}` | null;
   txHash: `0x${string}` | undefined;
+  buyTxHash: `0x${string}` | undefined;
   error: Error | null;
   uploadStatus: "idle" | "uploading" | "done" | "error";
   metadataUri: string | null;
@@ -51,24 +75,73 @@ class IPFSUploadError extends Error {
 export function useCreateToken(): UseCreateTokenResult {
   const { address } = useAccount();
   const [tokenAddress, setTokenAddress] = useState<`0x${string}` | null>(null);
+  const [curveAddress, setCurveAddress] = useState<`0x${string}` | null>(null);
   const [error, setError] = useState<Error | null>(null);
-  const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
+  const [uploadStatus, setUploadStatus] =
+    useState<"idle" | "uploading" | "done" | "error">("idle");
   const [metadataUri, setMetadataUri] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [step, setStep] = useState<CreateStep>("idle");
+  const [pendingDevBuyMon, setPendingDevBuyMon] = useState<string>("");
 
   const {
     writeContractAsync,
-    data: txHash,
-    isPending,
-    reset: resetWrite,
+    data: createTxHash,
+    isPending: isCreatePending,
+    reset: resetCreateWrite,
   } = useWriteContract();
 
-  const { isLoading: isConfirming, isSuccess, data: receipt } = useWaitForTransactionReceipt({
-    hash: txHash,
-  });
+  const {
+    writeContractAsync: writeBuyAsync,
+    data: buyTxHash,
+    isPending: isBuyPending,
+    reset: resetBuyWrite,
+  } = useWriteContract();
 
-  // Parse TokenCreated event from receipt to get the new token address
-  if (isSuccess && receipt && !tokenAddress) {
+  const {
+    isLoading: isCreateConfirming,
+    isSuccess: isCreateSuccess,
+    data: receipt,
+  } = useWaitForTransactionReceipt({ hash: createTxHash });
+
+  const { isLoading: isBuyConfirming, isSuccess: isBuySuccess } =
+    useWaitForTransactionReceipt({ hash: buyTxHash });
+
+  // ── Create tx lifecycle → step transitions ──
+  useEffect(() => {
+    if (isCreatePending && (step === "idle" || step === "uploading")) {
+      setStep("creating");
+    } else if (
+      !isCreatePending &&
+      isCreateConfirming &&
+      step === "creating"
+    ) {
+      setStep("confirming-create");
+    }
+  }, [isCreatePending, isCreateConfirming, step]);
+
+  // ── Dev buy tx lifecycle → step transitions ──
+  useEffect(() => {
+    if (isBuyPending && step === "confirming-create") {
+      setStep("dev-buying");
+    } else if (
+      !isBuyPending &&
+      isBuyConfirming &&
+      step === "dev-buying"
+    ) {
+      setStep("confirming-buy");
+    } else if (isBuySuccess && step === "confirming-buy") {
+      setStep("done");
+    }
+  }, [isBuyPending, isBuyConfirming, isBuySuccess, step]);
+
+  // ── After create tx confirms: parse receipt, register metadata, optionally fire dev buy ──
+  useEffect(() => {
+    if (!isCreateSuccess || !receipt || step !== "confirming-create") return;
+
+    let parsedToken: `0x${string}` | null = null;
+    let parsedCurve: `0x${string}` | null = null;
+
     for (const log of receipt.logs) {
       try {
         const decoded = decodeEventLog({
@@ -77,31 +150,85 @@ export function useCreateToken(): UseCreateTokenResult {
           topics: log.topics,
           eventName: "TokenCreated" as const,
         });
-        if (decoded.args.token) {
-          const newAddr = decoded.args.token as `0x${string}`;
-          setTokenAddress(newAddr);
-
-          // Register metadata with our API so the image shows everywhere
-          if (metadataUri && imageUri) {
-            fetch("/api/register-metadata", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                tokenAddress: newAddr,
-                metadataUri,
-                imageUri,
-              }),
-            }).catch((err) => {
-              console.warn("[useCreateToken] Failed to register metadata:", err);
-            });
-          }
+        const args = decoded.args as { token?: string; curve?: string };
+        if (args.token && args.curve) {
+          parsedToken = args.token as `0x${string}`;
+          parsedCurve = args.curve as `0x${string}`;
+          break;
         }
-        break;
       } catch {
         // not a TokenCreated log, skip
       }
     }
-  }
+
+    if (!parsedToken || !parsedCurve) {
+      // No TokenCreated event found — shouldn't happen, but mark done.
+      setStep("done");
+      return;
+    }
+
+    setTokenAddress(parsedToken);
+    setCurveAddress(parsedCurve);
+
+    // Register metadata with our API so the image shows everywhere
+    if (metadataUri && imageUri) {
+      fetch("/api/register-metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tokenAddress: parsedToken,
+          metadataUri,
+          imageUri,
+        }),
+      }).catch((err) => {
+        console.warn("[useCreateToken] Failed to register metadata:", err);
+      });
+    }
+
+    const devBuyStr = pendingDevBuyMon;
+    const devBuyFloat = parseFloat(devBuyStr);
+    if (devBuyStr && devBuyFloat > 0 && Number.isFinite(devBuyFloat)) {
+      // Fire the dev pre-buy on the freshly deployed curve.
+      // First buy is exempt from anti-sniping penalty by contract design
+      // (initialBuyExecuted flag). We pass minTokensOut=0 because:
+      //  1. The curve has 0 realMon / 0 soldTokens — pricing is deterministic.
+      //  2. We sign + broadcast immediately after the create tx in the same session,
+      //     so no front-running window.
+      //  3. The user explicitly chose this amount.
+      try {
+        const valueWei = parseEther(devBuyStr);
+        writeBuyAsync({
+          address: parsedCurve,
+          abi: BondingCurveABI,
+          functionName: "buy",
+          args: [0n],
+          value: valueWei,
+        }).catch((err) => {
+          console.error("[useCreateToken] dev buy failed:", err);
+          setError(
+            err instanceof Error ? err : new Error(String(err))
+          );
+          // Token was created successfully; still mark done so user sees it.
+          setStep("done");
+        });
+      } catch (err) {
+        console.error("[useCreateToken] dev buy setup failed:", err);
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setStep("done");
+      }
+    } else {
+      // No dev buy requested — flow complete.
+      setStep("done");
+    }
+  }, [
+    isCreateSuccess,
+    receipt,
+    step,
+    metadataUri,
+    imageUri,
+    writeBuyAsync,
+    pendingDevBuyMon,
+  ]);
 
   const createToken = async ({
     name,
@@ -112,6 +239,7 @@ export function useCreateToken(): UseCreateTokenResult {
     twitter,
     website,
     preset = "LIGHT",
+    devBuyAmountMon = "",
   }: {
     name: string;
     symbol: string;
@@ -121,13 +249,17 @@ export function useCreateToken(): UseCreateTokenResult {
     twitter?: string;
     website?: string;
     preset?: FeePreset;
+    devBuyAmountMon?: string;
   }) => {
     if (!address) throw new Error("Wallet not connected");
     setError(null);
     setTokenAddress(null);
+    setCurveAddress(null);
     setMetadataUri(null);
     setImageUri(null);
     setUploadStatus("idle");
+    setStep("idle");
+    setPendingDevBuyMon(devBuyAmountMon ?? "");
 
     // Guard: fail fast with a clear error if factory address is not configured
     if (FACTORY_ADDRESS === "0x0000000000000000000000000000000000000000") {
@@ -142,6 +274,7 @@ export function useCreateToken(): UseCreateTokenResult {
     // Step 1: Upload image + metadata to IPFS via the server-safe API route
     if (imageFile) {
       setUploadStatus("uploading");
+      setStep("uploading");
       try {
         const formData = new FormData();
         formData.append("image", imageFile);
@@ -211,6 +344,7 @@ export function useCreateToken(): UseCreateTokenResult {
       creator: address,
       preset,
       usePreset,
+      devBuyAmountMon,
     });
     try {
       if (usePreset) {
@@ -236,21 +370,36 @@ export function useCreateToken(): UseCreateTokenResult {
   };
 
   const reset = () => {
-    resetWrite();
+    resetCreateWrite();
+    resetBuyWrite();
     setTokenAddress(null);
+    setCurveAddress(null);
     setError(null);
     setUploadStatus("idle");
     setMetadataUri(null);
     setImageUri(null);
+    setStep("idle");
+    setPendingDevBuyMon("");
   };
+
+  // Backwards-compat flags consumed by the create page.
+  // - isPending: either wallet prompt is open
+  // - isConfirming: either tx is awaiting receipt
+  // - isSuccess: the entire flow (incl. optional dev buy) finished
+  const isPending = isCreatePending || isBuyPending;
+  const isConfirming = isCreateConfirming || isBuyConfirming;
+  const isSuccess = step === "done";
 
   return {
     createToken,
+    step,
     isPending,
     isConfirming,
     isSuccess,
     tokenAddress,
-    txHash,
+    curveAddress,
+    txHash: createTxHash,
+    buyTxHash,
     error,
     uploadStatus,
     metadataUri,

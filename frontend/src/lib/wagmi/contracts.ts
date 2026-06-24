@@ -336,6 +336,26 @@ export function getGraduationProgress(realMon: bigint): number {
   return Number((realMon * 10000n) / threshold) / 100;
 }
 
+/**
+ * Estimate tokens received for a dev pre-buy on a freshly deployed curve.
+ * Mirrors the on-chain `BondingCurve.buy()` math for the FIRST buy:
+ *  - 0 anti-sniping penalty (initialBuyExecuted == false)
+ *  - 1% protocol fee + 1% creator fee deducted from msg.value
+ *  - CPMM: tokensOut = VIRTUAL_TOKENS − k / (VIRTUAL_MON + netAmountIn)
+ * Assumes the curve starts at realMon=0, soldTokens=0.
+ */
+export function estimateDevBuyTokens(monAmountWei: bigint): bigint {
+  if (monAmountWei <= 0n) return 0n;
+  const protocolFee = (monAmountWei * PROTOCOL_FEE_BPS) / BPS_DENOMINATOR;
+  const creatorFee = (monAmountWei * CREATOR_FEE_BPS) / BPS_DENOMINATOR;
+  const netAmountIn = monAmountWei - protocolFee - creatorFee;
+  const denominator = VIRTUAL_MON + netAmountIn;
+  if (denominator <= 0n) return 0n;
+  const newSold = K / denominator;
+  const tokensOut = VIRTUAL_TOKENS - newSold;
+  return tokensOut;
+}
+
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* React Hooks                                                                      */
 /* ──────────────────────────────────────────────────────────────────────────────── */
