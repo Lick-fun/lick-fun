@@ -9,12 +9,15 @@
  *   - name: string
  *   - symbol: string
  *   - description?: string
+ *   - telegram?: string  (full URL, e.g. https://t.me/yourtoken)
+ *   - twitter?: string   (full URL, e.g. https://x.com/yourtoken)
+ *   - website?: string   (full URL, e.g. https://yourtoken.com)
  *
  * Response:
  *   { ok: true, imageUri: string, metadataUri: string }
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 const PINATA_JWT = process.env.PINATA_JWT ?? "";
 const PINATA_API_URL = "https://api.pinata.cloud/pinning";
@@ -88,6 +91,9 @@ export async function POST(req: NextRequest) {
     const name = formData.get("name");
     const symbol = formData.get("symbol");
     const description = formData.get("description");
+    const telegram = formData.get("telegram");
+    const twitter = formData.get("twitter");
+    const website = formData.get("website");
 
     if (!image || !(image instanceof File)) {
       return NextResponse.json({ error: "Missing image file" }, { status: 400 });
@@ -116,6 +122,17 @@ export async function POST(req: NextRequest) {
       description: typeof description === "string" ? description.trim() : "",
       image: imageUri,
     };
+
+    // Social links (optional). Stored in the metadata JSON, not on-chain.
+    if (typeof telegram === "string" && telegram.trim()) {
+      metadata.telegram = telegram.trim();
+    }
+    if (typeof twitter === "string" && twitter.trim()) {
+      metadata.twitter = twitter.trim();
+    }
+    if (typeof website === "string" && website.trim()) {
+      metadata.website = website.trim();
+    }
 
     // 3. Upload metadata JSON
     const metadataUri = await uploadMetadataToPinata(metadata);

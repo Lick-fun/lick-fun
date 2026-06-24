@@ -13,6 +13,9 @@ build/
 .cache/
 .turbo/
 
+# TypeScript build cache
+*.tsbuildinfo
+
 # Envio HyperIndex generated
 indexer/generated/
 indexer/.env/

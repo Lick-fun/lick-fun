@@ -47,7 +47,6 @@ contract FeeRouter is ReentrancyGuard {
     error InvalidBps();
     error NotOwner();
     error ZeroAddress();
-    error LPBelowFloor();
     error UseCustomConfig();
 
     constructor(address _graduationPool, address _lpSupportVault, address _buybackBurnVault) {
@@ -154,10 +153,9 @@ contract FeeRouter is ReentrancyGuard {
     /**
      * @notice Sets a custom fee config for DIAMOND tier tokens.
      * @param token The token address (must not already have a config initialized)
-     * @param config The FeeConfig struct — lpSupportBps must be >= 8000
+     * @param config The FeeConfig struct — fully customisable, any split summing to 100% is valid
      */
     function setCustomConfig(address token, FeeConfig calldata config) external onlyOwner {
-        if (config.lpSupportBps < 8000) revert LPBelowFloor();
         _setFeeConfig(token, config);
     }
 

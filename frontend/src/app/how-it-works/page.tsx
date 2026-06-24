@@ -331,9 +331,8 @@ export default function HowItWorksPage() {
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
           When launching a token with <span className="font-mono text-figma-white">createTokenWithPreset()</span>, the 1% creator fee is split across
-          three destinations by tier. Light/Standard A/Standard B are fixed
-          presets; Diamond lets top creators set a custom split (with a hard
-          floor of 80% to LP support). Ecosystem is reserved for the founder token.
+          three destinations by tier. Starter/Creator Extra/Creator + LP Support are fixed
+          presets; Custom (Diamond) lets verified creators set any split they want.
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-figma-sm">
@@ -348,39 +347,32 @@ export default function HowItWorksPage() {
             </thead>
             <tbody>
               <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 text-figma-white">Light</td>
+                <td className="py-3 px-4 text-figma-white">Starter</td>
                 <td className="py-3 px-4 font-mono text-figma-muted">10%</td>
                 <td className="py-3 px-4 font-mono text-figma-muted">80%</td>
                 <td className="py-3 px-4 font-mono text-figma-muted">10%</td>
                 <td className="py-3 px-4 text-figma-muted">Fixed (entry)</td>
               </tr>
               <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 text-figma-white">Standard A</td>
+                <td className="py-3 px-4 text-figma-white">Creator Extra</td>
                 <td className="py-3 px-4 font-mono text-figma-muted">30%</td>
                 <td className="py-3 px-4 font-mono text-figma-muted">60%</td>
                 <td className="py-3 px-4 font-mono text-figma-muted">10%</td>
                 <td className="py-3 px-4 text-figma-muted">Fixed (builder)</td>
               </tr>
               <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 text-figma-white">Standard B</td>
+                <td className="py-3 px-4 text-figma-white">Creator + LP Support</td>
                 <td className="py-3 px-4 font-mono text-figma-muted">20%</td>
                 <td className="py-3 px-4 font-mono text-figma-muted">70%</td>
                 <td className="py-3 px-4 font-mono text-figma-muted">10%</td>
-                <td className="py-3 px-4 text-figma-muted">Fixed (ecosystem)</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 text-figma-white">Diamond</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">custom</td>
-                <td className="py-3 px-4 font-mono text-figma-green">≥80%</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">custom</td>
-                <td className="py-3 px-4 text-figma-muted">Custom via setCustomConfig()</td>
+                <td className="py-3 px-4 text-figma-muted">Fixed (established)</td>
               </tr>
               <tr>
-                <td className="py-3 px-4 text-figma-white">Ecosystem</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">20%</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">40%</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">40%</td>
-                <td className="py-3 px-4 text-figma-muted">Reserved (founder token)</td>
+                <td className="py-3 px-4 text-figma-white">Custom</td>
+                <td className="py-3 px-4 font-mono text-figma-muted">custom</td>
+                <td className="py-3 px-4 font-mono text-figma-muted">custom</td>
+                <td className="py-3 px-4 font-mono text-figma-muted">custom</td>
+                <td className="py-3 px-4 text-figma-muted">Custom via setCustomConfig()</td>
               </tr>
             </tbody>
           </table>
@@ -418,7 +410,7 @@ export default function HowItWorksPage() {
             "Connect your wallet to Monad testnet or mainnet",
             "Choose a token name, symbol, and total supply",
             "Pick a launch mode — standard (creator-direct fee) or preset (FeeRouter tier)",
-            "If preset, pick a tier: Light, Standard A, Standard B, or Diamond",
+            "If preset, pick a tier: Starter, Creator Extra, Creator + LP Support, or Custom",
             "Pre-buy your own token (exempt from anti-snipe, proves skin in the game)",
             "Your token deploys on the bonding curve — trading begins",
             "Anti-sniping penalty applies for the first 7 blocks, then decays to 0%",

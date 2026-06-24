@@ -32,6 +32,22 @@ export const FactoryABI = [
   },
   {
     type: "function",
+    name: "createTokenWithPreset",
+    inputs: [
+      { name: "name", type: "string", internalType: "string" },
+      { name: "symbol", type: "string", internalType: "string" },
+      { name: "creator", type: "address", internalType: "address" },
+      { name: "startTime", type: "uint256", internalType: "uint256" },
+      { name: "preset", type: "uint8", internalType: "uint8" },
+    ],
+    outputs: [
+      { name: "token", type: "address", internalType: "address" },
+      { name: "curve", type: "address", internalType: "address" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "protocolFeeReceiver",
     inputs: [],
     outputs: [{ name: "", type: "address", internalType: "address" }],
@@ -47,6 +63,38 @@ export const FactoryABI = [
     ],
   },
 ] as const satisfies Abi;
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* FeeRouter ABI (for setCustomConfig after token creation)                         */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+export const FeeRouterABI = [
+  {
+    type: "function",
+    name: "setCustomConfig",
+    inputs: [
+      { name: "token", type: "address", internalType: "address" },
+      {
+        name: "config",
+        type: "tuple",
+        internalType: "struct FeeRouter.FeeConfig",
+        components: [
+          { name: "creatorShareBps", type: "uint256", internalType: "uint256" },
+          { name: "lpSupportBps", type: "uint256", internalType: "uint256" },
+          { name: "buybackBurnBps", type: "uint256", internalType: "uint256" },
+          { name: "giftBps", type: "uint256", internalType: "uint256" },
+          { name: "giftRecipient", type: "address", internalType: "address" },
+          { name: "creator", type: "address", internalType: "address" },
+          { name: "initialized", type: "bool", internalType: "bool" },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+] as const satisfies Abi;
+
+export const FEE_ROUTER_ADDRESS = (process.env.NEXT_PUBLIC_FEE_ROUTER_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* BondingCurve ABI (minimal — only what the frontend needs)                        */

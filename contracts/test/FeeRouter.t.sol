@@ -226,8 +226,8 @@ contract FeeRouterTest is Test {
         assertEq(buybackVault.balance - beforeBuyback,  10 ether, "STANDARD_B buyback 10%");
     }
 
-    function test_Diamond_customConfig_passes_floor() public {
-        // Founder config: 0% creator / 80% LP / 20% burn — exactly at the floor
+    function test_Diamond_customConfig_founder() public {
+        // Founder config: 0% creator / 80% LP / 20% burn
         FeeRouter.FeeConfig memory config = FeeRouter.FeeConfig({
             creatorShareBps: 0,
             lpSupportBps:    8000,
@@ -249,8 +249,8 @@ contract FeeRouterTest is Test {
         assertEq(buybackVault.balance - beforeBuyback, 20 ether, "Diamond buyback 20%");
     }
 
-    function test_Diamond_customConfig_reverts_below_floor() public {
-        // 0% creator / 79% LP / 21% burn — LP below 80% floor
+    function test_Diamond_customConfig_no_floor() public {
+        // 0% creator / 79% LP / 21% burn — LP below 80% used to revert, now allowed
         FeeRouter.FeeConfig memory config = FeeRouter.FeeConfig({
             creatorShareBps: 0,
             lpSupportBps:    7900,
@@ -260,8 +260,12 @@ contract FeeRouterTest is Test {
             creator:         creator,
             initialized:     true
         });
-        vm.expectRevert(FeeRouter.LPBelowFloor.selector);
         router.setCustomConfig(token, config);
+
+        (uint256 creatorBps, uint256 lpBps, uint256 buybackBps,,,,) = router.tokenFeeConfigs(token);
+        assertEq(creatorBps, 0,    "Diamond custom creator 0%");
+        assertEq(lpBps,      7900, "Diamond custom LP 79% (no floor)");
+        assertEq(buybackBps, 2100, "Diamond custom burn 21%");
     }
 
     function test_Diamond_customConfig_reverts_invalid_sum() public {

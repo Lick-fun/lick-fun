@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, useEffect, useRef, useCallback } from "react";
+import { useState, type FormEvent, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAccount } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
@@ -8,9 +8,15 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useCreateToken } from "@/lib/hooks/useCreateToken";
+import { useReputation } from "@/lib/hooks/useReputation";
+import {
+  FeeConfigSelector,
+  type FeePreset,
+  type CustomFeeConfig,
+} from "@/components/fee/FeeConfigSelector";
 import {
   Loader2, CheckCircle2, AlertCircle, Rocket, ArrowRight,
-  Coins, Info, Upload, X, ImageIcon,
+  Coins, Info, Upload, X, ImageIcon, Link2, Globe,
 } from "lucide-react";
 
 const MAX_IMAGE_SIZE_MB = 10;
@@ -18,8 +24,27 @@ const ACCEPTED_IMAGE_TYPES = [
   "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
 ];
 
+/** Fee presets accessible per reputation tier. */
+const TIER_ALLOWED_PRESETS: Record<string, FeePreset[]> = {
+  Starter: ["LIGHT"],
+  Established: ["LIGHT", "STANDARD_A", "STANDARD_B"],
+  Verified: ["LIGHT", "STANDARD_A", "STANDARD_B", "DIAMOND"],
+};
+
+/** Lightweight URL prefix validators for social links (nad.fun pattern). */
+function validateSocial(
+  value: string,
+  prefix: string,
+): string | null {
+  if (!value.trim()) return null; // optional
+  if (!value.trim().startsWith(prefix)) {
+    return `Must start with ${prefix}`;
+  }
+  return null;
+}
+
 export default function CreateTokenPage() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [description, setDescription] = useState("");
@@ -29,11 +54,42 @@ export default function CreateTokenPage() {
   const [imageError, setImageError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Social links (optional)
+  const [telegram, setTelegram] = useState("");
+  const [twitter, setTwitter] = useState("");
+  const [website, setWebsite] = useState("");
+
+  // Fee tier selection
+  const [feePreset, setFeePreset] = useState<FeePreset>("LIGHT");
+  const [feeValid, setFeeValid] = useState(true);
+
   const {
     createToken, isPending, isConfirming, isSuccess,
     tokenAddress, txHash, error, reset, uploadStatus,
   } = useCreateToken();
   const router = useRouter();
+
+  // Determine which fee tiers the connected wallet can access by reputation.
+  const { data: reputation } = useReputation(address ?? "");
+  const tier = reputation?.tier ?? "Starter";
+  const allowedPresets = useMemo(
+    () => TIER_ALLOWED_PRESETS[tier] ?? TIER_ALLOWED_PRESETS.Starter,
+    [tier],
+  );
+
+  // Social link validation
+  const telegramError = validateSocial(telegram, "https://t.me/");
+  const twitterError = validateSocial(twitter, "https://x.com/");
+  const websiteError = validateSocial(website, "https://");
+  const socialsValid = !telegramError && !twitterError && !websiteError;
+
+  const handleFeeChange = useCallback(
+    (preset: FeePreset, _config?: CustomFeeConfig, isValid?: boolean) => {
+      setFeePreset(preset);
+      setFeeValid(isValid ?? true);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (isSuccess && tokenAddress) {
@@ -84,15 +140,34 @@ export default function CreateTokenPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // All required fields present + valid for submission.
+  const formComplete =
+    !!name.trim() &&
+    !!symbol.trim() &&
+    !!description.trim() &&
+    !!imageFile &&
+    socialsValid &&
+    feeValid;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !symbol.trim()) return;
+    // Enforce all required fields + a token image.
+    if (!name.trim() || !symbol.trim() || !description.trim()) return;
+    if (!imageFile) {
+      setImageError("Token image is required.");
+      return;
+    }
+    if (!socialsValid || !feeValid) return;
     try {
       await createToken({
         name: name.trim(),
         symbol: symbol.trim().toUpperCase(),
-        description: description.trim() || undefined,
+        description: description.trim(),
         imageFile,
+        telegram: telegram.trim() || undefined,
+        twitter: twitter.trim() || undefined,
+        website: website.trim() || undefined,
+        preset: feePreset,
       });
     } catch (err) {
       console.error("[CreateToken] handleSubmit error:", err);
@@ -216,8 +291,8 @@ export default function CreateTokenPage() {
             <h2 className="text-figma-sm font-semibold text-figma-muted uppercase tracking-wider">
               Token Image
             </h2>
-            <span className="text-figma-xs text-figma-muted ml-auto">
-              Optional
+            <span className="text-figma-xs text-figma-green ml-auto">
+              Required
             </span>
           </div>
 
@@ -350,9 +425,6 @@ export default function CreateTokenPage() {
             <div className="flex items-center justify-between">
               <label htmlFor="token-desc" className="text-figma-sm font-medium">
                 Description
-                <span className="text-figma-xs text-figma-muted font-normal ml-1">
-                  (optional)
-                </span>
               </label>
               <span className="text-figma-xs text-figma-muted">{description.length}/280</span>
             </div>
@@ -364,9 +436,130 @@ export default function CreateTokenPage() {
               disabled={isLoading}
               maxLength={280}
               rows={3}
+              required
               className="w-full px-4 py-3 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50 text-figma-sm resize-none"
             />
           </div>
+        </div>
+
+        {/* ── Social Links ── */}
+        <div className="rounded-card border border-figma-card bg-figma-card p-6 space-y-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Link2 className="w-4 h-4 text-figma-green" />
+            <h2 className="text-figma-sm font-semibold text-figma-muted uppercase tracking-wider">
+              Social Links
+            </h2>
+            <span className="text-figma-xs text-figma-muted ml-auto">
+              Optional
+            </span>
+          </div>
+
+          {/* Telegram */}
+          <div className="space-y-1.5">
+            <label htmlFor="token-telegram" className="text-figma-sm font-medium">
+              Telegram
+            </label>
+            <input
+              id="token-telegram"
+              type="url"
+              inputMode="url"
+              placeholder="https://t.me/yourtoken"
+              value={telegram}
+              onChange={(e) => setTelegram(e.target.value)}
+              disabled={isLoading}
+              className={cn(
+                "w-full px-4 py-3 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
+                telegramError
+                  ? "border-figma-red focus:border-figma-red"
+                  : "border-figma-surface focus:border-figma-green"
+              )}
+            />
+            {telegramError && (
+              <p className="text-figma-xs text-figma-red flex items-center gap-1.5">
+                <AlertCircle className="w-3 h-3 shrink-0" /> {telegramError}
+              </p>
+            )}
+          </div>
+
+          {/* X / Twitter */}
+          <div className="space-y-1.5">
+            <label htmlFor="token-twitter" className="text-figma-sm font-medium">
+              X (Twitter)
+            </label>
+            <input
+              id="token-twitter"
+              type="url"
+              inputMode="url"
+              placeholder="https://x.com/yourtoken"
+              value={twitter}
+              onChange={(e) => setTwitter(e.target.value)}
+              disabled={isLoading}
+              className={cn(
+                "w-full px-4 py-3 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
+                twitterError
+                  ? "border-figma-red focus:border-figma-red"
+                  : "border-figma-surface focus:border-figma-green"
+              )}
+            />
+            {twitterError && (
+              <p className="text-figma-xs text-figma-red flex items-center gap-1.5">
+                <AlertCircle className="w-3 h-3 shrink-0" /> {twitterError}
+              </p>
+            )}
+          </div>
+
+          {/* Website */}
+          <div className="space-y-1.5">
+            <label htmlFor="token-website" className="text-figma-sm font-medium flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-figma-muted" /> Website
+            </label>
+            <input
+              id="token-website"
+              type="url"
+              inputMode="url"
+              placeholder="https://yourtoken.com"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              disabled={isLoading}
+              className={cn(
+                "w-full px-4 py-3 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
+                websiteError
+                  ? "border-figma-red focus:border-figma-red"
+                  : "border-figma-surface focus:border-figma-green"
+              )}
+            />
+            {websiteError && (
+              <p className="text-figma-xs text-figma-red flex items-center gap-1.5">
+                <AlertCircle className="w-3 h-3 shrink-0" /> {websiteError}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Fee Tier ── */}
+        <div className="rounded-card border border-figma-card bg-figma-card p-6 space-y-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Coins className="w-4 h-4 text-figma-green" />
+            <h2 className="text-figma-sm font-semibold text-figma-muted uppercase tracking-wider">
+              Fee Tier
+            </h2>
+            <span className="text-figma-xs text-figma-muted ml-auto">
+              {tier} wallet
+            </span>
+          </div>
+          <FeeConfigSelector
+            allowedPresets={allowedPresets}
+            defaultPreset="LIGHT"
+            onChange={handleFeeChange}
+          />
+          {feePreset === "DIAMOND" && (
+            <p className="text-figma-xs text-figma-muted flex items-start gap-1.5">
+              <Info className="w-3 h-3 shrink-0 mt-0.5" />
+              Custom splits are applied by an admin after launch via
+              setCustomConfig. Your token deploys with the standard fee routing
+              until then.
+            </p>
+          )}
         </div>
 
         {/* ── Fee info ── */}
@@ -428,10 +621,10 @@ export default function CreateTokenPage() {
         {/* ── Submit ── */}
         <button
           type="submit"
-          disabled={isLoading || !name.trim() || !symbol.trim()}
+          disabled={isLoading || !formComplete}
           className={cn(
             "w-full py-4 rounded-card font-semibold text-figma-sm transition-all flex items-center justify-center gap-2",
-            isLoading || !name.trim() || !symbol.trim()
+            isLoading || !formComplete
               ? "bg-figma-green/30 text-figma-bg/50 cursor-not-allowed"
               : "btn-lick shadow-md"
           )}

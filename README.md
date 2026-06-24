@@ -8,7 +8,7 @@
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 [![Tests](https://img.shields.io/badge/Tests-136%20Forge%20•%2046%20Vitest-green)](.)
 
-**Status:** 3 security audit passes · 136 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + tier system deployed · Profile & reputation live on frontend · Phase 3 (USD MC display, founder token) next
+**Status:** 3 security audit passes · 136 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · Phase 3 (USD MC display, founder token) next
 
 ---
 
@@ -32,15 +32,14 @@ Anyone can buy/sell on the bonding curve. Symmetric anti-sniping penalties prote
 When the curve accumulates 100,000 MON, GraduationRouter migrates all liquidity to a LickPair (V2-style AMM). LP tokens are burned to `0xdead` — permanent liquidity, strongest trust signal.
 
 ### 4. Fee Tiers
-Creators choose a tier at launch. The 1% creator fee is split per-tier through FeeRouter:
+Creators choose a tier at launch. The 1% creator fee is split per-tier through FeeRouter. Tier access is gated by reputation (Starter / Established / Verified):
 
-| Tier | Creator | LP Support | Buyback & Burn | Notes |
-|---|---|---|---|---|
-| Light | 10% | 80% | 10% | Entry tier |
-| Standard A | 30% | 60% | 10% | Builder tier |
-| Standard B | 20% | 70% | 10% | Ecosystem-health tier |
-| Diamond | custom | min 80% LP | custom | Floor enforced on-chain |
-| ECOSYSTEM | 20% | 40% | 40% | Protocol reserve |
+| Tier | Creator | LP Support | Buyback & Burn | Min Reputation | Notes |
+|---|---|---|---|---|---|
+| Starter | 10% | 80% | 10% | Starter | Entry tier |
+| Creator Extra | 30% | 60% | 10% | Established | Builder tier |
+| Creator + LP Support | 20% | 70% | 10% | Established | Community-focused split |
+| Custom | custom | custom | custom | Verified | Fully customisable — any split summing to 100% |
 
 ### 5. Earn Reputation
 Every on-chain action feeds an off-chain reputation engine. Scores (0–100) computed from graduation rates, lock fulfillment, pre-buy honesty, profile age, verified tenure, and volume. Sigmoid formula: `100 / (1 + e^(-0.15 × (raw - 0.4)))`. Anchored daily on-chain via Merkle root in ProfileRegistry. 10 milestone badges auto-awarded.

@@ -3,7 +3,19 @@
 import { useState } from "react";
 import { useWriteContract, useAccount, useWaitForTransactionReceipt } from "wagmi";
 import { decodeEventLog } from "viem";
-import { FactoryABI, FACTORY_ADDRESS } from "@/lib/wagmi/contracts";
+import { FactoryABI, FACTORY_ADDRESS, FEE_ROUTER_ADDRESS } from "@/lib/wagmi/contracts";
+import type { FeePreset } from "@/components/fee/FeeConfigSelector";
+
+/**
+ * Maps the frontend FeePreset key to the on-chain FeeRouter.Preset enum index.
+ * Contract enum: { DEFAULT=0, ECOSYSTEM=1, LIGHT=2, STANDARD_A=3, STANDARD_B=4, DIAMOND=5 }
+ */
+const PRESET_ENUM_INDEX: Record<FeePreset, number> = {
+  LIGHT: 2,
+  STANDARD_A: 3,
+  STANDARD_B: 4,
+  DIAMOND: 5,
+};
 
 export interface UseCreateTokenResult {
   createToken: (params: {
@@ -11,6 +23,11 @@ export interface UseCreateTokenResult {
     symbol: string;
     description?: string;
     imageFile?: File | null;
+    telegram?: string;
+    twitter?: string;
+    website?: string;
+    /** Selected fee preset. Defaults to LIGHT (Starter). */
+    preset?: FeePreset;
   }) => Promise<void>;
   isPending: boolean;
   isConfirming: boolean;
@@ -91,11 +108,19 @@ export function useCreateToken(): UseCreateTokenResult {
     symbol,
     description,
     imageFile,
+    telegram,
+    twitter,
+    website,
+    preset = "LIGHT",
   }: {
     name: string;
     symbol: string;
     description?: string;
     imageFile?: File | null;
+    telegram?: string;
+    twitter?: string;
+    website?: string;
+    preset?: FeePreset;
   }) => {
     if (!address) throw new Error("Wallet not connected");
     setError(null);
@@ -123,6 +148,9 @@ export function useCreateToken(): UseCreateTokenResult {
         formData.append("name", name);
         formData.append("symbol", symbol);
         if (description) formData.append("description", description);
+        if (telegram) formData.append("telegram", telegram);
+        if (twitter) formData.append("twitter", twitter);
+        if (website) formData.append("website", website);
 
         console.log("[useCreateToken] Uploading image + metadata to IPFS...");
         const res = await fetch("/api/upload-token", {
@@ -162,19 +190,44 @@ export function useCreateToken(): UseCreateTokenResult {
     }
 
     // Step 2: Deploy token on-chain (ONE wallet signature)
-    console.log("[useCreateToken] Calling createToken on-chain:", {
+    //
+    // Routing logic:
+    //  - If a FeeRouter is configured AND the chosen preset is one of the fixed
+    //    presets (LIGHT / STANDARD_A / STANDARD_B), use createTokenWithPreset so
+    //    fees are split by the FeeRouter at launch.
+    //  - DIAMOND (Custom) cannot be applied via createTokenWithPreset (the contract
+    //    reverts with UseCustomConfig — the split must be set by the owner via
+    //    setCustomConfig afterwards). For now DIAMOND falls back to the standard
+    //    createToken flow; the custom split is configured by an admin operation.
+    //  - If no FeeRouter is configured, always use the standard createToken.
+    const feeRouterConfigured =
+      FEE_ROUTER_ADDRESS !== "0x0000000000000000000000000000000000000000";
+    const usePreset = feeRouterConfigured && preset !== "DIAMOND";
+
+    console.log("[useCreateToken] Calling create on-chain:", {
       factory: FACTORY_ADDRESS,
       name,
       symbol,
       creator: address,
+      preset,
+      usePreset,
     });
     try {
-      await writeContractAsync({
-        address: FACTORY_ADDRESS,
-        abi: FactoryABI,
-        functionName: "createToken",
-        args: [name, symbol, address, 0n],
-      });
+      if (usePreset) {
+        await writeContractAsync({
+          address: FACTORY_ADDRESS,
+          abi: FactoryABI,
+          functionName: "createTokenWithPreset",
+          args: [name, symbol, address, 0n, PRESET_ENUM_INDEX[preset]],
+        });
+      } else {
+        await writeContractAsync({
+          address: FACTORY_ADDRESS,
+          abi: FactoryABI,
+          functionName: "createToken",
+          args: [name, symbol, address, 0n],
+        });
+      }
     } catch (err) {
       console.error("[useCreateToken] writeContractAsync failed:", err);
       setError(err instanceof Error ? err : new Error(String(err)));
