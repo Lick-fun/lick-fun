@@ -410,7 +410,7 @@ contract BondingCurveTest is Test {
     /* TEST 18: Integration — createMarket with real BondingCurve + LickToken → resolve works */
     function testCreateMarketIntegration() public {
         // Deploy PredictionMarket and link it to the factory
-        PredictionMarket pm = new PredictionMarket(protocolFeeReceiver);
+        PredictionMarket pm = new PredictionMarket(protocolFeeReceiver, address(factory));
         factory.setPredictionMarket(address(pm));
 
         // Create a second token — factory should auto-create a market for it
@@ -448,6 +448,24 @@ contract BondingCurveTest is Test {
         (,,,, bool resolved, bool outcome,,) = pm.markets(token2);
         assertTrue(resolved, "market should be resolved");
         assertTrue(outcome, "outcome should be YES (graduated)");
+    }
+
+    // ─── Solvency invariant ───────────────────────────────────────────────────
+
+    function test_solvency_invariant_afterBuyAndSell() public {
+        // After a buy and partial sell, contract balance >= realMon
+        address buyer2 = makeAddr("buyer2");
+        vm.deal(buyer2, 10_000 ether);
+        vm.startPrank(buyer2);
+        uint256 tokens = curve.buy{value: 10_000 ether}(0);
+        // Sell half back
+        IERC20(address(token)).approve(address(curve), tokens / 2);
+        curve.sell(tokens / 2, 0);
+        vm.stopPrank();
+
+        uint256 contractBalance = address(curve).balance;
+        uint256 realMon = curve.realMon();
+        assertGe(contractBalance, realMon, "contract balance must be >= realMon");
     }
 
     receive() external payable {}

@@ -48,3 +48,27 @@ type Profile {
   totalSellVolume: BigInt!    # sum of MON sold across all their tokens
   tokens: [Token!]! @derivedFrom(field: "creator")
 }
+
+# Phase 2 — FeeRouter fee configuration per token.
+# Keyed by token address.
+type FeeConfig @entity {
+  id: ID!
+  token: String!
+  creatorShareBps: BigInt!
+  lpSupportBps: BigInt!
+  buybackBurnBps: BigInt!
+  preset: String!
+  blockTimestamp: BigInt!
+}
+
+# Phase 2 — FeeRouter fee routing events.
+# Keyed by txHash-logIndex for uniqueness.
+type FeeEvent @entity {
+  id: ID!
+  token: String!
+  totalAmount: BigInt!
+  creatorShare: BigInt!
+  lpShare: BigInt!
+  buybackShare: BigInt!
+  blockTimestamp: BigInt!
+}

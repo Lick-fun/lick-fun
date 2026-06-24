@@ -11,11 +11,10 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  * @dev Controller is the beneficiary of pre-DEX VestingWallet (730d linear).
  *      On graduation, sweeps remaining tokens and redeploys with post-DEX schedule.
  *
- *      Tier durations:
- *        Light:    LP lock 90d  / Dev vest 365d
- *        Standard: LP lock 180d / Dev vest 180d
- *        Diamond:  LP lock 365d / Dev vest 90d
- *        All tiers: pre-DEX 730d linear
+ *      Phase 2: All duration constants are 0 — tokens are liquid immediately.
+ *      Tier differentiation is via FeeRouter fee splits only, not locks.
+ *      LP tokens are burned to 0xdead at graduation (GraduationRouter).
+ *      lockLPTokens() and withdrawLP() are kept for ABI compatibility only.
  */
 contract VestingController is ReentrancyGuard {
     // ─── Types ────────────────────────────────────────────────────────────────
@@ -43,13 +42,13 @@ contract VestingController is ReentrancyGuard {
     }
 
     // ─── Constants ────────────────────────────────────────────────────────────
-    uint256 public constant PRE_DEX_DURATION = 730 days;
-    uint256 public constant LIGHT_LOCK_DAYS = 90;
-    uint256 public constant LIGHT_VEST_DAYS = 365;
-    uint256 public constant STANDARD_LOCK_DAYS = 180;
-    uint256 public constant STANDARD_VEST_DAYS = 180;
-    uint256 public constant DIAMOND_LOCK_DAYS = 365;
-    uint256 public constant DIAMOND_VEST_DAYS = 90;
+    uint256 public constant PRE_DEX_DURATION = 0;
+    uint256 public constant LIGHT_LOCK_DAYS = 0;
+    uint256 public constant LIGHT_VEST_DAYS = 0;
+    uint256 public constant STANDARD_LOCK_DAYS = 0;
+    uint256 public constant STANDARD_VEST_DAYS = 0;
+    uint256 public constant DIAMOND_LOCK_DAYS = 0;
+    uint256 public constant DIAMOND_VEST_DAYS = 0;
 
     // ─── State ────────────────────────────────────────────────────────────────
     mapping(address => DevAllocation) public allocations;
@@ -232,47 +231,8 @@ contract VestingController is ReentrancyGuard {
      * @dev The controller calls release() on the old VestingWallet (tokens come to controller),
      *      then deploys a new VestingWallet with beneficiary = actual dev and duration = tier-specific.
      */
-    function onGraduation(address token) external onlyOwner nonReentrant {
-        DevAllocation storage alloc = allocations[token];
-        if (!alloc.initialized) revert AllocationNotFound();
-        if (alloc.graduated) revert AlreadyGraduated();
-
-        address oldWallet = alloc.vestingWallet;
-
-        // Release all vested tokens from old wallet to controller
-        // The old wallet's beneficiary is this controller, so release() sends tokens here
-        VestingWallet(payable(oldWallet)).release(token);
-
-        // Get remaining (unvested) balance in old wallet
-        uint256 remaining = IERC20(token).balanceOf(oldWallet);
-
-        // If there are remaining tokens, we need to get them too.
-        // The VestingWallet only releases vested amounts. Unvested tokens stay locked.
-        // For migration, we can't get unvested tokens from the old wallet.
-        // Instead, we deploy a new wallet with the released amount only.
-        // Any remaining unvested tokens stay in the old wallet indefinitely.
-        // This is acceptable because the pre-DEX vesting was 730d and the token
-        // graduated before that — the released amount represents what was earned so far.
-
-        uint256 migratedAmount = IERC20(token).balanceOf(address(this));
-
-        // Deploy new VestingWallet with beneficiary = actual dev
-        uint64 newDuration = uint64(alloc.devVestingDays * 1 days);
-        VestingWallet newWallet = new VestingWallet(
-            alloc.beneficiary,
-            uint64(block.timestamp),
-            newDuration
-        );
-
-        // Transfer released tokens to new wallet
-        if (migratedAmount > 0) {
-            IERC20(token).transfer(address(newWallet), migratedAmount);
-        }
-
-        alloc.vestingWallet = address(newWallet);
-        alloc.graduated = true;
-
-        emit GraduationProcessed(token, oldWallet, address(newWallet), migratedAmount, newDuration);
+    function onGraduation(address token) external onlyOwner {
+        // vestigial — all vest durations are 0, no sweep needed
     }
 
     // ─── LP Token Locking ─────────────────────────────────────────────────────
@@ -293,9 +253,11 @@ contract VestingController is ReentrancyGuard {
         uint256 lpAmount,
         uint256 lockDuration,
         address _creator
-    ) external nonReentrant {
+    ) external onlyOwner nonReentrant {
         if (token == address(0) || pair == address(0)) revert ZeroAddress();
         if (lpAmount == 0) revert ZeroAddress();
+        // Prevent overwriting an existing lock for this token
+        require(tokenLPLocks[token].amount == 0, "LOCK_EXISTS");
 
         // Pull LP tokens from caller (GraduationRouter)
         IERC20(pair).transferFrom(msg.sender, address(this), lpAmount);

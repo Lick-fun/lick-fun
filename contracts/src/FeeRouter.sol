@@ -13,7 +13,7 @@ contract FeeRouter is ReentrancyGuard {
     uint256 public constant BPS_DENOM = 10_000;
 
     // ─── Enums ────────────────────────────────────────────────────────────────
-    enum Preset { DEFAULT, ECOSYSTEM }
+    enum Preset { DEFAULT, ECOSYSTEM, LIGHT, STANDARD_A, STANDARD_B, DIAMOND }
 
     // ─── Structs ──────────────────────────────────────────────────────────────
     struct FeeConfig {
@@ -34,15 +34,21 @@ contract FeeRouter is ReentrancyGuard {
     address public lpSupportVault;
     address public buybackBurnVault;
 
+    /// @notice Pull-payment fallback: accrued fees for recipients whose push failed.
+    mapping(address => uint256) public pendingWithdrawals;
+
     // ─── Events ───────────────────────────────────────────────────────────────
     event FeeConfigSet(address indexed token, FeeConfig config);
     event FeeRouted(address indexed token, uint256 totalAmount, uint256 creatorShare, uint256 lpShare, uint256 buybackShare, uint256 giftShare);
+    event FeePending(address indexed recipient, uint256 amount);
 
     // ─── Errors ────────────────────────────────────────────────────────────────
     error AlreadyInitialized();
     error InvalidBps();
     error NotOwner();
     error ZeroAddress();
+    error LPBelowFloor();
+    error UseCustomConfig();
 
     constructor(address _graduationPool, address _lpSupportVault, address _buybackBurnVault) {
         if (_graduationPool == address(0)) revert ZeroAddress();
@@ -66,10 +72,51 @@ contract FeeRouter is ReentrancyGuard {
      * @param preset The preset enum value
      * @param creatorAddress The actual creator wallet address
      * @return config The FeeConfig struct
-     * @dev DEFAULT: Creator 80% / LP 10% / Buyback&Burn 10%
-     *      ECOSYSTEM: Creator 20% / LP 40% / Buyback&Burn 40% (goes to graduationPool)
+     * @dev LIGHT:      Creator 10% / LP 80% / Buyback&Burn 10%
+     *      STANDARD_A: Creator 30% / LP 60% / Buyback&Burn 10%
+     *      STANDARD_B: Creator 20% / LP 70% / Buyback&Burn 10%
+     *      DIAMOND:    reverts — Diamond configs must go through setCustomConfig()
+     *      ECOSYSTEM:  Creator 20% / LP 40% / Buyback&Burn 40%
+     *      DEFAULT:    Creator 80% / LP 10% / Buyback&Burn 10%
      */
-    function getPresetConfig(Preset preset, address creatorAddress) public pure returns (FeeConfig memory) {
+    function getPresetConfig(Preset preset, address creatorAddress) public view returns (FeeConfig memory) {
+        if (preset == Preset.LIGHT) {
+            return FeeConfig({
+                creatorShareBps: 1000,  // 10%
+                lpSupportBps: 8000,       // 80%
+                buybackBurnBps: 1000,     // 10%
+                giftBps: 0,
+                giftRecipient: address(0),
+                creator: creatorAddress,
+                initialized: true
+            });
+        }
+        if (preset == Preset.STANDARD_A) {
+            return FeeConfig({
+                creatorShareBps: 3000,  // 30%
+                lpSupportBps: 6000,       // 60%
+                buybackBurnBps: 1000,     // 10%
+                giftBps: 0,
+                giftRecipient: address(0),
+                creator: creatorAddress,
+                initialized: true
+            });
+        }
+        if (preset == Preset.STANDARD_B) {
+            return FeeConfig({
+                creatorShareBps: 2000,  // 20%
+                lpSupportBps: 7000,       // 70%
+                buybackBurnBps: 1000,     // 10%
+                giftBps: 0,
+                giftRecipient: address(0),
+                creator: creatorAddress,
+                initialized: true
+            });
+        }
+        if (preset == Preset.DIAMOND) {
+            // DIAMOND has no fixed preset — callers must use setCustomConfig() instead.
+            revert UseCustomConfig();
+        }
         if (preset == Preset.ECOSYSTEM) {
             return FeeConfig({
                 creatorShareBps: 2000,  // 20%
@@ -101,6 +148,16 @@ contract FeeRouter is ReentrancyGuard {
      * @param config The fee split configuration
      */
     function setFeeConfig(address token, FeeConfig calldata config) public onlyOwner {
+        _setFeeConfig(token, config);
+    }
+
+    /**
+     * @notice Sets a custom fee config for DIAMOND tier tokens.
+     * @param token The token address (must not already have a config initialized)
+     * @param config The FeeConfig struct — lpSupportBps must be >= 8000
+     */
+    function setCustomConfig(address token, FeeConfig calldata config) external onlyOwner {
+        if (config.lpSupportBps < 8000) revert LPBelowFloor();
         _setFeeConfig(token, config);
     }
 
@@ -146,31 +203,56 @@ contract FeeRouter is ReentrancyGuard {
         uint256 buybackShare   = (amount * config.buybackBurnBps) / BPS_DENOM;
         uint256 giftShare      = (amount * config.giftBps) / BPS_DENOM;
 
-        // Route creator share to actual creator
+        // Sweep rounding dust to LP vault (M-01)
+        uint256 dust = amount - creatorShare - lpShare - buybackShare - giftShare;
+        if (dust > 0) lpShare += dust;
+
+        // Route creator share to actual creator (failure-tolerant)
         if (creatorShare > 0) {
             (bool ok, ) = config.creator.call{value: creatorShare}("");
-            require(ok, "Creator transfer failed");
+            if (!ok) {
+                pendingWithdrawals[config.creator] += creatorShare;
+                emit FeePending(config.creator, creatorShare);
+            }
         }
 
-        // Route LP support share
+        // Route LP support share (failure-tolerant)
         if (lpShare > 0) {
             (bool ok, ) = lpSupportVault.call{value: lpShare}("");
-            require(ok, "LP vault transfer failed");
+            if (!ok) {
+                pendingWithdrawals[lpSupportVault] += lpShare;
+                emit FeePending(lpSupportVault, lpShare);
+            }
         }
 
-        // Route buyback & burn share
+        // Route buyback & burn share (failure-tolerant)
         if (buybackShare > 0) {
             (bool ok, ) = buybackBurnVault.call{value: buybackShare}("");
-            require(ok, "Buyback vault transfer failed");
+            if (!ok) {
+                pendingWithdrawals[buybackBurnVault] += buybackShare;
+                emit FeePending(buybackBurnVault, buybackShare);
+            }
         }
 
-        // Route gift share
+        // Route gift share (failure-tolerant)
         if (giftShare > 0 && config.giftRecipient != address(0)) {
             (bool ok, ) = config.giftRecipient.call{value: giftShare}("");
-            require(ok, "Gift transfer failed");
+            if (!ok) {
+                pendingWithdrawals[config.giftRecipient] += giftShare;
+                emit FeePending(config.giftRecipient, giftShare);
+            }
         }
 
         emit FeeRouted(token, amount, creatorShare, lpShare, buybackShare, giftShare);
+    }
+
+    /// @notice Withdraw accrued fees that failed to be pushed (pull-payment fallback).
+    function withdraw() external nonReentrant {
+        uint256 amount = pendingWithdrawals[msg.sender];
+        require(amount > 0, "NOTHING_TO_WITHDRAW");
+        pendingWithdrawals[msg.sender] = 0;
+        (bool ok, ) = msg.sender.call{value: amount}("");
+        require(ok, "WITHDRAW_FAILED");
     }
 
     /**

@@ -29,6 +29,9 @@ contract PredictionMarket is ReentrancyGuard {
     /// @notice Address that receives the 2% protocol fee from losing pools.
     address public immutable protocolFeeReceiver;
 
+    /// @notice The Lick.fun Factory address — only it may create markets.
+    address public immutable factory;
+
     /* ════════════════════════════════ STRUCTS ═══════════════════════════════ */
 
     /// @notice Tracks the aggregated state for a single prediction market.
@@ -70,9 +73,12 @@ contract PredictionMarket is ReentrancyGuard {
     /* ═════════════════════════════ CONSTRUCTOR ═══════════════════════════════ */
 
     /// @param _protocolFeeReceiver Address that receives the 2% protocol fee.
-    constructor(address _protocolFeeReceiver) {
+    /// @param _factory           The Lick.fun Factory address — only it may create markets.
+    constructor(address _protocolFeeReceiver, address _factory) {
         require(_protocolFeeReceiver != address(0), "ZERO_FEE_RECEIVER");
+        require(_factory != address(0), "ZERO_FACTORY");
         protocolFeeReceiver = _protocolFeeReceiver;
+        factory = _factory;
     }
 
     /* ════════════════════════════════ CREATE ════════════════════════════════ */
@@ -81,6 +87,7 @@ contract PredictionMarket is ReentrancyGuard {
     /// @param token The LickToken address to create a market for.
     /// @param curve The BondingCurve address used as the oracle for this market.
     function createMarket(address token, address curve) external {
+        require(msg.sender == factory, "ONLY_FACTORY");
         require(token != address(0), "ZERO_TOKEN");
         require(curve != address(0), "ZERO_CURVE");
         require(markets[token].token == address(0), "MARKET_EXISTS");
@@ -163,6 +170,9 @@ contract PredictionMarket is ReentrancyGuard {
         uint256 payout;
         if (market.outcome) {
             // YES wins — YES bettors split the losing NO pool (minus protocol fee)
+            // NOTE: payout is winner's share of losing pool only.
+            // Original stake remains in the contract and is NOT returned.
+            // This is intentional parimutuel market design.
             uint256 yesBet = yesBets[token][msg.sender];
             require(yesBet > 0, "NO_WINNINGS");
             uint256 losingPool = market.totalNoMON;
@@ -171,6 +181,9 @@ contract PredictionMarket is ReentrancyGuard {
             payout = (yesBet * distributablePool) / market.totalYesMON;
         } else {
             // NO wins — NO bettors split the losing YES pool (minus protocol fee)
+            // NOTE: payout is winner's share of losing pool only.
+            // Original stake remains in the contract and is NOT returned.
+            // This is intentional parimutuel market design.
             uint256 noBet = noBets[token][msg.sender];
             require(noBet > 0, "NO_WINNINGS");
             uint256 losingPool = market.totalYesMON;

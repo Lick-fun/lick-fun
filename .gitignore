@@ -41,3 +41,6 @@ contracts/lib/
 # Logs
 *.log
 npm-debug.log*
+
+# Local RAG memory (MCP local-rag storage)
+.memory/

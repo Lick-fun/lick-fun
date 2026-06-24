@@ -178,7 +178,7 @@ contract BondingCurve {
 
         _checkGraduation();
 
-        emit CurveBuy(msg.sender, token, msg.value, tokensOut);
+        emit CurveBuy(msg.sender, token, netAmountIn, tokensOut);
 
         // ── Interactions ──
         // Penalty + protocol fee both go to protocolFeeReceiver.

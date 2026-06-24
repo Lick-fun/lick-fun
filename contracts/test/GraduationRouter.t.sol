@@ -8,7 +8,6 @@ import {Factory} from "../src/Factory.sol";
 import {GraduationRouter} from "../src/GraduationRouter.sol";
 import {LickFactory} from "../src/LickFactory.sol";
 import {LickPair} from "../src/LickPair.sol";
-import {VestingController} from "../src/VestingController.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -20,7 +19,6 @@ contract GraduationRouterTest is Test {
     Factory public launchFactory;
     LickFactory public dexFactory;
     GraduationRouter public router;
-    VestingController public vestingController;
     MockWETH public weth;
 
     // ─── Test addresses ───────────────────────────────────────────────────────
@@ -43,16 +41,14 @@ contract GraduationRouterTest is Test {
         // GraduationRouter can call createPair via setGraduationRouter
         dexFactory = new LickFactory(address(this));
         weth = new MockWETH();
-        vestingController = new VestingController();
 
         // Deploy launch factory
         launchFactory = new Factory(protocolTreasury);
 
-        // Deploy GraduationRouter
+        // Deploy GraduationRouter (no vestingController param — LP burns to 0xdead)
         router = new GraduationRouter(
             address(dexFactory),
             address(weth),
-            address(vestingController),
             protocolFeeReceiver,
             address(launchFactory)
         );
@@ -109,13 +105,9 @@ contract GraduationRouterTest is Test {
         assertTrue(reserve0 > 0, "reserve0 should have liquidity");
         assertTrue(reserve1 > 0, "reserve1 should have liquidity");
 
-        // Verify LP tokens are locked in VestingController
-        (address lockedPair, uint256 lockedAmount, uint256 lockEnd, , address lockedCreator) = vestingController.tokenLPLocks(address(token));
-        assertEq(lockedPair, pair, "locked pair should match");
-        assertTrue(lockedAmount > 0, "locked LP amount should be > 0");
-        assertTrue(lockEnd > block.timestamp, "lock end should be in the future");
-        // Creator should be address(0) since no allocation exists for this token
-        assertEq(lockedCreator, address(0), "creator should be zero for tokens without allocation");
+        // Verify LP tokens are burned to 0xdead
+        uint256 deadBalance = IERC20(pair).balanceOf(address(0xdead));
+        assertTrue(deadBalance > 0, "LP tokens should be burned to 0xdead");
     }
 
     /// @notice Cannot migrate before graduation threshold is reached.
@@ -180,8 +172,8 @@ contract GraduationRouterTest is Test {
         assertTrue(totalReserves > 0, "total reserves should be > 0");
     }
 
-    /// @notice LP tokens are locked in VestingController with correct lock end.
-    function testLPTokensLocked() public {
+    /// @notice LP tokens are burned to 0xdead on graduation migration.
+    function testLPTokensBurnedToDead() public {
         // Graduate
         uint256 buyAmount = 110_000 ether;
         vm.deal(buyer, buyAmount);
@@ -193,18 +185,40 @@ contract GraduationRouterTest is Test {
         // Migrate
         address pair = router.migrateLiquidity(address(token));
 
-        // Check LP lock in VestingController
-        (address lockedPair, uint256 lockedAmount, uint256 lockEnd, , address lockedCreator) = vestingController.tokenLPLocks(address(token));
+        // Verify LP tokens are burned to 0xdead
+        uint256 deadBalance = IERC20(pair).balanceOf(address(0xdead));
+        assertTrue(deadBalance > 0, "LP tokens should be burned to 0xdead");
+    }
 
-        assertEq(lockedPair, pair, "locked pair should match deployed pair");
-        assertTrue(lockedAmount > 0, "locked amount should be > 0");
+    /// @notice Verify LP tokens are burned to 0xdead on graduation migration.
+    function test_lpBurnedAt0xdead_onGraduation() public {
+        uint256 buyAmount = 110_000 ether;
+        vm.deal(buyer, buyAmount);
+        vm.startPrank(buyer);
+        curve.buy{value: buyAmount}(0);
+        vm.stopPrank();
 
-        // Lock duration should be 90 days (LIGHT tier default)
-        // Allow small delta for block timestamp variance
-        assertTrue(lockEnd >= block.timestamp + 90 days - 1, "lock end should be ~90 days from now");
-        assertTrue(lockEnd <= block.timestamp + 90 days + 1, "lock end should be ~90 days from now");
-        // Creator should be address(0) since no allocation exists for this token
-        assertEq(lockedCreator, address(0), "creator should be zero for tokens without allocation");
+        assertTrue(curve.graduated(), "curve should be graduated");
+
+        address pair = router.migrateLiquidity(address(token));
+
+        uint256 deadBalance = IERC20(pair).balanceOf(address(0xdead));
+        assertTrue(deadBalance > 0, "LP tokens must be sent to 0xdead");
+        assertEq(router.tokenToPair(address(token)), pair, "tokenToPair should be set");
+    }
+
+    /// @notice GraduationRouter has no vestingController state variable.
+    function test_noVestingController_reference_in_migration() public {
+        // If this test compiles and runs, there is no vestingController dependency.
+        // The migrateLiquidity call must succeed without any VestingController.
+        uint256 buyAmount = 110_000 ether;
+        vm.deal(buyer, buyAmount);
+        vm.startPrank(buyer);
+        curve.buy{value: buyAmount}(0);
+        vm.stopPrank();
+
+        address pair = router.migrateLiquidity(address(token));
+        assertTrue(pair != address(0), "migration should succeed without vestingController");
     }
 }
 

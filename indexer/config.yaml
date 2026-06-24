@@ -16,6 +16,12 @@ contracts:
       - event: "CurveSell(address indexed seller, address indexed token, uint256 amountIn, uint256 amountOut)"
       - event: "CurveGraduate(address indexed token, address indexed pool)"
 
+  - name: FeeRouter
+    abi_file_path: "./abis/FeeRouter.json"
+    events:
+      - event: "FeeRouted(address indexed token, uint256 totalAmount, uint256 creatorShare, uint256 lpShare, uint256 buybackShare, uint256 giftShare)"
+      - event: "FeeConfigSet(address indexed token)"
+
 chains:
   - id: 10143
     hypersync_config:
@@ -27,3 +33,5 @@ chains:
       - name: Factory
         address: "0xe5a63a3496952bb12e4802264244d476a8f36eed"
       - name: BondingCurve
+      - name: FeeRouter
+        address: "0x1bC6FA459AE10738A5bFeDD08239386C2d3dec4f"

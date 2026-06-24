@@ -8,7 +8,6 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import "./BondingCurve.sol";
 import "./LickFactory.sol";
 import "./LickPair.sol";
-import "./VestingController.sol";
 
 /**
  * @notice Minimal WETH9 interface for wrapping/unwrapping native MON.
@@ -32,7 +31,7 @@ interface ILaunchFactory {
  * @notice When a BondingCurve graduates, this contract deploys a Uniswap V2-style
  *         pair and migrates liquidity from the curve to the DEX.
  * @dev Permissionless: anyone can call migrateLiquidity() after graduation.
- *      Uses CEI pattern throughout. LP tokens are locked in VestingController.
+ *      Uses CEI pattern throughout. LP tokens are burned to 0xdead.
  */
 contract GraduationRouter is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -43,9 +42,6 @@ contract GraduationRouter is ReentrancyGuard {
 
     /// @notice Wrapped MON (WMON) address.
     address public immutable weth;
-
-    /// @notice VestingController — receives LP tokens for tier-based locking.
-    address public immutable vestingController;
 
     /// @notice Protocol fee receiver (receives MON from migration if any).
     address public immutable protocolFeeReceiver;
@@ -79,16 +75,14 @@ contract GraduationRouter is ReentrancyGuard {
     constructor(
         address _dexFactory,
         address _weth,
-        address _vestingController,
         address _protocolFeeReceiver,
         address _launchFactory
     ) {
         if (_dexFactory == address(0) || _weth == address(0) ||
-            _vestingController == address(0) || _protocolFeeReceiver == address(0) ||
+            _protocolFeeReceiver == address(0) ||
             _launchFactory == address(0)) revert ZeroAddress();
         dexFactory = _dexFactory;
         weth = _weth;
-        vestingController = _vestingController;
         protocolFeeReceiver = _protocolFeeReceiver;
         launchFactory = _launchFactory;
     }
@@ -103,7 +97,7 @@ contract GraduationRouter is ReentrancyGuard {
      *      4. Wrap MON → WETH.
      *      5. Deploy LickPair via dexFactory.createPair().
      *      6. Transfer token + WETH to pair, call pair.mint().
-     *      7. Lock LP tokens in VestingController.
+     *      7. Burn LP tokens to 0xdead.
      * @param token The LickToken address
      * @return pair The deployed DEX pair address
      */
@@ -147,8 +141,9 @@ contract GraduationRouter is ReentrancyGuard {
 
         // ── 9. Transfer liquidity to pair ──
         IERC20(token).safeTransfer(pair, tokenBalance);
-        uint256 wethBalance = IERC20(weth).balanceOf(address(this));
-        IERC20(weth).safeTransfer(pair, wethBalance);
+        // Use the exact snapshotted monAmount (not balanceOf) to avoid stray WETH
+        // contaminating the pair's initial price.
+        IERC20(weth).safeTransfer(pair, monAmount);
 
         // ── 10. Mint LP tokens ──
         uint256 lpAmount = LickPair(pair).mint(address(this));
@@ -156,35 +151,8 @@ contract GraduationRouter is ReentrancyGuard {
         // ── 11. Update final state ──
         tokenToPair[token] = pair;
 
-        // ── 12. Lock LP tokens in VestingController ──
-        // Read the allocation to get liquidityLockDays and beneficiary (creator)
-        // allocations[token] returns DevAllocation tuple:
-        //   0:vestingWallet, 1:beneficiary, 2:tier, 3:totalAmount, 4:startTime,
-        //   5:liquidityLockDays, 6:devVestingDays, 7:graduated, 8:initialized
-        (
-            ,
-            address beneficiary,
-            ,
-            ,
-            ,
-            uint256 liquidityLockDays,
-            ,
-            ,
-        ) = VestingController(vestingController).allocations(token);
-
-        uint256 lockDuration = 90 days;
-        if (liquidityLockDays > 0) {
-            lockDuration = liquidityLockDays * 1 days;
-        }
-
-        // Creator = beneficiary from allocation; if no allocation, use address(0)
-        // (withdrawLP will send to msg.sender when creator is address(0))
-
-        // Approve LP tokens for VestingController
-        IERC20(pair).forceApprove(vestingController, lpAmount);
-
-        // Lock LP tokens
-        VestingController(vestingController).lockLPTokens(token, pair, lpAmount, lockDuration, beneficiary);
+        // ── 12. Burn LP tokens — send to 0xdead ──
+        IERC20(pair).transfer(address(0xdead), lpAmount);
 
         emit LiquidityMigrated(token, pair, tokenBalance, monAmount);
     }

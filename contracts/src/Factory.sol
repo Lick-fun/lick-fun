@@ -21,6 +21,7 @@ contract Factory {
     uint256 public constant BPS_DENOM = 10_000;
 
     // ─── State ───────────────────────────────────────────────────────────────
+    address public immutable owner;
     address public immutable protocolTreasury;
     address payable public feeRouter;
     address payable public predictionMarket;
@@ -46,18 +47,26 @@ contract Factory {
 
     // ─── Errors ──────────────────────────────────────────────────────────────
     error ZeroAddress();
+    error NotOwner();
+    error AlreadySet();
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) revert NotOwner();
+        _;
+    }
 
     constructor(address _protocolTreasury) {
         if (_protocolTreasury == address(0)) revert ZeroAddress();
         protocolTreasury = _protocolTreasury;
+        owner = msg.sender;
     }
 
     /**
      * @notice Sets the FeeRouter address. Can only be called once.
      * @param _feeRouter The FeeRouter contract address
      */
-    function setFeeRouter(address _feeRouter) external {
-        if (feeRouter != address(0)) revert ZeroAddress(); // already set
+    function setFeeRouter(address _feeRouter) external onlyOwner {
+        if (feeRouter != address(0)) revert AlreadySet();
         if (_feeRouter == address(0)) revert ZeroAddress();
         feeRouter = payable(_feeRouter);
         emit FeeRouterSet(_feeRouter);
@@ -67,8 +76,8 @@ contract Factory {
      * @notice Sets the PredictionMarket address. Can only be called once.
      * @param _predictionMarket The PredictionMarket contract address
      */
-    function setPredictionMarket(address _predictionMarket) external {
-        if (predictionMarket != address(0)) revert ZeroAddress();
+    function setPredictionMarket(address _predictionMarket) external onlyOwner {
+        if (predictionMarket != address(0)) revert AlreadySet();
         if (_predictionMarket == address(0)) revert ZeroAddress();
         predictionMarket = payable(_predictionMarket);
         emit PredictionMarketSet(_predictionMarket);
@@ -78,8 +87,8 @@ contract Factory {
      * @notice Sets the VestingController address. Can only be called once.
      * @param _vestingController The VestingController contract address
      */
-    function setVestingController(address _vestingController) external {
-        if (vestingController != address(0)) revert ZeroAddress();
+    function setVestingController(address _vestingController) external onlyOwner {
+        if (vestingController != address(0)) revert AlreadySet();
         if (_vestingController == address(0)) revert ZeroAddress();
         vestingController = _vestingController;
         emit VestingControllerSet(_vestingController);
@@ -89,8 +98,8 @@ contract Factory {
      * @notice Sets the GraduationRouter address. Can only be called once.
      * @param _graduationRouter The GraduationRouter contract address
      */
-    function setGraduationRouter(address _graduationRouter) external {
-        if (graduationRouter != address(0)) revert ZeroAddress();
+    function setGraduationRouter(address _graduationRouter) external onlyOwner {
+        if (graduationRouter != address(0)) revert AlreadySet();
         if (_graduationRouter == address(0)) revert ZeroAddress();
         graduationRouter = _graduationRouter;
         emit GraduationRouterSet(_graduationRouter);

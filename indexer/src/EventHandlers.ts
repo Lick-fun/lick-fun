@@ -229,3 +229,49 @@ indexer.onEvent({ contract: "BondingCurve", event: "CurveGraduate" }, async ({ e
     });
   }
 });
+
+/* ══════════════════════════ FEEROUTER: FeeConfigSet ═══════════════════════════════ */
+
+function resolveTierName(config: {
+  creatorShareBps: bigint;
+  lpSupportBps: bigint;
+  buybackBurnBps: bigint;
+}): string {
+  const c = Number(config.creatorShareBps);
+  const lp = Number(config.lpSupportBps);
+  const bb = Number(config.buybackBurnBps);
+  if (c === 1000 && lp === 8000 && bb === 1000) return "LIGHT";
+  if (c === 3000 && lp === 6000 && bb === 1000) return "STANDARD_A";
+  if (c === 2000 && lp === 7000 && bb === 1000) return "STANDARD_B";
+  if (c === 2000 && lp === 4000 && bb === 4000) return "ECOSYSTEM";
+  if (c === 8000 && lp === 1000 && bb === 1000) return "DEFAULT";
+  return "DIAMOND";
+}
+
+indexer.onEvent({ contract: "FeeRouter", event: "FeeConfigSet" }, async ({ event, context }) => {
+  const tokenId = event.params.token.toLowerCase();
+  await context.FeeConfig.set({
+    id: tokenId,
+    token: tokenId,
+    creatorShareBps: event.params.config.creatorShareBps,
+    lpSupportBps: event.params.config.lpSupportBps,
+    buybackBurnBps: event.params.config.buybackBurnBps,
+    preset: resolveTierName(event.params.config),
+    blockTimestamp: BigInt(event.block.timestamp),
+  });
+});
+
+/* ═══════════════════════════ FEEROUTER: FeeRouted ════════════════════════════════ */
+
+indexer.onEvent({ contract: "FeeRouter", event: "FeeRouted" }, async ({ event, context }) => {
+  const logIndex = String(event.logIndex);
+  await context.FeeEvent.set({
+    id: `${event.transaction.hash}-${logIndex}`,
+    token: event.params.token.toLowerCase(),
+    totalAmount: event.params.totalAmount,
+    creatorShare: event.params.creatorShare,
+    lpShare: event.params.lpShare,
+    buybackShare: event.params.buybackShare,
+    blockTimestamp: BigInt(event.block.timestamp),
+  });
+});

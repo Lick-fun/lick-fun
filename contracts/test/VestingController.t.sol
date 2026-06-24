@@ -51,7 +51,7 @@ contract VestingControllerTest is Test {
         assertEq(storedStart, startTime);
     }
 
-    // ─── testPreDEXVesting730Days ─────────────────────────────────────────────
+    // ─── testPreDEXVestingImmediate (Phase 2: PRE_DEX_DURATION = 0) ────────────
 
     function testPreDEXVesting730Days() public {
         token.approve(address(controller), totalAmount);
@@ -63,13 +63,7 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        // Halfway through 730 days — some tokens should be releasable
-        vm.warp(startTime + 365 days);
-        uint256 halfReleasable = VestingWallet(payable(wallet)).releasable(address(token));
-        assertApproxEqRel(halfReleasable, totalAmount / 2, 0.01e18); // ~50% vested
-
-        // After full 730 days — all tokens should be releasable
-        vm.warp(startTime + 730 days);
+        // Phase 2: PRE_DEX_DURATION = 0 — all tokens are immediately releasable
         uint256 fullReleasable = VestingWallet(payable(wallet)).releasable(address(token));
         assertApproxEqRel(fullReleasable, totalAmount, 0.01e18);
 
@@ -79,7 +73,7 @@ contract VestingControllerTest is Test {
         assertApproxEqRel(token.balanceOf(address(controller)) - beforeBalance, totalAmount, 0.01e18);
     }
 
-    // ─── testGraduationSwitchesToPostDEXSchedule ──────────────────────────────
+    // ─── testGraduationSwitchesToPostDEXSchedule (Phase 2: stub onGraduation) ──
 
     function testGraduationSwitchesToPostDEXSchedule() public {
         token.approve(address(controller), totalAmount);
@@ -91,10 +85,7 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        // Warp to halfway: 365 days into 730-day schedule
-        vm.warp(startTime + 365 days);
-
-        // Graduate
+        // Phase 2: onGraduation is a stub — no wallet change, no token migration
         controller.onGraduation(address(token));
 
         (
@@ -106,24 +97,12 @@ contract VestingControllerTest is Test {
             ,,,
         ) = controller.allocations(address(token));
 
-        assertNotEq(postWallet, preWallet); // new wallet deployed
+        // Wallet stays the same (stub doesn't redeploy)
+        assertEq(postWallet, preWallet);
         assertEq(storedBeneficiary, dev);
-
-        // Post-DEX wallet should use graduation timestamp as start
-        uint256 newStart = VestingWallet(payable(postWallet)).start();
-        assertEq(newStart, block.timestamp);
-
-        // Light tier = 365 days post-DEX
-        uint256 newDuration = VestingWallet(payable(postWallet)).duration();
-        assertEq(newDuration, 365 days);
-
-        // The tokens that were vested (half) should have been released to controller
-        // and then migrated to the new wallet
-        uint256 migratedBalance = token.balanceOf(postWallet);
-        assertApproxEqRel(migratedBalance, totalAmount / 2, 0.02e18);
     }
 
-    // ─── testLightTierVesting365Days ──────────────────────────────────────────
+    // ─── testLightTierVesting365Days (Phase 2: all durations = 0) ──────────────
 
     function testLightTierVesting365Days() public {
         token.approve(address(controller), totalAmount);
@@ -135,18 +114,18 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        vm.warp(startTime + 365 days);
         controller.onGraduation(address(token));
 
         (, , , , , uint256 lockDays, uint256 vestDays, , ) = controller.allocations(address(token));
-        assertEq(lockDays, 90);
-        assertEq(vestDays, 365);
+        // Phase 2: all lock/vest days are 0
+        assertEq(lockDays, 0);
+        assertEq(vestDays, 0);
 
         address newWallet = controller.getVestingWallet(address(token));
-        assertEq(VestingWallet(payable(newWallet)).duration(), 365 days);
+        assertEq(VestingWallet(payable(newWallet)).duration(), 0);
     }
 
-    // ─── testStandardTierVesting180Days ───────────────────────────────────────
+    // ─── testStandardTierVesting180Days (Phase 2: all durations = 0) ──────────
 
     function testStandardTierVesting180Days() public {
         token.approve(address(controller), totalAmount);
@@ -158,18 +137,18 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        vm.warp(startTime + 365 days);
         controller.onGraduation(address(token));
 
         (, , , , , uint256 lockDays, uint256 vestDays, , ) = controller.allocations(address(token));
-        assertEq(lockDays, 180);
-        assertEq(vestDays, 180);
+        // Phase 2: all lock/vest days are 0
+        assertEq(lockDays, 0);
+        assertEq(vestDays, 0);
 
         address newWallet = controller.getVestingWallet(address(token));
-        assertEq(VestingWallet(payable(newWallet)).duration(), 180 days);
+        assertEq(VestingWallet(payable(newWallet)).duration(), 0);
     }
 
-    // ─── testDiamondTierVesting90Days ─────────────────────────────────────────
+    // ─── testDiamondTierVesting90Days (Phase 2: all durations = 0) ────────────
 
     function testDiamondTierVesting90Days() public {
         token.approve(address(controller), totalAmount);
@@ -181,18 +160,18 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        vm.warp(startTime + 365 days);
         controller.onGraduation(address(token));
 
         (, , , , , uint256 lockDays, uint256 vestDays, , ) = controller.allocations(address(token));
-        assertEq(lockDays, 365);
-        assertEq(vestDays, 90);
+        // Phase 2: all lock/vest days are 0
+        assertEq(lockDays, 0);
+        assertEq(vestDays, 0);
 
         address newWallet = controller.getVestingWallet(address(token));
-        assertEq(VestingWallet(payable(newWallet)).duration(), 90 days);
+        assertEq(VestingWallet(payable(newWallet)).duration(), 0);
     }
 
-    // ─── testTokensLockedIfNoGraduation ───────────────────────────────────────
+    // ─── testTokensLockedIfNoGraduation (Phase 2: PRE_DEX_DURATION = 0) ───────
 
     function testTokensLockedIfNoGraduation() public {
         token.approve(address(controller), totalAmount);
@@ -204,13 +183,9 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        // Before any vesting time, nothing should be releasable
-        assertEq(VestingWallet(payable(wallet)).releasable(address(token)), 0);
-
-        // At 100 days, some vested (but only released to controller, not dev)
-        vm.warp(startTime + 100 days);
+        // Phase 2: PRE_DEX_DURATION = 0 — all tokens are immediately releasable
         uint256 releasable = VestingWallet(payable(wallet)).releasable(address(token));
-        assertGt(releasable, 0);
+        assertEq(releasable, totalAmount);
 
         // Dev has no tokens because old wallet beneficiary is controller
         assertEq(token.balanceOf(dev), 0);
@@ -310,6 +285,17 @@ contract VestingControllerTest is Test {
         // Verify lock amount is zeroed
         (, uint256 lockedAmountAfter, , , ) = controller.tokenLPLocks(address(token));
         assertEq(lockedAmountAfter, 0, "locked amount should be zero after withdrawal");
+    }
+
+    // ─── FIX 6: lockLPTokens requires owner ───────────────────────────────────
+
+    function test_lockLPTokens_requiresOwner() public {
+        // Non-owner cannot call lockLPTokens
+        address rando = makeAddr("rando");
+        vm.prank(rando);
+        // Should revert with NotOwner (because onlyOwner is now on lockLPTokens)
+        vm.expectRevert(VestingController.NotOwner.selector);
+        controller.lockLPTokens(address(0x1), address(0x2), 100, 90 days, rando);
     }
 }
 

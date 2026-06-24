@@ -4,24 +4,28 @@ pragma solidity 0.8.27;
 import "forge-std/Script.sol";
 import "../src/VestingController.sol";
 import "../src/Factory.sol";
+import "../src/FeeRouter.sol";
+import "../src/GraduationRouter.sol";
+import "../src/VaultLPSupport.sol";
+import "../src/VaultBuybackBurn.sol";
+import "../src/PredictionMarket.sol";
 
 /**
  * @title DeployVestingAndFactory
- * @notice Redeploys VestingController and Factory to fix the onlyOwner bug.
- *         Deploys VestingController first (owner = deployer),
- *         then deploys Factory with protocolTreasury = deployer.
- *         Finally configures GraduationRouter, PredictionMarket, and FeeRouter on the new Factory.
- *
- *         Existing addresses to set:
- *           GraduationRouter: 0xf7067c6f9Fc81f0FB435bEcaeA05e5878B092c86
- *           PredictionMarket: 0xc47FA8e0044458aaC0eeCCf6F2442E858f2387A6
- *           FeeRouter:         0xA0a17b2eB3c836119e22E0Aa10e4243e88405161
+ * @notice Phase 2 deploy: deploys VaultLPSupport, VaultBuybackBurn, new FeeRouter,
+ *         new Factory, new PredictionMarket (with factory param), and new GraduationRouter
+ *         (LP burn — no VestingController dependency).
+ *         Keeps old VestingController deploy for reference.
  */
 contract DeployVestingAndFactory is Script {
-    // Existing contract addresses
-    address constant GRADUATION_ROUTER = 0xf7067c6f9Fc81f0FB435bEcaeA05e5878B092c86;
-    address constant PREDICTION_MARKET = 0xc47FA8e0044458aaC0eeCCf6F2442E858f2387A6;
-    address constant FEE_ROUTER = 0xA0a17b2eB3c836119e22E0Aa10e4243e88405161;
+    // Existing live addresses (DO NOT redeploy)
+    address constant GRADUATION_POOL  = 0x5c9CFaBf0E94f1ACF37A77a6f21B1e5acfD20568;
+
+    // Monad testnet WMON address
+    address constant WMON = 0x760AfE86e5de5fa0Ee542fc7B7B713e1c5425701;
+
+    // Lick.fun DEX factory (LickFactory)
+    address constant DEX_FACTORY = 0x6848A334f9f7C2Cd5a2b34580EcC05F1616bAE48;
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -29,33 +33,55 @@ contract DeployVestingAndFactory is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Step 1: Deploy VestingController (owner = deployer)
+        // ── Keep old VestingController for reference ──
         VestingController vestingController = new VestingController();
-        address vestingControllerAddr = address(vestingController);
-        console.log("VestingController deployed at:", vestingControllerAddr);
+        console.log("VestingController deployed at:", address(vestingController));
 
-        // Step 2: Deploy Factory with protocolTreasury = deployer
+        // ── Step A: Deploy vault stubs ──
+        VaultLPSupport vaultLP = new VaultLPSupport();
+        console.log("VaultLPSupport deployed at:", address(vaultLP));
+
+        VaultBuybackBurn vaultBB = new VaultBuybackBurn();
+        console.log("VaultBuybackBurn deployed at:", address(vaultBB));
+
+        // ── Step B: Deploy new FeeRouter ──
+        FeeRouter feeRouter = new FeeRouter(
+            GRADUATION_POOL,
+            address(vaultLP),
+            address(vaultBB)
+        );
+        console.log("FeeRouter deployed at:", address(feeRouter));
+
+        // ── Step C: Deploy new Factory ──
         Factory factory = new Factory(deployer);
-        address factoryAddr = address(factory);
-        console.log("Factory deployed at:", factoryAddr);
+        console.log("Factory deployed at:", address(factory));
 
-        // Step 3: Set VestingController on Factory
-        factory.setVestingController(vestingControllerAddr);
+        // ── Step D: Deploy new PredictionMarket (with factory param) ──
+        PredictionMarket predictionMarket = new PredictionMarket(deployer, address(factory));
+        console.log("PredictionMarket deployed at:", address(predictionMarket));
 
-        // Step 4: Set GraduationRouter on Factory
-        factory.setGraduationRouter(GRADUATION_ROUTER);
+        factory.setVestingController(address(vestingController));
+        factory.setPredictionMarket(address(predictionMarket));
+        factory.setFeeRouter(address(feeRouter));
 
-        // Step 5: Set PredictionMarket on Factory
-        factory.setPredictionMarket(PREDICTION_MARKET);
+        // ── Step E: Deploy new GraduationRouter (no vestingController param) ──
+        GraduationRouter graduationRouter = new GraduationRouter(
+            DEX_FACTORY,
+            WMON,
+            deployer,          // protocolFeeReceiver
+            address(factory)   // launchFactory
+        );
+        console.log("GraduationRouter deployed at:", address(graduationRouter));
 
-        // Step 6: Set FeeRouter on Factory
-        factory.setFeeRouter(FEE_ROUTER);
+        factory.setGraduationRouter(address(graduationRouter));
 
+        console.log("---");
+        console.log("All Phase 2 contracts deployed.");
         console.log("Factory configured with:");
-        console.log("  VestingController:", vestingControllerAddr);
-        console.log("  GraduationRouter:", GRADUATION_ROUTER);
-        console.log("  PredictionMarket:", PREDICTION_MARKET);
-        console.log("  FeeRouter:", FEE_ROUTER);
+        console.log("  VestingController:", address(vestingController));
+        console.log("  GraduationRouter:", address(graduationRouter));
+        console.log("  PredictionMarket:", address(predictionMarket));
+        console.log("  FeeRouter:", address(feeRouter));
 
         vm.stopBroadcast();
     }

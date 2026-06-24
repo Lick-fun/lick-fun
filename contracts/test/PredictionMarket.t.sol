@@ -32,7 +32,7 @@ contract PredictionMarketTest is Test {
 
     function setUp() public {
         mockCurve = new MockBondingCurve(address(mockCurve));
-        market = new PredictionMarket(feeReceiver);
+        market = new PredictionMarket(feeReceiver, address(this));
 
         vm.deal(alice, 100 ether);
         vm.deal(bob, 100 ether);
