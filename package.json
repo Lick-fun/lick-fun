@@ -4,8 +4,8 @@
   "private": true,
   "description": "Lick.fun - Web3 project with frontend, indexer, and contracts",
   "scripts": {
-    "dev": "frontend\\dev.cmd",
-    "dev:frontend": "npm --prefix frontend run dev",
+    "dev": "pnpm --filter lick-fun-frontend dev",
+    "dev:frontend": "pnpm --filter lick-fun-frontend dev",
     "dev:indexer": "npm --prefix indexer run dev",
     "dev:all": "concurrently \"npm:dev:frontend\" \"npm:dev:indexer\"",
     "build": "npm --prefix frontend run build",
