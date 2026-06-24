@@ -20,6 +20,17 @@ type Token {
   sellCount: Int!             # total number of sell trades
   totalBuyVolume: BigInt!     # cumulative MON spent buying (sum of amountIn on buys)
   totalSellVolume: BigInt!    # cumulative MON received selling (sum of amountOut on sells)
+  uniqueBuyerCount: Int!      # number of unique buyer wallet addresses
+  creatorSellCount: Int!      # number of times creator sold their own token
+}
+
+# One entry per unique (token, buyer) pair.
+# Keyed by "${tokenAddress}-${traderAddress}".
+# Used to count unique buyers per token without using in-memory Sets.
+type TokenBuyerIndex @entity {
+  id: ID!         # "${tokenAddress}-${traderAddress}"
+  token: String!
+  buyer: String!
 }
 
 # One entry per buy or sell trade.

@@ -73,6 +73,8 @@ indexer.onEvent({ contract: "Factory", event: "TokenCreated" }, async ({ event, 
     sellCount: 0,
     totalBuyVolume: 0n,
     totalSellVolume: 0n,
+    uniqueBuyerCount: 0,
+    creatorSellCount: 0,
   });
 
   /* ── Create or update Profile ── */
@@ -121,11 +123,13 @@ indexer.onEvent({ contract: "BondingCurve", event: "CurveBuy" }, async ({ event,
   const newSoldTokens = token.soldTokens + event.params.amountOut;
   const newRealMon = deriveRealMon(newSoldTokens);
 
+  const buyerId = event.params.buyer.toLowerCase();
+
   /* ── Create Trade ── */
   context.Trade.set({
     id: `${event.transaction.hash}-${event.logIndex}`,
     token_id: token.id,
-    trader: event.params.buyer.toLowerCase(),
+    trader: buyerId,
     isBuy: true,
     amountIn: event.params.amountIn,
     amountOut: event.params.amountOut,
@@ -134,6 +138,18 @@ indexer.onEvent({ contract: "BondingCurve", event: "CurveBuy" }, async ({ event,
     penaltyBps: penaltyBps,
   });
 
+  /* ── Track unique buyers via TokenBuyerIndex entity ── */
+  const buyerIndexId = `${tokenId}-${buyerId}`;
+  const existingBuyer = await context.TokenBuyerIndex.get(buyerIndexId);
+  const isNewBuyer = !existingBuyer;
+  if (isNewBuyer) {
+    context.TokenBuyerIndex.set({
+      id: buyerIndexId,
+      token: tokenId,
+      buyer: buyerId,
+    });
+  }
+
   /* ── Update Token ── */
   context.Token.set({
     ...token,
@@ -141,6 +157,9 @@ indexer.onEvent({ contract: "BondingCurve", event: "CurveBuy" }, async ({ event,
     soldTokens: newSoldTokens,
     buyCount: token.buyCount + 1,
     totalBuyVolume: token.totalBuyVolume + event.params.amountIn,
+    uniqueBuyerCount: isNewBuyer
+      ? token.uniqueBuyerCount + 1
+      : token.uniqueBuyerCount,
   });
 
   /* ── Update Profile ── */
@@ -171,11 +190,14 @@ indexer.onEvent({ contract: "BondingCurve", event: "CurveSell" }, async ({ event
   const newSoldTokens = token.soldTokens - event.params.amountIn;
   const newRealMon = deriveRealMon(newSoldTokens);
 
+  const sellerId = event.params.seller.toLowerCase();
+  const isCreatorSelfSell = sellerId === token.creator;
+
   /* ── Create Trade ── */
   context.Trade.set({
     id: `${event.transaction.hash}-${event.logIndex}`,
     token_id: token.id,
-    trader: event.params.seller.toLowerCase(),
+    trader: sellerId,
     isBuy: false,
     amountIn: event.params.amountIn,
     amountOut: event.params.amountOut,
@@ -191,6 +213,9 @@ indexer.onEvent({ contract: "BondingCurve", event: "CurveSell" }, async ({ event
     soldTokens: newSoldTokens,
     sellCount: token.sellCount + 1,
     totalSellVolume: token.totalSellVolume + event.params.amountOut,
+    creatorSellCount: isCreatorSelfSell
+      ? token.creatorSellCount + 1
+      : token.creatorSellCount,
   });
 
   /* ── Update Profile ── */

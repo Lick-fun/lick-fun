@@ -12,8 +12,8 @@ const ALL_BADGES: Badge[] = [
   "First Token",
   "Triple Graduate",
   "Deca Graduate",
-  "Locked & Honest — 180d",
-  "Locked & Honest — 365d",
+  "Crowd Favourite",
+  "Diamond Hands",
   "Never Rug",
   "Pre-buy Honest",
   "Volume Maker",
@@ -25,13 +25,26 @@ const BADGE_ICONS: Record<Badge, string> = {
   "First Token": "🚀",
   "Triple Graduate": "🎓",
   "Deca Graduate": "🏆",
-  "Locked & Honest — 180d": "🔒",
-  "Locked & Honest — 365d": "🛡️",
+  "Crowd Favourite": "⭐",
+  "Diamond Hands": "💎",
   "Never Rug": "✅",
-  "Pre-buy Honest": "💎",
+  "Pre-buy Honest": "🤝",
   "Volume Maker": "📊",
   "Verified Founder": "👑",
   "OG": "🌟",
+};
+
+const BADGE_DESCRIPTIONS: Record<Badge, string> = {
+  "First Token": "Launched your first token",
+  "Triple Graduate": "Three or more tokens graduated to DEX",
+  "Deca Graduate": "Ten or more tokens graduated to DEX",
+  "Crowd Favourite": "One of your tokens attracted 200+ unique buyers",
+  "Diamond Hands": "Never sold your creator allocation on a graduated token",
+  "Never Rug": "30+ days active with no rug events",
+  "Pre-buy Honest": "95%+ honest pre-buy behaviour",
+  "Volume Maker": "Cumulative graduated volume over 100k MON",
+  "Verified Founder": "Reputation score of 70 or higher",
+  "OG": "365+ days active with 3+ graduated tokens",
 };
 
 export function BadgeGrid({ earned, className }: BadgeGridProps) {
@@ -66,6 +79,14 @@ export function BadgeGrid({ earned, className }: BadgeGridProps) {
               )}
             >
               {badge}
+            </span>
+            <span
+              className={cn(
+                "text-figma-xs text-center leading-tight",
+                isEarned ? "text-figma-muted" : "text-figma-muted/60"
+              )}
+            >
+              {BADGE_DESCRIPTIONS[badge]}
             </span>
           </div>
         );

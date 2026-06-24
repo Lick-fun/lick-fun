@@ -18,7 +18,7 @@ Tokens launch on a bonding curve, graduate to a built-in V2-style DEX at 100K MO
 |---|---|
 | 13 Solidity contracts (3 audit passes, 136 tests) | done |
 | Envio HyperSync indexer (live GraphQL, 7 event handlers) | done |
-| Off-chain reputation engine (7-factor sigmoid, 46 tests) | done |
+| Off-chain reputation engine (9-factor sigmoid, 58 tests) | done |
 | FeeRouter tier system (Starter / Creator Extra / Creator + LP Support / Custom) — reputation-gated | done |
 | LP burned to 0xdead at graduation | done |
 | Factory onlyOwner gates + failure-tolerant fee routing | done |
@@ -70,7 +70,7 @@ Phase 2:
 
 [github.com/Lick-fun/lick-fun](https://github.com/Lick-fun/lick-fun)
 
-136 Forge tests · 46 vitest tests · 13 contracts · 9 pages · All green
+136 Forge tests · 58 vitest tests · 13 contracts · 9 pages · All green
 
 ---
 

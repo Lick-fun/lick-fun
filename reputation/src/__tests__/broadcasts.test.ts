@@ -41,6 +41,8 @@ function makeToken(id: string, overrides: Partial<TokenEntity> = {}): TokenEntit
     sellCount: 0,
     totalBuyVolume: 0n,
     totalSellVolume: 0n,
+    uniqueBuyerCount: 0,
+    creatorSellCount: 0,
     ...overrides,
   };
 }

@@ -123,6 +123,18 @@ contract PredictionMarketTest is Test {
         market.betYes{value: 1 ether}(token);
     }
 
+    function testBetRevertsAfterBettingWindow() public {
+        address token = address(mockCurve);
+        _helperCreateMarket(token);
+
+        // Warp past the betting window
+        vm.warp(block.timestamp + 49 hours);
+
+        vm.prank(alice);
+        vm.expectRevert("BETTING_CLOSED");
+        market.betYes{value: 1 ether}(token);
+    }
+
     /* ═════════════════════════════ RESOLVE YES WINS ════════════════════════ */
 
     function testResolveMarketYesWins() public {
@@ -343,8 +355,8 @@ contract PredictionMarketTest is Test {
         vm.prank(alice);
         market.betYes{value: 5 ether}(token);
 
-        // Warp past REFUND_DELAY
-        vm.warp(block.timestamp + 8 days);
+        // Warp past betting window + refund delay
+        vm.warp(block.timestamp + 48 hours + 7 days + 1);
 
         market.refundOneSidedMarket(token);
 
@@ -365,6 +377,9 @@ contract PredictionMarketTest is Test {
 
         vm.prank(alice);
         market.betYes{value: 1 ether}(token);
+
+        // Warp to just before closeTime + REFUND_DELAY
+        vm.warp(block.timestamp + 48 hours + 7 days - 1);
 
         vm.expectRevert("TOO_EARLY");
         market.refundOneSidedMarket(token);

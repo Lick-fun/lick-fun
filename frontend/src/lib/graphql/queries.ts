@@ -24,6 +24,8 @@ export interface TokenEntity {
   sellCount: number;
   totalBuyVolume: bigint;
   totalSellVolume: bigint;
+  uniqueBuyerCount: number;
+  creatorSellCount: number;
 }
 
 export interface TradeEntity {
@@ -89,6 +91,8 @@ const TOKEN_FRAGMENT = gql`
     sellCount
     totalBuyVolume
     totalSellVolume
+    uniqueBuyerCount
+    creatorSellCount
   }
 `;
 

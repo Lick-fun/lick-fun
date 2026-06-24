@@ -6,9 +6,9 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.27-blue)](https://soliditylang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
-[![Tests](https://img.shields.io/badge/Tests-136%20Forge%20•%2046%20Vitest-green)](.)
+[![Tests](https://img.shields.io/badge/Tests-137%20Forge%20•%2058%20Vitest-green)](.)
 
-**Status:** 3 security audit passes · 136 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · Phase 3 (USD MC display, founder token) next
+**Status:** 3 security audit passes · 137 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · Phase 3 (USD MC display, founder token) next
 
 ---
 
@@ -117,15 +117,15 @@ lick-fun/
 | Badge | Condition |
 |---|---|
 | First Token | tokenCount ≥ 1 |
-| Triple Graduate | graduatedCount ≥ 3 |
-| Deca Graduate | graduatedCount ≥ 10 |
-| Locked & Honest — 180d | 100% lock fulfillment + age ≥ 180d |
-| Locked & Honest — 365d | 100% lock fulfillment + age ≥ 365d |
+| Triple Graduate | graduatedCount ≥ 3 + trader diversity ≥ 30% |
+| Deca Graduate | graduatedCount ≥ 10 + trader diversity ≥ 30% |
+| Crowd Favourite | One graduated token with 200+ unique buyers |
+| Diamond Hands | Never sold creator allocation on a graduated token |
 | Never Rug | age ≥ 30d + zero rug events |
 | Pre-buy Honest | prebuy honesty rate ≥ 95% |
 | Volume Maker | cumulative grad volume > 100K MON |
 | Verified Founder | reputation score ≥ 70 |
-| OG | age ≥ 365d + ≥ 3 graduates |
+| OG | age ≥ 365d + ≥ 3 graduates + trader diversity ≥ 30% |
 
 ---
 
@@ -152,7 +152,7 @@ cd reputation && pnpm install && pnpm test
 
 Proprietary — see [LICENSE](LICENSE).
 ├── indexer/            Envio HyperSync (TypeScript + GraphQL)
-├── reputation/         Off-chain reputation engine (TypeScript, 46 tests)
+├── reputation/         Off-chain reputation engine (TypeScript, 58 tests)
 └── frontend/           Next.js 15.5 (9 pages, wagmi, RainbowKit)
 ```
 
@@ -187,7 +187,7 @@ ProfileRegistry            Wallet linking (0.1 MON bond), daily Merkle anchor
 - Pass 2: LP burn, factory access, fee simplification
 - Pass 3: onlyOwner Factory gates · failure-tolerant FeeRouter routing · GraduationRouter exact-price migration · deprecated function gating
 
-136 Forge tests · 46 vitest tests · All green.
+136 Forge tests · 58 vitest tests · All green.
 
 ---
 
@@ -207,7 +207,7 @@ ProfileRegistry            Wallet linking (0.1 MON bond), daily Merkle anchor
 | -> | Phase 3: protocolFeeReceiver to multisig | pending |
 | -> | Mainnet launch | pending |
 
-136 Forge tests · 46 vitest tests · 13 contracts · 9 pages · All green
+136 Forge tests · 58 vitest tests · 13 contracts · 9 pages · All green
 
 ---
 

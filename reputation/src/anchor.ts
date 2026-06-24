@@ -58,24 +58,24 @@ function hashLeaf(leaf: MerkleLeaf): Buffer {
 /**
  * Encode badges into a 10-bit bitmap.
  * Badge order (bit 0 = LSB):
- *   0: First Token
- *   1: Triple Graduate
- *   2: Deca Graduate
- *   3: Locked & Honest — 180d
- *   4: Locked & Honest — 365d
- *   5: Never Rug
- *   6: Pre-buy Honest
- *   7: Volume Maker
- *   8: Verified Founder
- *   9: OG
+ *   bit 0: First Token
+ *   bit 1: Triple Graduate
+ *   bit 2: Deca Graduate
+ *   bit 3: Crowd Favourite
+ *   bit 4: Diamond Hands
+ *   bit 5: Never Rug
+ *   bit 6: Pre-buy Honest
+ *   bit 7: Volume Maker
+ *   bit 8: Verified Founder
+ *   bit 9: OG
  */
 function encodeBadgeBitmap(badges: readonly string[]): number {
   const BADGE_ORDER: Record<string, number> = {
     "First Token": 0,
     "Triple Graduate": 1,
     "Deca Graduate": 2,
-    "Locked & Honest — 180d": 3,
-    "Locked & Honest — 365d": 4,
+    "Crowd Favourite": 3,
+    "Diamond Hands": 4,
     "Never Rug": 5,
     "Pre-buy Honest": 6,
     "Volume Maker": 7,

@@ -16,6 +16,7 @@ import type {
   EnvioProfileResponse,
   EnvioAllProfilesResponse,
   EnvioLeaderboardResponse,
+  TokenDiversityData,
 } from "./types";
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
@@ -65,6 +66,8 @@ const TOKEN_FRAGMENT = gql`
     sellCount
     totalBuyVolume
     totalSellVolume
+    uniqueBuyerCount
+    creatorSellCount
   }
 `;
 
@@ -208,4 +211,80 @@ export async function queryTradesByToken(
   return client.request<{ trades: TradeEntity[] }>(query, {
     tokenId: tokenId.toLowerCase(),
   });
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* Scoring input derivation                                                       */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Compute volume-weighted graduation quality (0–1).
+ * Each graduated token contributes min(volume / medianGradVolume, 1.0).
+ * The result is the average across graduated tokens, capped at 1.0.
+ */
+export function computeQualityGradRate(
+  tokens: TokenEntity[],
+  medianGradVolume: bigint
+): number {
+  const graduated = tokens.filter((t) => t.graduated);
+  if (graduated.length === 0 || medianGradVolume === 0n) return 0;
+  const totalQuality = graduated.reduce((sum, t) => {
+    const quality = Number(t.totalBuyVolume) / Number(medianGradVolume);
+    return sum + Math.min(quality, 1.0);
+  }, 0);
+  return Math.min(totalQuality / graduated.length, 1.0);
+}
+
+/**
+ * Compute average unique trader diversity across graduated tokens (0–1).
+ * Each token contributes min(uniqueBuyerCount / diversityTarget, 1.0).
+ */
+export function computeAvgTraderDiversity(
+  tokens: TokenEntity[],
+  diversityTarget: number = 50
+): number {
+  const graduated = tokens.filter((t) => t.graduated);
+  if (graduated.length === 0) return 0;
+  const total = graduated.reduce((sum, t) => {
+    return sum + Math.min((t.uniqueBuyerCount ?? 0) / diversityTarget, 1.0);
+  }, 0);
+  return total / graduated.length;
+}
+
+/**
+ * Count tokens launched in the last 30 days.
+ * `createdAt` is a unix timestamp as bigint.
+ */
+export function computeTokensInLast30Days(tokens: TokenEntity[]): number {
+  const cutoff = BigInt(Math.floor(Date.now() / 1000) - 30 * 86400);
+  return tokens.filter((t) => t.createdAt >= cutoff).length;
+}
+
+/**
+ * Sum creator self-trade count across all tokens.
+ * (creatorSellCount is incremented on each CurveSell where trader === creator.)
+ */
+export function computeCreatorSelfTradeCount(tokens: TokenEntity[]): number {
+  return tokens.reduce((sum, t) => sum + (t.creatorSellCount ?? 0), 0);
+}
+
+/**
+ * Build the per-token diversity data array needed by computeBadges.
+ */
+export function buildTokenDiversityData(
+  tokens: TokenEntity[]
+): TokenDiversityData[] {
+  return tokens.map((t) => ({
+    uniqueBuyerCount: t.uniqueBuyerCount ?? 0,
+    totalBuyVolume: t.totalBuyVolume,
+    graduated: t.graduated,
+    ageAtGraduationDays:
+      t.graduated && t.graduatedAt && t.createdAt
+        ? Math.max(
+            0,
+            Math.floor(Number(t.graduatedAt - t.createdAt) / 86_400)
+          )
+        : 0,
+    creatorSellCount: t.creatorSellCount ?? 0,
+  }));
 }

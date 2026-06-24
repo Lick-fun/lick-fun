@@ -16,12 +16,15 @@ export type {
   TokenEntity,
   TradeEntity,
   ProfileEntity,
+  TokenDiversityData,
 } from "./types";
 
 export {
   fAge,
   fVol,
   fVtenure,
+  computeBurstPenalty,
+  computeSelfTradePenalty,
   computeRugSeverity,
   computeRugPenalty,
   computeRawScore,

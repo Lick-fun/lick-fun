@@ -24,6 +24,9 @@ contract PredictionMarket is ReentrancyGuard {
     /// @notice Delay before a one-sided market can be refunded.
     uint256 public constant REFUND_DELAY = 7 days;
 
+    /// @notice How long bets are accepted after market creation (48 hours).
+    uint256 public constant BETTING_WINDOW = 48 hours;
+
     /* ═══════════════════════════════ IMMUTABLES ══════════════════════════════ */
 
     /// @notice Address that receives the 2% protocol fee from losing pools.
@@ -100,7 +103,7 @@ contract PredictionMarket is ReentrancyGuard {
             resolved: false,
             outcome: false,
             cancelled: false,
-            closeTime: block.timestamp
+            closeTime: block.timestamp + BETTING_WINDOW
         });
 
         emit MarketCreated(token);
@@ -114,6 +117,7 @@ contract PredictionMarket is ReentrancyGuard {
         require(msg.value > 0, "ZERO_BET");
         _requireMarketExists(token);
         require(!markets[token].resolved, "ALREADY_RESOLVED");
+        require(block.timestamp < markets[token].closeTime, "BETTING_CLOSED");
 
         markets[token].totalYesMON += msg.value;
         yesBets[token][msg.sender] += msg.value;
@@ -127,6 +131,7 @@ contract PredictionMarket is ReentrancyGuard {
         require(msg.value > 0, "ZERO_BET");
         _requireMarketExists(token);
         require(!markets[token].resolved, "ALREADY_RESOLVED");
+        require(block.timestamp < markets[token].closeTime, "BETTING_CLOSED");
 
         markets[token].totalNoMON += msg.value;
         noBets[token][msg.sender] += msg.value;
@@ -137,7 +142,10 @@ contract PredictionMarket is ReentrancyGuard {
     /* ═══════════════════════════════ RESOLVE ════════════════════════════════ */
 
     /// @notice Resolve the market for a token. Anyone can call after graduation.
-    /// @dev    Uses BondingCurve.graduated() as the oracle. Checks CEI.
+    /// @dev    Resolution can only happen after betting closes (closeTime passed)
+    ///      OR when the token has graduated — no artificial delay needed because
+    ///      betYes/betNo already enforce the closeTime window.
+    ///      Uses BondingCurve.graduated() as the oracle. Checks CEI.
     /// @param token The token address of the market.
     function resolveMarket(address token) external nonReentrant {
         _requireMarketExists(token);
@@ -235,16 +243,9 @@ contract PredictionMarket is ReentrancyGuard {
         require(!m.resolved, "ALREADY_RESOLVED");
         require(!m.cancelled, "ALREADY_CANCELLED");
         require(m.totalYesMON == 0 || m.totalNoMON == 0, "MARKET_HAD_BOTH_SIDES");
-
-        // Record close time so we can check REFUND_DELAY
-        if (m.closeTime == 0) {
-            m.closeTime = block.timestamp;
-            // Allow bettors to withdraw immediately when market is one-sided
-            m.cancelled = true;
-        } else {
-            require(block.timestamp >= m.closeTime + REFUND_DELAY, "TOO_EARLY");
-            m.cancelled = true;
-        }
+        // Allow refund only after the betting window + refund delay has passed
+        require(block.timestamp >= m.closeTime + REFUND_DELAY, "TOO_EARLY");
+        m.cancelled = true;
     }
 
     /// @notice Withdraw your original bet from a cancelled (one-sided) market.

@@ -225,22 +225,22 @@ export default function HowItWorksPage() {
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>🎓</span>
             <span>Triple Graduate</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">3 graduates</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">3 grads · diversity 30%+</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>🏆</span>
             <span>Deca Graduate</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">10 graduates</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">10 grads · diversity 30%+</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>🔒</span>
-            <span>Locked & Honest — 180d</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">100% locks · 180d</span>
+            <span>⭐</span>
+            <span>Crowd Favourite</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">200+ unique buyers</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>🔒</span>
-            <span>Locked & Honest — 365d</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">100% locks · 365d</span>
+            <span>💎</span>
+            <span>Diamond Hands</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">Never sold own grad</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>🛡️</span>
@@ -263,9 +263,9 @@ export default function HowItWorksPage() {
             <span className="text-figma-xs text-figma-muted ml-auto">Score 70+</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>⭐</span>
+            <span>🌟</span>
             <span>OG</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">365d+ · 3 grads</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">365d+ · 3 grads · diversity 30%+</span>
           </div>
         </div>
       </section>

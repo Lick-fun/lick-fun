@@ -78,6 +78,8 @@ export const mockTokens: TokenEntity[] = [
     sellCount: 32,
     totalBuyVolume: 320_000n * MON,
     totalSellVolume: 80_000n * MON,
+    uniqueBuyerCount: 180,
+    creatorSellCount: 2,
   },
   {
     id: h("0x3333444455556666777788889999AAAAbbbbCCCC"),
@@ -99,6 +101,8 @@ export const mockTokens: TokenEntity[] = [
     sellCount: 89,
     totalBuyVolume: 680_000n * MON,
     totalSellVolume: 250_000n * MON,
+    uniqueBuyerCount: 420,
+    creatorSellCount: 0,
   },
   {
     id: h("0x55556666777788889999AAAAbbbbCCCCddddEEEE"),
@@ -120,6 +124,8 @@ export const mockTokens: TokenEntity[] = [
     sellCount: 8,
     totalBuyVolume: 45_000n * MON,
     totalSellVolume: 8_000n * MON,
+    uniqueBuyerCount: 55,
+    creatorSellCount: 1,
   },
   {
     id: h("0x777788889999AAAAbbbbCCCCddddEEEEffff1111"),
@@ -141,6 +147,8 @@ export const mockTokens: TokenEntity[] = [
     sellCount: 55,
     totalBuyVolume: 450_000n * MON,
     totalSellVolume: 160_000n * MON,
+    uniqueBuyerCount: 280,
+    creatorSellCount: 0,
   },
   {
     id: h("0x9999AAAAbbbbCCCCddddEEEEffff111122223333"),
@@ -162,6 +170,8 @@ export const mockTokens: TokenEntity[] = [
     sellCount: 300,
     totalBuyVolume: 1_800_000n * MON,
     totalSellVolume: 900_000n * MON,
+    uniqueBuyerCount: 950,
+    creatorSellCount: 0,
   },
   {
     id: h("0xBBBBCCCCddddEEEEffff11112222333344445555"),
@@ -183,6 +193,8 @@ export const mockTokens: TokenEntity[] = [
     sellCount: 1,
     totalBuyVolume: 12_000n * MON,
     totalSellVolume: 1_000n * MON,
+    uniqueBuyerCount: 12,
+    creatorSellCount: 0,
   },
   {
     id: h("0xDDDDEEEEffff1111222233334444555566667777"),
@@ -204,6 +216,8 @@ export const mockTokens: TokenEntity[] = [
     sellCount: 22,
     totalBuyVolume: 180_000n * MON,
     totalSellVolume: 45_000n * MON,
+    uniqueBuyerCount: 120,
+    creatorSellCount: 3,
   },
   {
     id: h("0xffff111122223333444455556666777788889999"),
@@ -225,6 +239,8 @@ export const mockTokens: TokenEntity[] = [
     sellCount: 180,
     totalBuyVolume: 1_200_000n * MON,
     totalSellVolume: 500_000n * MON,
+    uniqueBuyerCount: 720,
+    creatorSellCount: 0,
   },
 ];
 

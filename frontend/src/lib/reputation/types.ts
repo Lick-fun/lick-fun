@@ -25,6 +25,10 @@ export interface TokenEntity {
   sellCount: number;
   totalBuyVolume: bigint;
   totalSellVolume: bigint;
+  /** Number of unique buyer wallet addresses on this token */
+  uniqueBuyerCount: number;
+  /** Number of times the creator sold their own token */
+  creatorSellCount: number;
 }
 
 export interface TradeEntity {
@@ -52,8 +56,8 @@ export type Badge =
   | "First Token"
   | "Triple Graduate"
   | "Deca Graduate"
-  | "Locked & Honest — 180d"
-  | "Locked & Honest — 365d"
+  | "Crowd Favourite"
+  | "Diamond Hands"
   | "Never Rug"
   | "Pre-buy Honest"
   | "Volume Maker"
@@ -73,14 +77,33 @@ export interface ScoringInputs {
   accountAgeDays: number;
   tokenCount: number;
   graduatedCount: number;
-  graduationRate: number;
-  lockFulfillmentRate: number;
+  /** Volume-weighted graduation quality (0–1). Replaces raw graduationRate. */
+  qualityGradRate: number;
+  /** Average unique trader diversity across graduated tokens (0–1). */
+  avgTraderDiversity: number;
+  /** Number of times the creator bought their own token after the dev pre-buy. */
+  creatorSelfTradeCount: number;
+  /** Number of tokens launched in the last 30 days (for burst detection). */
+  tokensInLast30Days: number;
   cumulativeGradVolume: bigint;
   medianGradVolume: bigint;
   prebuyHonestyRate: number;
   verifiedTenureDays: number;
   rugEvents: RugEvent[];
   linkedWallets: string[];
+}
+
+export interface TokenDiversityData {
+  /** Unique buyer addresses on this token */
+  uniqueBuyerCount: number;
+  /** Total MON buy volume (for quality weighting) */
+  totalBuyVolume: bigint;
+  /** Whether this token has graduated */
+  graduated: boolean;
+  /** Age of token in days at graduation (0 if not graduated) */
+  ageAtGraduationDays: number;
+  /** Number of times the creator sold their own token */
+  creatorSellCount: number;
 }
 
 export interface ScoringResult {

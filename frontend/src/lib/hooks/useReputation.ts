@@ -10,6 +10,7 @@ import {
   type ScoringInputs,
   type ScoringResult,
   type TokenEntity,
+  type TokenDiversityData,
   type TradeEntity,
 } from "@/lib/reputation";
 
@@ -71,18 +72,69 @@ function cumulativeGradVolume(tokens: TokenEntity[]): bigint {
 }
 
 /**
- * Compute the lock fulfillment rate: fraction of tokens that did NOT rug.
- * Without on-chain rug detection, we approximate using graduated status:
- *   - Graduated tokens count as "fulfilled" (1.0)
- *   - Non-graduated tokens count as "unfulfilled" (0.0)
- *
- * This is a conservative approximation — true rug detection requires
- * LP removal events which aren't indexed yet.
+ * Compute volume-weighted graduation quality (0–1).
+ * Each graduated token contributes min(volume / medianGradVolume, 1.0).
  */
-function lockFulfillmentRate(tokens: TokenEntity[]): number {
-  if (tokens.length === 0) return 1.0;
-  const fulfilled = tokens.filter((t) => t.graduated).length;
-  return fulfilled / tokens.length;
+function computeQualityGradRate(
+  tokens: TokenEntity[],
+  medianGradVolume: bigint
+): number {
+  const graduated = tokens.filter((t) => t.graduated);
+  if (graduated.length === 0 || medianGradVolume === 0n) return 0;
+  const totalQuality = graduated.reduce((sum, t) => {
+    const quality = Number(t.totalBuyVolume) / Number(medianGradVolume);
+    return sum + Math.min(quality, 1.0);
+  }, 0);
+  return Math.min(totalQuality / graduated.length, 1.0);
+}
+
+/**
+ * Compute average unique trader diversity across graduated tokens (0–1).
+ */
+function computeAvgTraderDiversity(
+  tokens: TokenEntity[],
+  diversityTarget: number = 50
+): number {
+  const graduated = tokens.filter((t) => t.graduated);
+  if (graduated.length === 0) return 0;
+  const total = graduated.reduce((sum, t) => {
+    return sum + Math.min((t.uniqueBuyerCount ?? 0) / diversityTarget, 1.0);
+  }, 0);
+  return total / graduated.length;
+}
+
+/**
+ * Count tokens launched in the last 30 days.
+ */
+function computeTokensInLast30Days(tokens: TokenEntity[]): number {
+  const cutoff = BigInt(Math.floor(Date.now() / 1000) - 30 * 86400);
+  return tokens.filter((t) => t.createdAt >= cutoff).length;
+}
+
+/**
+ * Sum creator self-trade count across all tokens.
+ */
+function computeCreatorSelfTradeCount(tokens: TokenEntity[]): number {
+  return tokens.reduce((sum, t) => sum + (t.creatorSellCount ?? 0), 0);
+}
+
+/**
+ * Build the per-token diversity data array needed by computeBadges.
+ */
+function buildTokenDiversityData(tokens: TokenEntity[]): TokenDiversityData[] {
+  return tokens.map((t) => ({
+    uniqueBuyerCount: t.uniqueBuyerCount ?? 0,
+    totalBuyVolume: t.totalBuyVolume,
+    graduated: t.graduated,
+    ageAtGraduationDays:
+      t.graduated && t.graduatedAt && t.createdAt
+        ? Math.max(
+            0,
+            Math.floor(Number(t.graduatedAt - t.createdAt) / 86_400)
+          )
+        : 0,
+    creatorSellCount: t.creatorSellCount ?? 0,
+  }));
 }
 
 /**
@@ -132,20 +184,25 @@ export function useReputation(address: string) {
 
     const tokenCount = profile.tokenCount;
     const graduatedCount = profile.graduatedCount;
-    const graduationRate =
-      tokenCount > 0 ? graduatedCount / tokenCount : 0;
 
     const cumVol = cumulativeGradVolume(tokens);
     const medVol = medianGradVolume(tokens);
-    const lockRate = lockFulfillmentRate(tokens);
     const honestRate = prebuyHonestyRate(tokens, trades);
+
+    const qualityGradRate = computeQualityGradRate(tokens, medVol);
+    const avgTraderDiversity = computeAvgTraderDiversity(tokens);
+    const tokensInLast30Days = computeTokensInLast30Days(tokens);
+    const creatorSelfTradeCount = computeCreatorSelfTradeCount(tokens);
+    const tokenDiversityData = buildTokenDiversityData(tokens);
 
     const inputs: ScoringInputs = {
       accountAgeDays,
       tokenCount,
       graduatedCount,
-      graduationRate,
-      lockFulfillmentRate: lockRate,
+      qualityGradRate,
+      avgTraderDiversity,
+      creatorSelfTradeCount,
+      tokensInLast30Days,
       cumulativeGradVolume: cumVol,
       medianGradVolume: medVol,
       prebuyHonestyRate: honestRate,
@@ -154,7 +211,7 @@ export function useReputation(address: string) {
       linkedWallets: [], // ProfileRegistry not deployed yet
     };
 
-    return computeScore(address.toLowerCase(), inputs);
+    return computeScore(address.toLowerCase(), inputs, tokenDiversityData);
   }, [address, profile, tokens, trades]);
 
   return {

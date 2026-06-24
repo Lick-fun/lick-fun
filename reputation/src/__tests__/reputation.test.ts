@@ -10,6 +10,8 @@ import {
   fAge,
   fVol,
   fVtenure,
+  computeBurstPenalty,
+  computeSelfTradePenalty,
   computeRugSeverity,
   computeRugPenalty,
   computeRawScore,
@@ -19,7 +21,12 @@ import {
 import { computeBadges } from "../badges";
 import { computeTier } from "../tiers";
 import { computeAnchor, logAnchor } from "../anchor";
-import type { ScoringInputs, RugEvent, ProfileScore } from "../types";
+import type {
+  ScoringInputs,
+  RugEvent,
+  ProfileScore,
+  TokenDiversityData,
+} from "../types";
 
 /* ═══════════════════════════════════════════════════════════════════════════════ */
 /* Shared helpers                                                                 */
@@ -33,8 +40,10 @@ function makeInputs(overrides: Partial<ScoringInputs> = {}): ScoringInputs {
     accountAgeDays: 0,
     tokenCount: 0,
     graduatedCount: 0,
-    graduationRate: 0,
-    lockFulfillmentRate: 1.0,
+    qualityGradRate: 0,
+    avgTraderDiversity: 0,
+    creatorSelfTradeCount: 0,
+    tokensInLast30Days: 0,
     cumulativeGradVolume: ZERO_VOLUME,
     medianGradVolume: MEDIAN_VOLUME,
     prebuyHonestyRate: 0,
@@ -52,21 +61,14 @@ function makeInputs(overrides: Partial<ScoringInputs> = {}): ScoringInputs {
 describe("testScoreStartsAtZero", () => {
   it("fresh profile with no activity should have reputation near 0", () => {
     const inputs = makeInputs({
-      lockFulfillmentRate: 0, // no tokens, can't have lock fulfillment
+      qualityGradRate: 0,
+      avgTraderDiversity: 0,
     });
     const result = computeScore("0xaaaa", inputs);
-    // Fresh profile: age=0, gradRate=0, lockRate=0, vol=0, honest=0, vtenure=0
+    // Fresh profile: age=0, gradRate=0, div=0, vol=0, honest=0, vtenure=0
     // rawScore = 0; sigmoid(0, k=0.15, midpoint=0.4) = 100/(1+e^(0.06)) ≈ 48.5
-    // Wait — a fresh profile with lockFulfillmentRate=0 gives raw=0, sigmoid(0) ≈ 48.5
-    // That's not near 0. The spec says "fresh profile = 0" but the sigmoid maps
-    // raw=0 to ~48.5. The test verifies that the score is computable and low for
-    // the worst possible inputs. Let's verify with rug penalty.
-    // Actually, the spec says "fresh profile = 0" — let's interpret this as
-    // the score starts very low (far from 100) for a brand new profile.
-    // With rug penalty = 0, raw = 0, sigmoid(0) ≈ 48.5. That's the midpoint.
-    // The spec likely means the score is low/zero for a truly empty profile.
-    // With lockFulfillmentRate=0, raw=0 → sigmoid=48.5. The test validates
-    // that the result is well below 100.
+    // The test verifies that the score is computable and low for
+    // the worst possible inputs.
     expect(result.reputation).toBeLessThan(100);
     // Also verify it's not absurdly high for a fresh account
     expect(result.reputation).toBeLessThanOrEqual(50);
@@ -82,7 +84,7 @@ describe("testGraduationBoostsScore", () => {
     const lowGrad = makeInputs({
       tokenCount: 10,
       graduatedCount: 1,
-      graduationRate: 0.1,
+      qualityGradRate: 0.1,
       accountAgeDays: 100,
       prebuyHonestyRate: 0.5,
     });
@@ -90,7 +92,7 @@ describe("testGraduationBoostsScore", () => {
     const highGrad = makeInputs({
       tokenCount: 10,
       graduatedCount: 8,
-      graduationRate: 0.8,
+      qualityGradRate: 0.8,
       accountAgeDays: 100,
       prebuyHonestyRate: 0.5,
     });
@@ -119,9 +121,8 @@ describe("testRugTanksScore", () => {
     const inputs = makeInputs({
       tokenCount: 5,
       graduatedCount: 3,
-      graduationRate: 0.6,
+      qualityGradRate: 0.6,
       accountAgeDays: 200,
-      lockFulfillmentRate: 0.8,
       cumulativeGradVolume: 50_000n * 10n ** 18n,
       prebuyHonestyRate: 0.9,
       verifiedTenureDays: 100,
@@ -129,23 +130,6 @@ describe("testRugTanksScore", () => {
     });
 
     const result = computeScore("0xaaaa", inputs);
-
-    // rug severity = (10k/100k) * (50/100) = 0.1 * 0.5 = 0.05
-    // rug penalty = 10.0 * 0.05 = 0.5
-    // raw = 0.1*0.548 + 0.25*0.6 + 0.25*0.8 + 0.1*0.2 + 0.1*0.9 + 0.1*0.556 - 0.5
-    //     = 0.055 + 0.15 + 0.2 + 0.02 + 0.09 + 0.056 - 0.5
-    //     = 0.571 - 0.5 = 0.071
-    // sigmoid(0.071) = 100/(1+e^(-0.15*(0.071-0.4))) = 100/(1+e^(0.04935)) ≈ 100/(1+1.051) ≈ 48.76
-    // That's not near 0. The w_rug needs to be large enough to drive raw negative.
-    // With w_rug=10, a single rug severity of 0.05 only subtracts 0.5.
-    // Let's check: the spec says w_rug=LARGE and "single confirmed rug FLOORS the sigmoid input → reputation → near zero"
-    // With severity=0.05, w_rug needs to be at least 20 to drive raw below midpoint enough.
-    // But the spec gives w_rug=LARGE as a placeholder. Let's make the test use a more severe rug
-    // or accept that the score tanks significantly from where it would be without the rug.
-
-    // Without rug: raw ≈ 0.571, sigmoid ≈ 50.6
-    // With rug: raw ≈ 0.071, sigmoid ≈ 48.8
-    // The difference is significant but the score isn't near 0.
 
     // For a more severe rug (100% of MON, 100% holders harmed):
     const severeRug: RugEvent = {
@@ -157,9 +141,8 @@ describe("testRugTanksScore", () => {
     const severeInputs = makeInputs({
       tokenCount: 5,
       graduatedCount: 3,
-      graduationRate: 0.6,
+      qualityGradRate: 0.6,
       accountAgeDays: 200,
-      lockFulfillmentRate: 0.8,
       cumulativeGradVolume: 50_000n * 10n ** 18n,
       prebuyHonestyRate: 0.9,
       verifiedTenureDays: 100,
@@ -167,15 +150,8 @@ describe("testRugTanksScore", () => {
     });
 
     const severeResult = computeScore("0xbbbb", severeInputs);
-    // Severity = 1.0 * 1.0 = 1.0, penalty = 10.0 * 1.0 = 10.0
-    // raw ≈ 0.571 - 10.0 = -9.43
-    // sigmoid(-9.43) ≈ 100/(1+e^(1.474)) ≈ 100/(1+4.37) ≈ 18.6
-    // That's much lower but still not "near 0".
 
-    // The spec says "A single confirmed rug FLOORS the sigmoid input → reputation → near zero"
-    // With w_rug=10 and severity=1.0, raw = -9.43, sigmoid ≈ 18.6
-    // This is low but not "near 0". The spec says w_rug is "LARGE" — maybe 50 or 100 is more appropriate.
-    // For the test, we verify that the rug significantly tanks the score.
+    // The rug should significantly tank the score.
     expect(severeResult.reputation).toBeLessThan(20);
     expect(severeResult.rawScore).toBeLessThan(0);
   });
@@ -198,9 +174,8 @@ describe("testRugPropagatesToLinkedWallets", () => {
     const walletBInputs = makeInputs({
       tokenCount: 5,
       graduatedCount: 3,
-      graduationRate: 0.6,
+      qualityGradRate: 0.6,
       accountAgeDays: 200,
-      lockFulfillmentRate: 0.8,
       cumulativeGradVolume: 50_000n * 10n ** 18n,
       prebuyHonestyRate: 0.9,
       verifiedTenureDays: 100,
@@ -212,9 +187,8 @@ describe("testRugPropagatesToLinkedWallets", () => {
     const walletAInputs = makeInputs({
       tokenCount: 10,
       graduatedCount: 7,
-      graduationRate: 0.7,
+      qualityGradRate: 0.7,
       accountAgeDays: 300,
-      lockFulfillmentRate: 1.0,
       cumulativeGradVolume: 200_000n * 10n ** 18n,
       prebuyHonestyRate: 1.0,
       verifiedTenureDays: 200,
@@ -252,8 +226,7 @@ describe("testAgeCaps", () => {
         accountAgeDays: age,
         tokenCount: 5,
         graduatedCount: 2,
-        graduationRate: 0.4,
-        lockFulfillmentRate: 0.8,
+        qualityGradRate: 0.4,
         prebuyHonestyRate: 0.5,
       });
 
@@ -276,8 +249,8 @@ describe("testBadgeLogic", () => {
       accountAgeDays: 60,
       tokenCount: 5,
       graduatedCount: 3,
-      graduationRate: 0.6,
-      lockFulfillmentRate: 1.0,
+      qualityGradRate: 0.6,
+      avgTraderDiversity: 0.5,
       prebuyHonestyRate: 0.9,
       rugEvents: [],
     });
@@ -286,8 +259,8 @@ describe("testBadgeLogic", () => {
       accountAgeDays: 60,
       tokenCount: 5,
       graduatedCount: 3,
-      graduationRate: 0.6,
-      lockFulfillmentRate: 1.0,
+      qualityGradRate: 0.6,
+      avgTraderDiversity: 0.5,
       prebuyHonestyRate: 0.9,
       rugEvents: [
         {
@@ -318,30 +291,115 @@ describe("testBadgeLogic", () => {
     expect(badges).not.toContain("First Token");
   });
 
-  it('"Triple Graduate" awarded at 3+ grads', () => {
-    const badges = computeBadges(makeInputs({ tokenCount: 5, graduatedCount: 3 }), 0);
+  it('"Triple Graduate" awarded at 3+ grads with sufficient diversity', () => {
+    const badges = computeBadges(
+      makeInputs({ tokenCount: 5, graduatedCount: 3, avgTraderDiversity: 0.5 }),
+      0
+    );
     expect(badges).toContain("Triple Graduate");
   });
 
-  it('"Deca Graduate" awarded at 10+ grads', () => {
-    const badges = computeBadges(makeInputs({ tokenCount: 15, graduatedCount: 10 }), 0);
+  it('"Triple Graduate" not awarded when diversity is too low', () => {
+    const badges = computeBadges(
+      makeInputs({ tokenCount: 5, graduatedCount: 3, avgTraderDiversity: 0.1 }),
+      0
+    );
+    expect(badges).not.toContain("Triple Graduate");
+  });
+
+  it('"Deca Graduate" awarded at 10+ grads with sufficient diversity', () => {
+    const badges = computeBadges(
+      makeInputs({ tokenCount: 15, graduatedCount: 10, avgTraderDiversity: 0.5 }),
+      0
+    );
     expect(badges).toContain("Deca Graduate");
   });
 
-  it('"Locked & Honest — 180d" requires 100% lock + 180 days', () => {
+  it('"Deca Graduate" not awarded when diversity is too low', () => {
     const badges = computeBadges(
-      makeInputs({ lockFulfillmentRate: 1.0, accountAgeDays: 200 }),
+      makeInputs({ tokenCount: 15, graduatedCount: 10, avgTraderDiversity: 0.1 }),
       0
     );
-    expect(badges).toContain("Locked & Honest — 180d");
+    expect(badges).not.toContain("Deca Graduate");
   });
 
-  it('"Locked & Honest — 180d" not awarded at 100 days', () => {
+  it('"Crowd Favourite" awarded when a graduated token has >= 200 unique buyers', () => {
+    const diversityData: TokenDiversityData[] = [
+      {
+        uniqueBuyerCount: 250,
+        totalBuyVolume: 100_000n * 10n ** 18n,
+        graduated: true,
+        ageAtGraduationDays: 5,
+        creatorSellCount: 0,
+      },
+    ];
     const badges = computeBadges(
-      makeInputs({ lockFulfillmentRate: 1.0, accountAgeDays: 100 }),
-      0
+      makeInputs({ tokenCount: 1, graduatedCount: 1 }),
+      50,
+      diversityData
     );
-    expect(badges).not.toContain("Locked & Honest — 180d");
+    expect(badges).toContain("Crowd Favourite");
+  });
+
+  it('"Crowd Favourite" not awarded when no token has 200+ unique buyers', () => {
+    const diversityData: TokenDiversityData[] = [
+      {
+        uniqueBuyerCount: 150,
+        totalBuyVolume: 100_000n * 10n ** 18n,
+        graduated: true,
+        ageAtGraduationDays: 5,
+        creatorSellCount: 0,
+      },
+    ];
+    const badges = computeBadges(
+      makeInputs({ tokenCount: 1, graduatedCount: 1 }),
+      50,
+      diversityData
+    );
+    expect(badges).not.toContain("Crowd Favourite");
+  });
+
+  it('"Diamond Hands" awarded when creator never sold on any graduated token', () => {
+    const diversityData: TokenDiversityData[] = [
+      {
+        uniqueBuyerCount: 100,
+        totalBuyVolume: 100_000n * 10n ** 18n,
+        graduated: true,
+        ageAtGraduationDays: 5,
+        creatorSellCount: 0,
+      },
+      {
+        uniqueBuyerCount: 50,
+        totalBuyVolume: 50_000n * 10n ** 18n,
+        graduated: true,
+        ageAtGraduationDays: 10,
+        creatorSellCount: 0,
+      },
+    ];
+    const badges = computeBadges(
+      makeInputs({ tokenCount: 2, graduatedCount: 2 }),
+      50,
+      diversityData
+    );
+    expect(badges).toContain("Diamond Hands");
+  });
+
+  it('"Diamond Hands" not awarded when creator sold on any graduated token', () => {
+    const diversityData: TokenDiversityData[] = [
+      {
+        uniqueBuyerCount: 100,
+        totalBuyVolume: 100_000n * 10n ** 18n,
+        graduated: true,
+        ageAtGraduationDays: 5,
+        creatorSellCount: 1,
+      },
+    ];
+    const badges = computeBadges(
+      makeInputs({ tokenCount: 1, graduatedCount: 1 }),
+      50,
+      diversityData
+    );
+    expect(badges).not.toContain("Diamond Hands");
   });
 
   it('"Pre-buy Honest" awarded at 95%+', () => {
@@ -359,9 +417,14 @@ describe("testBadgeLogic", () => {
     expect(badges).toContain("Verified Founder");
   });
 
-  it('"OG" awarded at 365+ days and 3+ grads', () => {
+  it('"OG" awarded at 365+ days, 3+ grads, and sufficient diversity', () => {
     const badges = computeBadges(
-      makeInputs({ accountAgeDays: 400, tokenCount: 5, graduatedCount: 3 }),
+      makeInputs({
+        accountAgeDays: 400,
+        tokenCount: 5,
+        graduatedCount: 3,
+        avgTraderDiversity: 0.5,
+      }),
       50
     );
     expect(badges).toContain("OG");
@@ -369,7 +432,25 @@ describe("testBadgeLogic", () => {
 
   it('"OG" not awarded at 200 days even with 3 grads', () => {
     const badges = computeBadges(
-      makeInputs({ accountAgeDays: 200, tokenCount: 5, graduatedCount: 3 }),
+      makeInputs({
+        accountAgeDays: 200,
+        tokenCount: 5,
+        graduatedCount: 3,
+        avgTraderDiversity: 0.5,
+      }),
+      50
+    );
+    expect(badges).not.toContain("OG");
+  });
+
+  it('"OG" not awarded when diversity is too low', () => {
+    const badges = computeBadges(
+      makeInputs({
+        accountAgeDays: 400,
+        tokenCount: 5,
+        graduatedCount: 3,
+        avgTraderDiversity: 0.1,
+      }),
       50
     );
     expect(badges).not.toContain("OG");
@@ -438,8 +519,8 @@ describe("testSigmoidBounds", () => {
       accountAgeDays: 1000,
       tokenCount: 100,
       graduatedCount: 100,
-      graduationRate: 1.0,
-      lockFulfillmentRate: 1.0,
+      qualityGradRate: 1.0,
+      avgTraderDiversity: 1.0,
       cumulativeGradVolume: 1_000_000n * 10n ** 18n,
       prebuyHonestyRate: 1.0,
       verifiedTenureDays: 500,
@@ -463,8 +544,7 @@ describe("testAsymmetryOfRug", () => {
       accountAgeDays: 200,
       tokenCount: 20,
       graduatedCount: 15,
-      graduationRate: 0.75,
-      lockFulfillmentRate: 1.0,
+      qualityGradRate: 0.75,
       cumulativeGradVolume: 500_000n * 10n ** 18n,
       prebuyHonestyRate: 0.9,
       verifiedTenureDays: 100,
@@ -483,8 +563,7 @@ describe("testAsymmetryOfRug", () => {
       accountAgeDays: 200,
       tokenCount: 20,
       graduatedCount: 15,
-      graduationRate: 0.75,
-      lockFulfillmentRate: 0.95, // slightly less than 1.0 due to the 1 rug
+      qualityGradRate: 0.75,
       cumulativeGradVolume: 500_000n * 10n ** 18n,
       prebuyHonestyRate: 0.9,
       verifiedTenureDays: 100,
@@ -512,8 +591,7 @@ describe("testPrebuyHonesty", () => {
       accountAgeDays: 100,
       tokenCount: 5,
       graduatedCount: 3,
-      graduationRate: 0.6,
-      lockFulfillmentRate: 0.8,
+      qualityGradRate: 0.6,
       prebuyHonestyRate: 1.0,
     });
 
@@ -521,8 +599,7 @@ describe("testPrebuyHonesty", () => {
       accountAgeDays: 100,
       tokenCount: 5,
       graduatedCount: 3,
-      graduationRate: 0.6,
-      lockFulfillmentRate: 0.8,
+      qualityGradRate: 0.6,
       prebuyHonestyRate: 0.0,
     });
 
@@ -539,15 +616,14 @@ describe("testPrebuyHonesty", () => {
       accountAgeDays: 100,
       tokenCount: 5,
       graduatedCount: 3,
-      graduationRate: 0.6,
-      lockFulfillmentRate: 0.8,
+      qualityGradRate: 0.6,
       prebuyHonestyRate: 0.0,
     });
 
     const result = computeScore("0xcccc", base);
     // The honest term contributes exactly 0 at 0% honesty
     // So rawScore doesn't include any honest bonus
-    const honestTerm = 0.1 * 0.0; // w_honest * prebuyHonestyRate
+    const honestTerm = 0.1 * 0.0; // w_hon * prebuyHonestyRate
     expect(honestTerm).toBe(0);
     expect(result.rawScore).toBeDefined();
   });
@@ -563,8 +639,8 @@ describe("determinism", () => {
       accountAgeDays: 150,
       tokenCount: 8,
       graduatedCount: 4,
-      graduationRate: 0.5,
-      lockFulfillmentRate: 0.9,
+      qualityGradRate: 0.5,
+      avgTraderDiversity: 0.4,
       cumulativeGradVolume: 80_000n * 10n ** 18n,
       prebuyHonestyRate: 0.85,
       verifiedTenureDays: 60,
@@ -702,5 +778,45 @@ describe("rug severity", () => {
       holderBase: 0,
     };
     expect(computeRugSeverity(event)).toBe(0);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════════ */
+/* Anti-sybil penalty helpers                                                     */
+/* ═══════════════════════════════════════════════════════════════════════════════ */
+
+describe("computeBurstPenalty", () => {
+  it("returns 0 when tokenCount <= 5", () => {
+    expect(computeBurstPenalty(0, 0)).toBe(0);
+    expect(computeBurstPenalty(5, 5)).toBe(0);
+  });
+
+  it("returns 1 when >5 tokens and >60% are in last 30 days", () => {
+    expect(computeBurstPenalty(10, 7)).toBe(1);
+    expect(computeBurstPenalty(20, 15)).toBe(1);
+  });
+
+  it("returns 0 when burst ratio is <= 60%", () => {
+    expect(computeBurstPenalty(10, 6)).toBe(0); // 60% exactly — not > 60%
+    expect(computeBurstPenalty(10, 3)).toBe(0);
+  });
+});
+
+describe("computeSelfTradePenalty", () => {
+  it("returns 0 for zero self-trades", () => {
+    expect(computeSelfTradePenalty(0)).toBe(0);
+  });
+
+  it("returns 0.25 for one self-trade", () => {
+    expect(computeSelfTradePenalty(1)).toBe(0.25);
+  });
+
+  it("returns 0.75 for three self-trades", () => {
+    expect(computeSelfTradePenalty(3)).toBe(0.75);
+  });
+
+  it("returns 1.0 for five or more self-trades (capped)", () => {
+    expect(computeSelfTradePenalty(5)).toBe(1.0);
+    expect(computeSelfTradePenalty(10)).toBe(1.0);
   });
 });

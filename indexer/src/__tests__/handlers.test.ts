@@ -204,6 +204,8 @@ describe("Handler logic — mock integration", () => {
       sellCount: 0,
       totalBuyVolume: 0n,
       totalSellVolume: 0n,
+      uniqueBuyerCount: 0,
+      creatorSellCount: 0,
     });
 
     store.profiles.set(creatorId, {
@@ -251,6 +253,7 @@ describe("Handler logic — mock integration", () => {
       soldTokens: newSoldTokens,
       buyCount: token.buyCount + 1,
       totalBuyVolume: token.totalBuyVolume + params.amountIn,
+      uniqueBuyerCount: token.uniqueBuyerCount + 1,
     });
 
     const profile = store.profiles.get(token.creator);
@@ -297,6 +300,10 @@ describe("Handler logic — mock integration", () => {
       soldTokens: newSoldTokens,
       sellCount: token.sellCount + 1,
       totalSellVolume: token.totalSellVolume + params.amountOut,
+      creatorSellCount:
+        params.seller.toLowerCase() === token.creator
+          ? token.creatorSellCount + 1
+          : token.creatorSellCount,
     });
 
     const profile = store.profiles.get(token.creator);

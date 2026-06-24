@@ -5,12 +5,12 @@
  * deterministically from scoring inputs and final reputation.
  */
 
-import type { Badge, ScoringInputs } from "./types";
+import type { Badge, ScoringInputs, TokenDiversityData } from "./types";
 
 const VOLUME_MAKER_THRESHOLD = 100_000n * 10n ** 18n;
 const PREBUY_HONESTY_THRESHOLD = 0.95;
-const LOCKED_HONEST_180 = 180;
-const LOCKED_HONEST_365 = 365;
+const CROWD_FAVOURITE_TRADERS = 200;     // unique buyers on a single token
+const DIVERSITY_MIN_FOR_GRAD_BADGES = 0.3; // min avgTraderDiversity for grad badges
 const OG_AGE_DAYS = 365;
 const OG_MIN_GRADS = 3;
 const NEVER_RUG_MIN_AGE = 30;
@@ -22,20 +22,36 @@ function hasRugPenalty(inputs: ScoringInputs): boolean {
 
 export function computeBadges(
   inputs: ScoringInputs,
-  reputation: number
+  reputation: number,
+  tokenDiversityData: TokenDiversityData[] = []
 ): Badge[] {
   const badges: Badge[] = [];
   const { tokenCount, graduatedCount } = inputs;
 
   if (tokenCount >= 1) badges.push("First Token");
-  if (graduatedCount >= 3) badges.push("Triple Graduate");
-  if (graduatedCount >= 10) badges.push("Deca Graduate");
-  if (inputs.lockFulfillmentRate >= 1.0 && inputs.accountAgeDays >= LOCKED_HONEST_180) {
-    badges.push("Locked & Honest — 180d");
+  if (graduatedCount >= 3 && inputs.avgTraderDiversity >= DIVERSITY_MIN_FOR_GRAD_BADGES) {
+    badges.push("Triple Graduate");
   }
-  if (inputs.lockFulfillmentRate >= 1.0 && inputs.accountAgeDays >= LOCKED_HONEST_365) {
-    badges.push("Locked & Honest — 365d");
+  if (graduatedCount >= 10 && inputs.avgTraderDiversity >= DIVERSITY_MIN_FOR_GRAD_BADGES) {
+    badges.push("Deca Graduate");
   }
+
+  // "Crowd Favourite" — at least one graduated token had >= 200 unique buyers
+  const hasCrowdFavourite = tokenDiversityData.some(
+    (t) => t.graduated && t.uniqueBuyerCount >= CROWD_FAVOURITE_TRADERS
+  );
+  if (hasCrowdFavourite) {
+    badges.push("Crowd Favourite");
+  }
+
+  // "Diamond Hands" — creator never sold their own token on any graduated token
+  const hasNeverSoldOwn = tokenDiversityData
+    .filter((t) => t.graduated)
+    .every((t) => t.creatorSellCount === 0);
+  if (tokenDiversityData.some((t) => t.graduated) && hasNeverSoldOwn) {
+    badges.push("Diamond Hands");
+  }
+
   if (inputs.accountAgeDays >= NEVER_RUG_MIN_AGE && !hasRugPenalty(inputs)) {
     badges.push("Never Rug");
   }
@@ -48,7 +64,11 @@ export function computeBadges(
   if (reputation >= VERIFIED_FOUNDER_MIN_SCORE) {
     badges.push("Verified Founder");
   }
-  if (inputs.accountAgeDays >= OG_AGE_DAYS && graduatedCount >= OG_MIN_GRADS) {
+  if (
+    inputs.accountAgeDays >= OG_AGE_DAYS &&
+    graduatedCount >= OG_MIN_GRADS &&
+    inputs.avgTraderDiversity >= DIVERSITY_MIN_FOR_GRAD_BADGES
+  ) {
     badges.push("OG");
   }
 

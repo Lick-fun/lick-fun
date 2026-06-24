@@ -5,7 +5,7 @@
  * deterministically from scoring inputs and final reputation.
  */
 
-import type { Badge, ScoringInputs } from "./types";
+import type { Badge, ScoringInputs, TokenDiversityData } from "./types";
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Thresholds                                                                     */
@@ -13,8 +13,8 @@ import type { Badge, ScoringInputs } from "./types";
 
 const VOLUME_MAKER_THRESHOLD = 100_000n * 10n ** 18n; // 100k MON
 const PREBUY_HONESTY_THRESHOLD = 0.95; // 95%
-const LOCKED_HONEST_180 = 180; // days
-const LOCKED_HONEST_365 = 365; // days
+const CROWD_FAVOURITE_TRADERS = 200;     // unique buyers on a single token
+const DIVERSITY_MIN_FOR_GRAD_BADGES = 0.3; // min avgTraderDiversity for grad badges
 const OG_AGE_DAYS = 365;
 const OG_MIN_GRADS = 3;
 const NEVER_RUG_MIN_AGE = 30; // days
@@ -47,7 +47,8 @@ function totalRugSeverity(inputs: ScoringInputs): number {
  */
 export function computeBadges(
   inputs: ScoringInputs,
-  reputation: number
+  reputation: number,
+  tokenDiversityData: TokenDiversityData[] = []
 ): Badge[] {
   const badges: Badge[] = [];
 
@@ -58,24 +59,30 @@ export function computeBadges(
     badges.push("First Token");
   }
 
-  // "Triple Graduate" — graduatedCount >= 3
-  if (graduatedCount >= 3) {
+  // "Triple Graduate" — graduatedCount >= 3 AND avgTraderDiversity >= threshold
+  if (graduatedCount >= 3 && inputs.avgTraderDiversity >= DIVERSITY_MIN_FOR_GRAD_BADGES) {
     badges.push("Triple Graduate");
   }
 
-  // "Deca Graduate" — graduatedCount >= 10
-  if (graduatedCount >= 10) {
+  // "Deca Graduate" — graduatedCount >= 10 AND avgTraderDiversity >= threshold
+  if (graduatedCount >= 10 && inputs.avgTraderDiversity >= DIVERSITY_MIN_FOR_GRAD_BADGES) {
     badges.push("Deca Graduate");
   }
 
-  // "Locked & Honest — 180d" — lockFulfillmentRate >= 100% AND accountAgeDays >= 180
-  if (inputs.lockFulfillmentRate >= 1.0 && inputs.accountAgeDays >= LOCKED_HONEST_180) {
-    badges.push("Locked & Honest — 180d");
+  // "Crowd Favourite" — at least one graduated token had >= 200 unique buyers
+  const hasCrowdFavourite = tokenDiversityData.some(
+    (t) => t.graduated && t.uniqueBuyerCount >= CROWD_FAVOURITE_TRADERS
+  );
+  if (hasCrowdFavourite) {
+    badges.push("Crowd Favourite");
   }
 
-  // "Locked & Honest — 365d" — lockFulfillmentRate >= 100% AND accountAgeDays >= 365
-  if (inputs.lockFulfillmentRate >= 1.0 && inputs.accountAgeDays >= LOCKED_HONEST_365) {
-    badges.push("Locked & Honest — 365d");
+  // "Diamond Hands" — creator never sold their own token on any graduated token
+  const hasNeverSoldOwn = tokenDiversityData
+    .filter((t) => t.graduated)
+    .every((t) => t.creatorSellCount === 0);
+  if (tokenDiversityData.some((t) => t.graduated) && hasNeverSoldOwn) {
+    badges.push("Diamond Hands");
   }
 
   // "Never Rug" — profile.age >= 30 days AND rugPenalty === 0
@@ -98,8 +105,12 @@ export function computeBadges(
     badges.push("Verified Founder");
   }
 
-  // "OG" — profile.age >= 365 days AND graduatedCount >= 3
-  if (inputs.accountAgeDays >= OG_AGE_DAYS && graduatedCount >= OG_MIN_GRADS) {
+  // "OG" — profile.age >= 365 days AND graduatedCount >= 3 AND avgTraderDiversity >= threshold
+  if (
+    inputs.accountAgeDays >= OG_AGE_DAYS &&
+    graduatedCount >= OG_MIN_GRADS &&
+    inputs.avgTraderDiversity >= DIVERSITY_MIN_FOR_GRAD_BADGES
+  ) {
     badges.push("OG");
   }
 
