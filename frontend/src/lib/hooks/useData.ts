@@ -2,9 +2,14 @@
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useReadContracts } from "wagmi";
+import { useAccount, useReadContracts } from "wagmi";
 import { mockTokens, mockMarkets, getMockOdds } from "@/lib/mock/data";
-import { getTokenPrice, getGraduationProgress } from "@/lib/wagmi/contracts";
+import {
+  getTokenPrice,
+  getGraduationProgress,
+  PredictionMarketABI,
+  PREDICTION_MARKET_ADDRESS,
+} from "@/lib/wagmi/contracts";
 import { getGraphQLClient } from "@/lib/graphql/client";
 import {
   QUERY_ALL_TOKENS,
@@ -447,41 +452,377 @@ export function useTokensMeta<T extends { id: string; name: string; symbol: stri
 }
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
-/* Prediction market hooks (still mock-based, consistent { data, isLoading, error } */
+/* Prediction market hooks (live on-chain via multicall)                            */
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
-function decorateMarket(m: (typeof mockMarkets)[number]) {
-  const token = mockTokens.find((t) => t.id === m.tokenId);
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000" as const;
+
+export interface MarketEntity {
+  tokenId: string;
+  tokenName: string;
+  tokenSymbol: string;
+  curve: string;
+  totalYesMON: bigint;
+  totalNoMON: bigint;
+  resolved: boolean;
+  outcome: boolean;
+  cancelled: boolean;
+  closeTime: bigint;
+  userYesBet: bigint;
+  userNoBet: bigint;
+  claimed: boolean;
+  odds: { yesOdds: number; noOdds: number };
+  totalPool: bigint;
+  token?: TokenEntity | null;
+}
+
+const PREDICTION_MARKET_DEPLOYED =
+  PREDICTION_MARKET_ADDRESS !== ZERO_ADDRESS;
+
+/**
+ * Fetches all live prediction markets by:
+ *   1. Loading every token from the Envio indexer.
+ *   2. Multicalling `markets(token)` on the PredictionMarket contract for each.
+ *   3. Filtering out tokens with no market (markets[token].token == address(0)).
+ *   4. Multicalling `getOdds(token)` for the surviving markets.
+ *   5. Multicalling `yesBets/noBets/winningsClaimed` for the connected wallet.
+ *
+ * Falls back to mock data when the PredictionMarket contract isn't deployed
+ * (e.g. local dev without a contract address configured).
+ */
+export function useAllMarkets(): {
+  data: MarketEntity[];
+  isLoading: boolean;
+  error: Error | null;
+} {
+  const { address: userAddress } = useAccount();
+  const tokensQuery = useAllTokens();
+
+  const tokenIds = useMemo(
+    () => (tokensQuery.data ?? []).map((t) => t.id.toLowerCase()),
+    [tokensQuery.data]
+  );
+
+  // Multicall: markets(token) for each token
+  const marketsContracts = useMemo(
+    () =>
+      tokenIds.map((id) => ({
+        address: PREDICTION_MARKET_ADDRESS,
+        abi: PredictionMarketABI,
+        functionName: "markets" as const,
+        args: [id as `0x${string}`] as const,
+      })),
+    [tokenIds]
+  );
+
+  const { data: marketsRaw, isLoading: isLoadingMarkets } = useReadContracts({
+    contracts: marketsContracts,
+    query: {
+      enabled: PREDICTION_MARKET_DEPLOYED && tokenIds.length > 0,
+    },
+  });
+
+  // Filter to tokens that actually have a market.
+  // Also build a lookup map (tokenId → result) keyed by the *original* tokenIds index
+  // so we can retrieve the correct marketsRaw entry by id, not by filtered index.
+  const { activeTokenIds, marketResultMap } = useMemo(() => {
+    if (!marketsRaw) return { activeTokenIds: [] as string[], marketResultMap: new Map<string, readonly [string, string, bigint, bigint, boolean, boolean, boolean, bigint]>() };
+    const out: string[] = [];
+    const map = new Map<string, readonly [string, string, bigint, bigint, boolean, boolean, boolean, bigint]>();
+    for (let i = 0; i < tokenIds.length; i++) {
+      const r = marketsRaw[i]?.result as
+        | readonly [string, string, bigint, bigint, boolean, boolean, boolean, bigint]
+        | undefined;
+      if (r && r[0] !== ZERO_ADDRESS) {
+        out.push(tokenIds[i]);
+        map.set(tokenIds[i], r);
+      }
+    }
+    return { activeTokenIds: out, marketResultMap: map };
+  }, [marketsRaw, tokenIds]);
+
+  // Multicall: getOdds(token) for each active market
+  const oddsContracts = useMemo(
+    () =>
+      activeTokenIds.map((id) => ({
+        address: PREDICTION_MARKET_ADDRESS,
+        abi: PredictionMarketABI,
+        functionName: "getOdds" as const,
+        args: [id as `0x${string}`] as const,
+      })),
+    [activeTokenIds]
+  );
+
+  const { data: oddsRaw } = useReadContracts({
+    contracts: oddsContracts,
+    query: {
+      enabled: PREDICTION_MARKET_DEPLOYED && activeTokenIds.length > 0,
+    },
+  });
+
+  // Multicall: yesBets/noBets/winningsClaimed for the connected wallet
+  const userBetContracts = useMemo(() => {
+    if (!userAddress) return [];
+    return activeTokenIds.flatMap((id) => [
+      {
+        address: PREDICTION_MARKET_ADDRESS,
+        abi: PredictionMarketABI,
+        functionName: "yesBets" as const,
+        args: [id as `0x${string}`, userAddress] as const,
+      },
+      {
+        address: PREDICTION_MARKET_ADDRESS,
+        abi: PredictionMarketABI,
+        functionName: "noBets" as const,
+        args: [id as `0x${string}`, userAddress] as const,
+      },
+      {
+        address: PREDICTION_MARKET_ADDRESS,
+        abi: PredictionMarketABI,
+        functionName: "winningsClaimed" as const,
+        args: [id as `0x${string}`, userAddress] as const,
+      },
+    ]);
+  }, [activeTokenIds, userAddress]);
+
+  const { data: userBetsRaw } = useReadContracts({
+    contracts: userBetContracts,
+    query: {
+      enabled: !!userAddress && userBetContracts.length > 0,
+    },
+  });
+
+  const data = useMemo<MarketEntity[]>(() => {
+    // Fallback to mock data when the contract isn't deployed
+    if (!PREDICTION_MARKET_DEPLOYED) {
+      return mockMarkets.map((m) => {
+        const token = mockTokens.find((t) => t.id === m.tokenId);
+        return {
+          tokenId: m.tokenId,
+          tokenName: m.tokenName,
+          tokenSymbol: token?.symbol ?? "",
+          curve: token?.curve ?? ZERO_ADDRESS,
+          totalYesMON: m.totalYesMON,
+          totalNoMON: m.totalNoMON,
+          resolved: m.resolved,
+          outcome: m.outcome,
+          cancelled: false,
+          closeTime: 0n,
+          userYesBet: m.userYesBet,
+          userNoBet: m.userNoBet,
+          claimed: m.claimed,
+          odds: getMockOdds(m.tokenId),
+          totalPool: m.totalYesMON + m.totalNoMON,
+          token,
+        };
+      });
+    }
+
+    if (!marketsRaw) return [];
+
+    const tokenMap = new Map(
+      (tokensQuery.data ?? []).map((t) => [t.id.toLowerCase(), t])
+    );
+
+    return activeTokenIds.map((id, i) => {
+      // Use the lookup map to get the correct market result by token id,
+      // not by the filtered index i (which would be wrong when some tokens
+      // have no market and were excluded during filtering).
+      const m = marketResultMap.get(id);
+      const o = oddsRaw?.[i]?.result as readonly [bigint, bigint] | undefined;
+      const token = tokenMap.get(id);
+
+      const totalYesMON = m?.[2] ?? 0n;
+      const totalNoMON = m?.[3] ?? 0n;
+
+      // Per-user bets (3 contracts per token: yesBets, noBets, winningsClaimed)
+      const userYesBet =
+        userBetsRaw && userBetsRaw[i * 3]
+          ? ((userBetsRaw[i * 3].result as bigint) ?? 0n)
+          : 0n;
+      const userNoBet =
+        userBetsRaw && userBetsRaw[i * 3 + 1]
+          ? ((userBetsRaw[i * 3 + 1].result as bigint) ?? 0n)
+          : 0n;
+      const claimed =
+        userBetsRaw && userBetsRaw[i * 3 + 2]
+          ? ((userBetsRaw[i * 3 + 2].result as boolean) ?? false)
+          : false;
+
+      // getOdds returns basis points (0–10000). Convert to percentages.
+      const odds = o
+        ? {
+            yesOdds: Number(o[0]) / 100,
+            noOdds: Number(o[1]) / 100,
+          }
+        : { yesOdds: 50, noOdds: 50 };
+
+      return {
+        tokenId: id,
+        tokenName: token?.name ?? id.slice(0, 8),
+        tokenSymbol: token?.symbol ?? "",
+        curve: m?.[1] ?? ZERO_ADDRESS,
+        totalYesMON,
+        totalNoMON,
+        resolved: m?.[4] ?? false,
+        outcome: m?.[5] ?? false,
+        cancelled: m?.[6] ?? false,
+        closeTime: m?.[7] ?? 0n,
+        userYesBet,
+        userNoBet,
+        claimed,
+        odds,
+        totalPool: totalYesMON + totalNoMON,
+        token,
+      };
+    });
+  }, [
+    marketsRaw,
+    oddsRaw,
+    userBetsRaw,
+    activeTokenIds,
+    marketResultMap,
+    tokensQuery.data,
+  ]);
+
   return {
-    ...m,
-    token,
-    odds: getMockOdds(m.tokenId),
-    totalPool: m.totalYesMON + m.totalNoMON,
+    data,
+    isLoading: tokensQuery.isLoading || isLoadingMarkets,
+    error: tokensQuery.error as Error | null,
   };
 }
 
-type DecoratedMarket = ReturnType<typeof decorateMarket>;
-
-export function useAllMarkets(): {
-  data: DecoratedMarket[];
-  isLoading: boolean;
-  error: Error | null;
-} {
-  const data = useMemo(() => mockMarkets.map((m) => decorateMarket(m)), []);
-  return { data, isLoading: false, error: null };
-}
-
+/**
+ * Fetches a single market by token address. Uses the same multicall pattern
+ * as useAllMarkets but scoped to one token.
+ */
 export function useMarket(tokenId: string): {
-  data: DecoratedMarket | null;
+  data: MarketEntity | null;
   isLoading: boolean;
   error: Error | null;
 } {
-  const data = useMemo(() => {
-    const m = mockMarkets.find((m) => m.tokenId === tokenId.toLowerCase());
-    if (!m) return null;
-    return decorateMarket(m);
-  }, [tokenId]);
-  return { data, isLoading: false, error: null };
+  const { address: userAddress } = useAccount();
+  const tokenQuery = useToken(tokenId);
+
+  const id = tokenId.toLowerCase();
+  const contracts = useMemo(() => {
+    if (!PREDICTION_MARKET_DEPLOYED || !tokenId) return [];
+    return [
+      {
+        address: PREDICTION_MARKET_ADDRESS,
+        abi: PredictionMarketABI,
+        functionName: "markets" as const,
+        args: [id as `0x${string}`] as const,
+      },
+      {
+        address: PREDICTION_MARKET_ADDRESS,
+        abi: PredictionMarketABI,
+        functionName: "getOdds" as const,
+        args: [id as `0x${string}`] as const,
+      },
+      ...(userAddress
+        ? ([
+            {
+              address: PREDICTION_MARKET_ADDRESS,
+              abi: PredictionMarketABI,
+              functionName: "yesBets" as const,
+              args: [id as `0x${string}`, userAddress] as const,
+            },
+            {
+              address: PREDICTION_MARKET_ADDRESS,
+              abi: PredictionMarketABI,
+              functionName: "noBets" as const,
+              args: [id as `0x${string}`, userAddress] as const,
+            },
+            {
+              address: PREDICTION_MARKET_ADDRESS,
+              abi: PredictionMarketABI,
+              functionName: "winningsClaimed" as const,
+              args: [id as `0x${string}`, userAddress] as const,
+            },
+          ] as const)
+        : []),
+    ];
+  }, [id, tokenId, userAddress]);
+
+  const { data, isLoading } = useReadContracts({
+    contracts,
+    query: { enabled: contracts.length > 0 },
+  });
+
+  const market = useMemo<MarketEntity | null>(() => {
+    if (!PREDICTION_MARKET_DEPLOYED) {
+      // Mock fallback
+      const m = mockMarkets.find((m) => m.tokenId === id);
+      if (!m) return null;
+      const token = mockTokens.find((t) => t.id === m.tokenId);
+      return {
+        tokenId: m.tokenId,
+        tokenName: m.tokenName,
+        tokenSymbol: token?.symbol ?? "",
+        curve: token?.curve ?? ZERO_ADDRESS,
+        totalYesMON: m.totalYesMON,
+        totalNoMON: m.totalNoMON,
+        resolved: m.resolved,
+        outcome: m.outcome,
+        cancelled: false,
+        closeTime: 0n,
+        userYesBet: m.userYesBet,
+        userNoBet: m.userNoBet,
+        claimed: m.claimed,
+        odds: getMockOdds(m.tokenId),
+        totalPool: m.totalYesMON + m.totalNoMON,
+        token,
+      };
+    }
+
+    if (!data || data.length === 0) return null;
+
+    const m = data[0]?.result as
+      | readonly [string, string, bigint, bigint, boolean, boolean, boolean, bigint]
+      | undefined;
+    if (!m || m[0] === ZERO_ADDRESS) return null;
+
+    const o = data[1]?.result as readonly [bigint, bigint] | undefined;
+    const userYesBet = (data[2]?.result as bigint) ?? 0n;
+    const userNoBet = (data[3]?.result as bigint) ?? 0n;
+    const claimed = (data[4]?.result as boolean) ?? false;
+
+    const totalYesMON = m[2];
+    const totalNoMON = m[3];
+
+    const odds = o
+      ? {
+          yesOdds: Number(o[0]) / 100,
+          noOdds: Number(o[1]) / 100,
+        }
+      : { yesOdds: 50, noOdds: 50 };
+
+    return {
+      tokenId: id,
+      tokenName: tokenQuery.data?.name ?? id.slice(0, 8),
+      tokenSymbol: tokenQuery.data?.symbol ?? "",
+      curve: m[1],
+      totalYesMON,
+      totalNoMON,
+      resolved: m[4],
+      outcome: m[5],
+      cancelled: m[6],
+      closeTime: m[7],
+      userYesBet,
+      userNoBet,
+      claimed,
+      odds,
+      totalPool: totalYesMON + totalNoMON,
+      token: tokenQuery.data,
+    };
+  }, [data, id, tokenQuery.data]);
+
+  return {
+    data: market,
+    isLoading: tokenQuery.isLoading || isLoading,
+    error: tokenQuery.error as Error | null,
+  };
 }
 
 /* ──────────────────────────────────────────────────────────────────────────────── */

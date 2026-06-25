@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useAllMarkets, formatTimeAgo } from "@/lib/hooks/useData";
+import { useState, useEffect } from "react";
+import { useAllMarkets } from "@/lib/hooks/useData";
 import { BetForm } from "@/components/markets/BetForm";
 import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
 import {
@@ -15,6 +15,13 @@ import {
 export default function MarketsPage() {
   const { data: markets = [], isLoading, error } = useAllMarkets();
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+
+  // Live clock so betting-window countdowns tick in real time
+  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const id = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   if (isLoading) {
     return (
@@ -32,8 +39,9 @@ export default function MarketsPage() {
     );
   }
 
-  const active = markets.filter((m) => !m.resolved);
+  const active = markets.filter((m) => !m.resolved && !m.cancelled);
   const resolved = markets.filter((m) => m.resolved);
+  const cancelled = markets.filter((m) => m.cancelled);
   const selected = markets.find((m) => m.tokenId === selectedTokenId);
 
   const leaderboard = [...markets]
@@ -68,44 +76,51 @@ export default function MarketsPage() {
               <p className="text-figma-sm text-figma-muted">No active markets</p>
             ) : (
               <div className="space-y-3">
-                {active.map((m) => (
-                  <button
-                    key={m.tokenId}
-                    onClick={() => setSelectedTokenId(m.tokenId)}
-                    className={`w-full text-left rounded-pill border p-4 transition-all ${
-                      selectedTokenId === m.tokenId
-                        ? "border-figma-green/50 bg-figma-green/5"
-                        : "border-figma-surface hover:border-figma-card-alt"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-figma-sm text-figma-white">
-                        {m.token?.name ?? m.tokenName}
-                      </span>
-                      <span className="text-figma-xs text-figma-muted flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {m.token?.createdAt
-                          ? formatTimeAgo(m.token.createdAt)
-                          : "—"}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex-1 rounded-pill bg-figma-green/10 px-2 py-1 text-center">
-                        <div className="text-figma-green-soft text-figma-xs font-bold">
-                          YES {m.odds.yesOdds.toFixed(0)}%
+                {active.map((m) => {
+                  const closeSec = Number(m.closeTime);
+                  const secondsLeft = closeSec > 0 ? closeSec - nowSec : 0;
+                  const bettingClosed = closeSec > 0 && secondsLeft <= 0;
+                  return (
+                    <button
+                      key={m.tokenId}
+                      onClick={() => setSelectedTokenId(m.tokenId)}
+                      className={`w-full text-left rounded-pill border p-4 transition-all ${
+                        selectedTokenId === m.tokenId
+                          ? "border-figma-green/50 bg-figma-green/5"
+                          : "border-figma-surface hover:border-figma-card-alt"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-figma-sm text-figma-white">
+                          {m.token?.name ?? m.tokenName}
+                        </span>
+                        <span className="text-figma-xs text-figma-muted flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {bettingClosed
+                            ? "Betting closed"
+                            : secondsLeft > 0
+                              ? `${Math.floor(secondsLeft / 3600)}h ${Math.floor((secondsLeft % 3600) / 60)}m left`
+                              : "—"}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="flex-1 rounded-pill bg-figma-green/10 px-2 py-1 text-center">
+                          <div className="text-figma-green-soft text-figma-xs font-bold">
+                            YES {m.odds.yesOdds.toFixed(0)}%
+                          </div>
+                        </div>
+                        <div className="flex-1 rounded-pill bg-figma-red/10 px-2 py-1 text-center">
+                          <div className="text-figma-red-soft text-figma-xs font-bold">
+                            NO {m.odds.noOdds.toFixed(0)}%
+                          </div>
                         </div>
                       </div>
-                      <div className="flex-1 rounded-pill bg-figma-red/10 px-2 py-1 text-center">
-                        <div className="text-figma-red-soft text-figma-xs font-bold">
-                          NO {m.odds.noOdds.toFixed(0)}%
-                        </div>
+                      <div className="text-figma-xs text-figma-muted mt-2">
+                        Pool: {Number(m.totalPool) / 1e18} MON
                       </div>
-                    </div>
-                    <div className="text-figma-xs text-figma-muted mt-2">
-                      Pool: {Number(m.totalPool) / 1e18} MON
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -144,6 +159,35 @@ export default function MarketsPage() {
               </div>
             )}
           </div>
+
+          {/* Cancelled Markets */}
+          {cancelled.length > 0 && (
+            <div className="rounded-card border border-figma-card bg-figma-card p-5">
+              <h3 className="text-figma-md text-figma-white font-semibold mb-4">
+                Cancelled ({cancelled.length})
+              </h3>
+              <div className="space-y-2">
+                {cancelled.map((m) => (
+                  <button
+                    key={m.tokenId}
+                    onClick={() => setSelectedTokenId(m.tokenId)}
+                    className={`w-full text-left flex items-center justify-between rounded-pill border p-3 transition-all ${
+                      selectedTokenId === m.tokenId
+                        ? "border-figma-green/50 bg-figma-green/5"
+                        : "border-figma-surface hover:border-figma-card-alt"
+                    }`}
+                  >
+                    <span className="text-figma-sm text-figma-white font-medium">
+                      {m.token?.name ?? m.tokenName}
+                    </span>
+                    <span className="text-figma-xs text-figma-muted">
+                      Refundable
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Center: Bet Form */}
@@ -155,6 +199,9 @@ export default function MarketsPage() {
               yesOdds={selected.odds.yesOdds}
               noOdds={selected.odds.noOdds}
               resolved={selected.resolved}
+              cancelled={selected.cancelled}
+              outcome={selected.outcome}
+              closeTime={selected.closeTime}
               userYesBet={selected.userYesBet}
               userNoBet={selected.userNoBet}
               claimed={selected.claimed}
@@ -167,12 +214,12 @@ export default function MarketsPage() {
           )}
         </div>
 
-        {/* Right: Leaderboard */}
+        {/* Right: Biggest Pools */}
         <div className="lg:col-span-1">
           <div className="rounded-card border border-figma-card bg-figma-card p-5">
             <h3 className="text-figma-md text-figma-white font-semibold mb-4 flex items-center gap-2">
               <Trophy className="w-4 h-4 text-figma-green-soft" />
-              Top Predictors
+              Biggest Pools
             </h3>
             {leaderboard.length === 0 ? (
               <p className="text-figma-sm text-figma-muted">No data yet</p>

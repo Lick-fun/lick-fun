@@ -8,7 +8,7 @@ import { parseEther, type Abi } from "viem";
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
 export const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
-const PREDICTION_MARKET_ADDRESS = (process.env.NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const PREDICTION_MARKET_ADDRESS = (process.env.NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Factory ABI (deployed testnet version)                                           */
@@ -204,7 +204,10 @@ export const PredictionMarketABI = [
   {
     type: "function",
     name: "createMarket",
-    inputs: [{ name: "token", type: "address", internalType: "address" }],
+    inputs: [
+      { name: "token", type: "address", internalType: "address" },
+      { name: "curve", type: "address", internalType: "address" },
+    ],
     outputs: [],
     stateMutability: "nonpayable",
   },
@@ -238,6 +241,27 @@ export const PredictionMarketABI = [
   },
   {
     type: "function",
+    name: "sweepProtocolFee",
+    inputs: [{ name: "token", type: "address", internalType: "address" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "refundOneSidedMarket",
+    inputs: [{ name: "token", type: "address", internalType: "address" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "withdrawRefund",
+    inputs: [{ name: "token", type: "address", internalType: "address" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "getOdds",
     inputs: [{ name: "token", type: "address", internalType: "address" }],
     outputs: [
@@ -252,10 +276,13 @@ export const PredictionMarketABI = [
     inputs: [{ name: "token", type: "address", internalType: "address" }],
     outputs: [
       { name: "token", type: "address", internalType: "address" },
+      { name: "curve", type: "address", internalType: "address" },
       { name: "totalYesMON", type: "uint256", internalType: "uint256" },
       { name: "totalNoMON", type: "uint256", internalType: "uint256" },
       { name: "resolved", type: "bool", internalType: "bool" },
       { name: "outcome", type: "bool", internalType: "bool" },
+      { name: "cancelled", type: "bool", internalType: "bool" },
+      { name: "closeTime", type: "uint256", internalType: "uint256" },
     ],
     stateMutability: "view",
   },
@@ -288,6 +315,51 @@ export const PredictionMarketABI = [
     ],
     outputs: [{ name: "", type: "bool", internalType: "bool" }],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "feeSwept",
+    inputs: [{ name: "token", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "view",
+  },
+  {
+    type: "event",
+    name: "MarketCreated",
+    inputs: [
+      { name: "token", type: "address", indexed: true },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "BetPlaced",
+    inputs: [
+      { name: "token", type: "address", indexed: true },
+      { name: "bettor", type: "address", indexed: true },
+      { name: "isYes", type: "bool", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "MarketResolved",
+    inputs: [
+      { name: "token", type: "address", indexed: true },
+      { name: "outcome", type: "bool", indexed: false },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "WinningsClaimed",
+    inputs: [
+      { name: "token", type: "address", indexed: true },
+      { name: "claimant", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+    anonymous: false,
   },
 ] as const satisfies Abi;
 
@@ -436,8 +508,19 @@ export function useWriteSell(_curveAddress: `0x${string}`) {
   return useWriteContract();
 }
 
+export interface PredictionMarketStruct {
+  token: string;
+  curve: string;
+  totalYesMON: bigint;
+  totalNoMON: bigint;
+  resolved: boolean;
+  outcome: boolean;
+  cancelled: boolean;
+  closeTime: bigint;
+}
+
 export function usePredictionMarketRead(tokenAddress: `0x${string}`, userAddress?: `0x${string}`) {
-  const { data: market } = useReadContract({
+  const { data: marketRaw } = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: PredictionMarketABI,
     functionName: "markets",
@@ -471,9 +554,35 @@ export function usePredictionMarketRead(tokenAddress: `0x${string}`, userAddress
     query: { enabled: !!userAddress },
   });
 
+  // wagmi returns the struct as an array (tuple) — normalize to a typed object.
+  // markets[token] == address(0) means no market exists for this token.
+  const raw = marketRaw as readonly [string, string, bigint, bigint, boolean, boolean, boolean, bigint] | undefined;
+  const market: PredictionMarketStruct | null = raw && raw[0] !== "0x0000000000000000000000000000000000000000"
+    ? {
+        token: raw[0],
+        curve: raw[1],
+        totalYesMON: raw[2],
+        totalNoMON: raw[3],
+        resolved: raw[4],
+        outcome: raw[5],
+        cancelled: raw[6],
+        closeTime: raw[7],
+      }
+    : null;
+
+  // getOdds returns basis points (0–10000). Convert to percentages here so
+  // callers don't have to remember the unit.
+  const oddsRaw = odds as readonly [bigint, bigint] | undefined;
+  const oddsPct = oddsRaw
+    ? {
+        yesOdds: Number(oddsRaw[0]) / 100,
+        noOdds: Number(oddsRaw[1]) / 100,
+      }
+    : { yesOdds: 50, noOdds: 50 };
+
   return {
     market,
-    odds,
+    odds: oddsPct,
     yesBet: (yesBet as bigint) ?? 0n,
     noBet: (noBet as bigint) ?? 0n,
     claimed: (claimed as boolean) ?? false,
@@ -592,4 +701,49 @@ export function useClaimWinnings() {
   };
 
   return { claim, ...rest };
+}
+
+export function useWithdrawRefund() {
+  const { writeContractAsync, ...rest } = useWriteContract();
+
+  const withdraw = async (tokenAddress: `0x${string}`) => {
+    return writeContractAsync({
+      address: PREDICTION_MARKET_ADDRESS,
+      abi: PredictionMarketABI,
+      functionName: "withdrawRefund",
+      args: [tokenAddress],
+    });
+  };
+
+  return { withdraw, ...rest };
+}
+
+export function useRefundOneSidedMarket() {
+  const { writeContractAsync, ...rest } = useWriteContract();
+
+  const refund = async (tokenAddress: `0x${string}`) => {
+    return writeContractAsync({
+      address: PREDICTION_MARKET_ADDRESS,
+      abi: PredictionMarketABI,
+      functionName: "refundOneSidedMarket",
+      args: [tokenAddress],
+    });
+  };
+
+  return { refund, ...rest };
+}
+
+export function useResolveMarket() {
+  const { writeContractAsync, ...rest } = useWriteContract();
+
+  const resolve = async (tokenAddress: `0x${string}`) => {
+    return writeContractAsync({
+      address: PREDICTION_MARKET_ADDRESS,
+      abi: PredictionMarketABI,
+      functionName: "resolveMarket",
+      args: [tokenAddress],
+    });
+  };
+
+  return { resolve, ...rest };
 }
