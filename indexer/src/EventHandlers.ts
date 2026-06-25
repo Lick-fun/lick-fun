@@ -300,3 +300,101 @@ indexer.onEvent({ contract: "FeeRouter", event: "FeeRouted" }, async ({ event, c
     blockTimestamp: BigInt(event.block.timestamp),
   });
 });
+
+/* ═══════════════════ PREDICTIONMARKET: MarketCreated ══════════════════════════════ */
+
+/**
+ * Fired by Factory → PredictionMarket.createMarket().
+ * closeTime = block.timestamp + 48 hours.
+ */
+indexer.onEvent({ contract: "PredictionMarket", event: "MarketCreated" }, async ({ event, context }) => {
+  const tokenId = event.params.token.toLowerCase();
+  const blockTimestamp = BigInt(event.block.timestamp);
+  const BETTING_WINDOW = BigInt(48 * 3600); // 48 hours in seconds
+
+  context.Market.set({
+    id: tokenId,
+    totalYesMON: 0n,
+    totalNoMON: 0n,
+    resolved: false,
+    outcome: undefined,
+    cancelled: false,
+    closeTime: blockTimestamp + BETTING_WINDOW,
+    createdAt: blockTimestamp,
+    resolvedAt: undefined,
+  });
+});
+
+/* ════════════════════ PREDICTIONMARKET: BetPlaced ═════════════════════════════════ */
+
+/**
+ * Fired on betYes() and betNo(). Accumulates per-bettor totals in Bet entities.
+ */
+indexer.onEvent({ contract: "PredictionMarket", event: "BetPlaced" }, async ({ event, context }) => {
+  const tokenId = event.params.token.toLowerCase();
+  const bettorId = event.params.bettor.toLowerCase();
+  const isYes = event.params.isYes;
+  const amount = event.params.amount;
+  const blockTimestamp = BigInt(event.block.timestamp);
+
+  /* ── Update Market totals ── */
+  const market = await context.Market.get(tokenId);
+  if (market) {
+    context.Market.set({
+      ...market,
+      totalYesMON: isYes ? market.totalYesMON + amount : market.totalYesMON,
+      totalNoMON:  isYes ? market.totalNoMON  : market.totalNoMON + amount,
+    });
+  }
+
+  /* ── Upsert Bet entity (accumulate across multiple bets from same address+side) ── */
+  const betId = `${tokenId}-${bettorId}-${isYes ? "yes" : "no"}`;
+  const existingBet = await context.Bet.get(betId);
+  context.Bet.set({
+    id: betId,
+    market_id: tokenId,
+    bettor: bettorId,
+    isYes,
+    amount: (existingBet?.amount ?? 0n) + amount,
+    lastBetAt: blockTimestamp,
+  });
+});
+
+/* ════════════════════ PREDICTIONMARKET: MarketResolved ════════════════════════════ */
+
+/**
+ * Fired by resolveMarket(). Sets outcome and marks resolved.
+ */
+indexer.onEvent({ contract: "PredictionMarket", event: "MarketResolved" }, async ({ event, context }) => {
+  const tokenId = event.params.token.toLowerCase();
+  const blockTimestamp = BigInt(event.block.timestamp);
+
+  const market = await context.Market.get(tokenId);
+  if (!market) return;
+
+  context.Market.set({
+    ...market,
+    resolved: true,
+    outcome: event.params.outcome,
+    resolvedAt: blockTimestamp,
+  });
+});
+
+/* ═══════════════════ PREDICTIONMARKET: WinningsClaimed ════════════════════════════ */
+
+/**
+ * Fired by claimWinnings(). Creates a Claim record.
+ */
+indexer.onEvent({ contract: "PredictionMarket", event: "WinningsClaimed" }, async ({ event, context }) => {
+  const tokenId = event.params.token.toLowerCase();
+  const claimantId = event.params.claimant.toLowerCase();
+  const blockTimestamp = BigInt(event.block.timestamp);
+
+  context.Claim.set({
+    id: `${tokenId}-${claimantId}`,
+    market_id: tokenId,
+    claimant: claimantId,
+    amount: event.params.amount,
+    claimedAt: blockTimestamp,
+  });
+});

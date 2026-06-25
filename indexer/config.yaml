@@ -22,6 +22,14 @@ contracts:
       - event: "FeeRouted(address indexed token, uint256 totalAmount, uint256 creatorShare, uint256 lpShare, uint256 buybackShare, uint256 giftShare)"
       - event: "FeeConfigSet(address indexed token)"
 
+  - name: PredictionMarket
+    abi_file_path: "./abis/PredictionMarket.json"
+    events:
+      - event: "MarketCreated(address indexed token)"
+      - event: "BetPlaced(address indexed token, address indexed bettor, bool indexed isYes, uint256 amount)"
+      - event: "MarketResolved(address indexed token, bool outcome)"
+      - event: "WinningsClaimed(address indexed token, address indexed claimant, uint256 amount)"
+
 chains:
   - id: 10143
     hypersync_config:
@@ -35,3 +43,5 @@ chains:
       - name: BondingCurve
       - name: FeeRouter
         address: "0x7b433B3F5C6D6Af67ec85ADbCdeC8b5a8AFAA6BA"
+      - name: PredictionMarket
+        address: "0x73e4dd64abf9909c06c9b9111f35ab4902ec37e2"

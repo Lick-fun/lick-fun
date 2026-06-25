@@ -60,6 +60,46 @@ type Profile {
   tokens: [Token!]! @derivedFrom(field: "creator")
 }
 
+# ─── Prediction Markets ───────────────────────────────────────────────────────
+
+# One entry per prediction market.
+# Keyed by token address (same as the LickToken being bet on).
+type Market @entity {
+  id: ID!               # token address (lowercase hex)
+  totalYesMON: BigInt!  # total MON bet YES
+  totalNoMON: BigInt!   # total MON bet NO
+  resolved: Boolean!    # has been settled
+  outcome: Boolean      # true = graduated (YES wins), null until resolved
+  cancelled: Boolean!   # one-sided market cancelled
+  closeTime: BigInt!    # timestamp after which no more bets accepted
+  createdAt: BigInt!    # block.timestamp of MarketCreated
+  resolvedAt: BigInt    # block.timestamp of MarketResolved (null until resolved)
+}
+
+# One entry per bet placed.
+# Keyed by "${tokenAddress}-${bettor}-${isYes}" — one record per side per bettor.
+# If a bettor bets YES multiple times, amounts are accumulated.
+type Bet @entity {
+  id: ID!           # "${tokenAddress}-${bettor}-yes" or "-no"
+  market: Market!   # the market being bet on
+  bettor: String!   # bettor wallet address
+  isYes: Boolean!   # true = YES bet, false = NO bet
+  amount: BigInt!   # total MON bet (accumulated across multiple bets)
+  lastBetAt: BigInt! # block.timestamp of most recent bet
+}
+
+# One entry per winnings claim.
+# Keyed by "${tokenAddress}-${claimant}".
+type Claim @entity {
+  id: ID!              # "${tokenAddress}-${claimant}"
+  market: Market!      # the market winnings were claimed from
+  claimant: String!    # claimant wallet address
+  amount: BigInt!      # MON received
+  claimedAt: BigInt!   # block.timestamp of WinningsClaimed
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 # Phase 2 — FeeRouter fee configuration per token.
 # Keyed by token address.
 type FeeConfig @entity {

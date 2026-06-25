@@ -1,0 +1,36 @@
+[
+  {
+    "type": "event",
+    "name": "MarketCreated",
+    "inputs": [
+      { "name": "token", "type": "address", "indexed": true }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "BetPlaced",
+    "inputs": [
+      { "name": "token",  "type": "address", "indexed": true },
+      { "name": "bettor", "type": "address", "indexed": true },
+      { "name": "isYes",  "type": "bool",    "indexed": true },
+      { "name": "amount", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "MarketResolved",
+    "inputs": [
+      { "name": "token",   "type": "address", "indexed": true },
+      { "name": "outcome", "type": "bool",    "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "WinningsClaimed",
+    "inputs": [
+      { "name": "token",    "type": "address", "indexed": true },
+      { "name": "claimant", "type": "address", "indexed": true },
+      { "name": "amount",   "type": "uint256", "indexed": false }
+    ]
+  }
+]

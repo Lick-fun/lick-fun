@@ -13,11 +13,14 @@ import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { TierBadge } from "@/components/ui/Badge";
 import { TokenImage } from "@/components/ui/TokenImage";
-import { ArrowLeft, GraduationCap, TrendingUp, Shield, User, ExternalLink } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, GraduationCap, TrendingUp, Shield, User, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { BetForm } from "@/components/markets/BetForm";
 
 export default function TokenDetailPage() {
   const { id } = useParams<{ id: string }>();
   const tokenId = (id as string) ?? "";
+  const [showBetForm, setShowBetForm] = useState(false);
 
   const { data: token, isLoading: tokenLoading, error: tokenError, refetch: refetchToken } = useToken(tokenId);
   const { data: trades = [], isLoading: tradesLoading } = useTokenTrades(tokenId);
@@ -221,7 +224,19 @@ export default function TokenDetailPage() {
           {/* Prediction Market */}
           {market && (
             <div className="rounded-card border border-figma-card bg-figma-card p-5">
-              <h3 className="text-figma-md text-figma-white font-semibold mb-4">Prediction Market</h3>
+              {/* Header — always visible */}
+              <button
+                onClick={() => setShowBetForm((v) => !v)}
+                className="w-full flex items-center justify-between mb-4 group"
+              >
+                <h3 className="text-figma-md text-figma-white font-semibold">Prediction Market</h3>
+                {showBetForm
+                  ? <ChevronUp className="w-4 h-4 text-figma-muted group-hover:text-figma-white transition-colors" />
+                  : <ChevronDown className="w-4 h-4 text-figma-muted group-hover:text-figma-white transition-colors" />
+                }
+              </button>
+
+              {/* Compact odds bar — always visible */}
               <div className="mb-3">
                 <div className="flex justify-between text-figma-xs text-figma-muted mb-1.5">
                   <span className="text-figma-green font-semibold">YES {market.odds.yesOdds.toFixed(0)}%</span>
@@ -231,12 +246,35 @@ export default function TokenDetailPage() {
                   <div className="h-full rounded-full bg-figma-green/60 transition-all" style={{ width: `${market.odds.yesOdds}%` }} />
                 </div>
               </div>
-              <div className="text-figma-xs text-figma-muted">
+              <div className="text-figma-xs text-figma-muted mb-3">
                 Pool: {(Number(market.totalYesMON + market.totalNoMON) / 1e18).toFixed(2)} MON
                 {market.resolved && (
-                  <span className="ml-2 text-figma-green-soft">• {market.outcome ? "Graduated ✅" : "Didn't graduate ❌"}</span>
+                  <span className="ml-2 text-figma-green-soft">
+                    • {market.outcome ? "Graduated ✅" : "Didn't graduate ❌"}
+                  </span>
                 )}
               </div>
+
+              {/* Expandable full BetForm */}
+              {showBetForm && (
+                <div className="border-t border-figma-surface pt-4">
+                  <BetForm
+                    tokenName={tokenName || displayName}
+                    tokenId={tokenId}
+                    yesOdds={market.odds.yesOdds}
+                    noOdds={market.odds.noOdds}
+                    resolved={market.resolved}
+                    cancelled={market.cancelled}
+                    outcome={market.outcome}
+                    closeTime={market.closeTime}
+                    userYesBet={market.userYesBet}
+                    userNoBet={market.userNoBet}
+                    claimed={market.claimed}
+                    totalYesMON={market.totalYesMON}
+                    totalNoMON={market.totalNoMON}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

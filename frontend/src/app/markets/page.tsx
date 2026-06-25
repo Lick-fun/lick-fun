@@ -205,6 +205,8 @@ export default function MarketsPage() {
               userYesBet={selected.userYesBet}
               userNoBet={selected.userNoBet}
               claimed={selected.claimed}
+              totalYesMON={selected.totalYesMON}
+              totalNoMON={selected.totalNoMON}
             />
           ) : (
             <div className="rounded-card border border-figma-card bg-figma-card p-5 text-center text-figma-muted">

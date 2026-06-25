@@ -9,6 +9,8 @@ import { parseEther, type Abi } from "viem";
 
 export const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
 export const PREDICTION_MARKET_ADDRESS = (process.env.NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const PREDICTION_MARKET_DEPLOYED = PREDICTION_MARKET_ADDRESS !== ZERO_ADDRESS;
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Factory ABI (deployed testnet version)                                           */
@@ -746,4 +748,29 @@ export function useResolveMarket() {
   };
 
   return { resolve, ...rest };
+}
+
+export function useSweepProtocolFee() {
+  const { writeContractAsync, ...rest } = useWriteContract();
+
+  const sweep = async (tokenAddress: `0x${string}`) => {
+    return writeContractAsync({
+      address: PREDICTION_MARKET_ADDRESS,
+      abi: PredictionMarketABI,
+      functionName: "sweepProtocolFee",
+      args: [tokenAddress],
+    });
+  };
+
+  return { sweep, ...rest };
+}
+
+export function useFeeSwept(tokenAddress: `0x${string}` | undefined) {
+  return useReadContract({
+    address: PREDICTION_MARKET_ADDRESS,
+    abi: PredictionMarketABI,
+    functionName: "feeSwept",
+    args: tokenAddress ? [tokenAddress] : undefined,
+    query: { enabled: PREDICTION_MARKET_DEPLOYED && !!tokenAddress },
+  });
 }

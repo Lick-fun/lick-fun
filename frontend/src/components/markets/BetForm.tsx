@@ -10,8 +10,12 @@ import {
   useBetNo,
   useClaimWinnings,
   useWithdrawRefund,
+  useResolveMarket,
+  useRefundOneSidedMarket,
+  useSweepProtocolFee,
+  useFeeSwept,
 } from "@/lib/wagmi/contracts";
-import { Loader2, AlertCircle, Trophy } from "lucide-react";
+import { Loader2, AlertCircle, Trophy, CheckCircle2, XCircle, Coins } from "lucide-react";
 
 interface BetFormProps {
   tokenName: string;
@@ -25,6 +29,8 @@ interface BetFormProps {
   userYesBet: bigint;
   userNoBet: bigint;
   claimed: boolean;
+  totalYesMON?: bigint;
+  totalNoMON?: bigint;
 }
 
 export function BetForm({
@@ -39,6 +45,8 @@ export function BetForm({
   userYesBet,
   userNoBet,
   claimed,
+  totalYesMON = 0n,
+  totalNoMON = 0n,
 }: BetFormProps) {
   const { isConnected } = useAccount();
   const [side, setSide] = useState<"yes" | "no">("yes");
@@ -49,6 +57,10 @@ export function BetForm({
   const { betNo, isPending: isBettingNo } = useBetNo();
   const { claim, isPending: isClaiming } = useClaimWinnings();
   const { withdraw, isPending: isWithdrawing } = useWithdrawRefund();
+  const { resolve, isPending: isResolving } = useResolveMarket();
+  const { refund: cancelMarket, isPending: isCancelling } = useRefundOneSidedMarket();
+  const { sweep, isPending: isSweeping } = useSweepProtocolFee();
+  const { data: feeAlreadySwept } = useFeeSwept(resolved ? tokenId as `0x${string}` : undefined);
 
   const isBetting = isBettingYes || isBettingNo;
 
@@ -75,6 +87,39 @@ export function BetForm({
     resolved &&
     ((outcome && userYesBet > 0n) || (!outcome && userNoBet > 0n));
   const canClaim = userWon && !claimed;
+
+  // Resolve / cancel eligibility
+  const hasBothSides = totalYesMON > 0n && totalNoMON > 0n;
+  const canResolve = !resolved && !cancelled && bettingClosed && hasBothSides;
+  // One-sided cancel: 7 days after betting closed, only one side has bets
+  const REFUND_DELAY_SEC = 7 * 24 * 3600;
+  const canCancelOneSided =
+    !resolved &&
+    !cancelled &&
+    closeSec > 0 &&
+    nowSec >= closeSec + REFUND_DELAY_SEC &&
+    !hasBothSides &&
+    (totalYesMON > 0n || totalNoMON > 0n);
+
+  async function handleResolve() {
+    if (!isConnected) return;
+    setErrorMsg(null);
+    try {
+      await resolve(tokenId as `0x${string}`);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Resolve failed");
+    }
+  }
+
+  async function handleCancelOneSided() {
+    if (!isConnected) return;
+    setErrorMsg(null);
+    try {
+      await cancelMarket(tokenId as `0x${string}`);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Cancel failed");
+    }
+  }
 
   async function handleBet() {
     if (!isConnected || amountNum <= 0) return;
@@ -109,6 +154,15 @@ export function BetForm({
       await withdraw(tokenId as `0x${string}`);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Withdraw failed");
+    }
+  }
+
+  async function handleSweep() {
+    setErrorMsg(null);
+    try {
+      await sweep(tokenId as `0x${string}`);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Sweep failed");
     }
   }
 
@@ -218,6 +272,26 @@ export function BetForm({
           </p>
         )}
 
+        {/* Sweep fee button — resolved markets, fee not yet swept, anyone can call */}
+        {resolved && !feeAlreadySwept && (
+          <button
+            onClick={handleSweep}
+            disabled={isSweeping}
+            className="w-full mt-3 py-2 rounded-lg font-semibold border border-figma-muted/30 text-figma-muted hover:text-figma-white hover:border-figma-muted/60 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-xs"
+          >
+            {isSweeping ? (
+              <><Loader2 className="w-3 h-3 animate-spin" />Sweeping...</>
+            ) : (
+              <><Coins className="w-3 h-3" />Sweep Protocol Fee</>  
+            )}
+          </button>
+        )}
+        {resolved && feeAlreadySwept && (
+          <p className="text-xs text-figma-muted text-center mt-3 flex items-center justify-center gap-1">
+            <Coins className="w-3 h-3" /> Protocol fee swept
+          </p>
+        )}
+
         {errorMsg && (
           <p className="text-xs text-red-400 mt-3 flex items-center gap-1">
             <AlertCircle className="w-3 h-3" />
@@ -290,11 +364,27 @@ export function BetForm({
           </span>
         </div>
         <div className="flex justify-between mt-1">
-          <span className="text-muted-foreground">Potential payout</span>
+          <span className="text-muted-foreground">Est. payout</span>
           <span className="font-mono">
-            {amountNum > 0 && odds > 0
-              ? `${((amountNum * 100) / odds).toFixed(2)} MON`
-              : "—"}
+            {(() => {
+              if (amountNum <= 0) return "—";
+              // Parimutuel: winner gets proportional share of losing pool (net 2% fee)
+              const amtWei = BigInt(Math.floor(amountNum * 1e18));
+              if (side === "yes" && totalYesMON > 0n) {
+                const winnerPool = totalYesMON + amtWei;
+                const losingPool = totalNoMON;
+                const payout = (amtWei * losingPool * 98n) / (winnerPool * 100n);
+                const totalReturn = amtWei + payout;
+                return `~${(Number(totalReturn) / 1e18).toFixed(3)} MON`;
+              } else if (side === "no" && totalNoMON > 0n) {
+                const winnerPool = totalNoMON + amtWei;
+                const losingPool = totalYesMON;
+                const payout = (amtWei * losingPool * 98n) / (winnerPool * 100n);
+                const totalReturn = amtWei + payout;
+                return `~${(Number(totalReturn) / 1e18).toFixed(3)} MON`;
+              }
+              return "—";
+            })()}
           </span>
         </div>
         {userYesBet > 0n && (
@@ -335,6 +425,36 @@ export function BetForm({
             "Betting Closed"
           ) : (
             `Bet ${side.toUpperCase()}`
+          )}
+        </button>
+      )}
+
+      {/* Resolve button — visible to anyone once betting window closes and both sides exist */}
+      {canResolve && isConnected && (
+        <button
+          onClick={handleResolve}
+          disabled={isResolving}
+          className="w-full mt-3 py-2 rounded-lg font-semibold border border-figma-green/40 text-figma-green hover:bg-figma-green/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+        >
+          {isResolving ? (
+            <><Loader2 className="w-4 h-4 animate-spin" />Resolving...</>
+          ) : (
+            <><CheckCircle2 className="w-4 h-4" />Resolve Market</>
+          )}
+        </button>
+      )}
+
+      {/* Cancel one-sided market — visible after 7-day delay with one side only */}
+      {canCancelOneSided && isConnected && (
+        <button
+          onClick={handleCancelOneSided}
+          disabled={isCancelling}
+          className="w-full mt-3 py-2 rounded-lg font-semibold border border-figma-red/40 text-figma-red-soft hover:bg-figma-red/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+        >
+          {isCancelling ? (
+            <><Loader2 className="w-4 h-4 animate-spin" />Cancelling...</>
+          ) : (
+            <><XCircle className="w-4 h-4" />Cancel One-Sided Market</>
           )}
         </button>
       )}
