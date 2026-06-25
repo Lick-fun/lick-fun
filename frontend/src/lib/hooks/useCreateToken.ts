@@ -353,7 +353,7 @@ export function useCreateToken(): UseCreateTokenResult {
           abi: FactoryABI,
           functionName: "createTokenWithPreset",
           args: [name, symbol, address, 0n, PRESET_ENUM_INDEX[preset]],
-          gas: 3_000_000n,
+          gas: 3_500_000n, // testnet workaround: Monad testnet has tight per-tx gas; mainnet auto-estimates
         });
       } else {
         await writeContractAsync({
@@ -361,7 +361,7 @@ export function useCreateToken(): UseCreateTokenResult {
           abi: FactoryABI,
           functionName: "createToken",
           args: [name, symbol, address, 0n],
-          gas: 3_000_000n,
+          gas: 3_500_000n, // testnet workaround: Monad testnet has tight per-tx gas; mainnet auto-estimates
         });
       }
     } catch (err) {
