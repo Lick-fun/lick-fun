@@ -4,7 +4,6 @@ pragma solidity 0.8.27;
 import "forge-std/Test.sol";
 import "../src/LickToken.sol";
 import "../src/VestingController.sol";
-import "@openzeppelin/contracts/finance/VestingWallet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract VestingControllerTest is Test {
@@ -32,8 +31,10 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        assertNotEq(wallet, address(0));
-        assertEq(token.balanceOf(wallet), totalAmount);
+        // Phase 2: no VestingWallet deployed — wallet is address(0)
+        assertEq(wallet, address(0));
+        // Tokens held by controller directly
+        assertEq(token.balanceOf(address(controller)), totalAmount);
 
         (
             address storedWallet,
@@ -44,7 +45,7 @@ contract VestingControllerTest is Test {
             ,,,
         ) = controller.allocations(address(token));
 
-        assertEq(storedWallet, wallet);
+        assertEq(storedWallet, address(0));
         assertEq(beneficiary, dev);
         assertEq(uint256(tier), uint256(VestingController.Tier.LIGHT));
         assertEq(storedAmount, totalAmount);
@@ -55,7 +56,7 @@ contract VestingControllerTest is Test {
 
     function testPreDEXVesting730Days() public {
         token.approve(address(controller), totalAmount);
-        address wallet = controller.createAllocation(
+        controller.createAllocation(
             address(token),
             dev,
             totalAmount,
@@ -63,21 +64,22 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        // Phase 2: PRE_DEX_DURATION = 0 — all tokens are immediately releasable
-        uint256 fullReleasable = VestingWallet(payable(wallet)).releasable(address(token));
-        assertApproxEqRel(fullReleasable, totalAmount, 0.01e18);
+        // Phase 2: tokens sit in controller, immediately claimable by beneficiary
+        assertEq(token.balanceOf(address(controller)), totalAmount);
+        assertEq(controller.getClaimable(address(token)), totalAmount);
 
-        // Release — tokens go to controller (the pre-DEX beneficiary)
-        uint256 beforeBalance = token.balanceOf(address(controller));
-        VestingWallet(payable(wallet)).release(address(token));
-        assertApproxEqRel(token.balanceOf(address(controller)) - beforeBalance, totalAmount, 0.01e18);
+        // Beneficiary claims
+        vm.prank(dev);
+        controller.claim(address(token));
+        assertEq(token.balanceOf(dev), totalAmount);
+        assertEq(token.balanceOf(address(controller)), 0);
     }
 
     // ─── testGraduationSwitchesToPostDEXSchedule (Phase 2: stub onGraduation) ──
 
     function testGraduationSwitchesToPostDEXSchedule() public {
         token.approve(address(controller), totalAmount);
-        address preWallet = controller.createAllocation(
+        controller.createAllocation(
             address(token),
             dev,
             totalAmount,
@@ -85,7 +87,7 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        // Phase 2: onGraduation is a stub — no wallet change, no token migration
+        // Phase 2: onGraduation is a stub — no change
         controller.onGraduation(address(token));
 
         (
@@ -97,8 +99,8 @@ contract VestingControllerTest is Test {
             ,,,
         ) = controller.allocations(address(token));
 
-        // Wallet stays the same (stub doesn't redeploy)
-        assertEq(postWallet, preWallet);
+        // Phase 2: vestingWallet stays address(0)
+        assertEq(postWallet, address(0));
         assertEq(storedBeneficiary, dev);
     }
 
@@ -117,12 +119,9 @@ contract VestingControllerTest is Test {
         controller.onGraduation(address(token));
 
         (, , , , , uint256 lockDays, uint256 vestDays, , ) = controller.allocations(address(token));
-        // Phase 2: all lock/vest days are 0
         assertEq(lockDays, 0);
         assertEq(vestDays, 0);
-
-        address newWallet = controller.getVestingWallet(address(token));
-        assertEq(VestingWallet(payable(newWallet)).duration(), 0);
+        assertEq(controller.getVestingWallet(address(token)), address(0));
     }
 
     // ─── testStandardTierVesting180Days (Phase 2: all durations = 0) ──────────
@@ -140,12 +139,9 @@ contract VestingControllerTest is Test {
         controller.onGraduation(address(token));
 
         (, , , , , uint256 lockDays, uint256 vestDays, , ) = controller.allocations(address(token));
-        // Phase 2: all lock/vest days are 0
         assertEq(lockDays, 0);
         assertEq(vestDays, 0);
-
-        address newWallet = controller.getVestingWallet(address(token));
-        assertEq(VestingWallet(payable(newWallet)).duration(), 0);
+        assertEq(controller.getVestingWallet(address(token)), address(0));
     }
 
     // ─── testDiamondTierVesting90Days (Phase 2: all durations = 0) ────────────
@@ -163,19 +159,16 @@ contract VestingControllerTest is Test {
         controller.onGraduation(address(token));
 
         (, , , , , uint256 lockDays, uint256 vestDays, , ) = controller.allocations(address(token));
-        // Phase 2: all lock/vest days are 0
         assertEq(lockDays, 0);
         assertEq(vestDays, 0);
-
-        address newWallet = controller.getVestingWallet(address(token));
-        assertEq(VestingWallet(payable(newWallet)).duration(), 0);
+        assertEq(controller.getVestingWallet(address(token)), address(0));
     }
 
     // ─── testTokensLockedIfNoGraduation (Phase 2: PRE_DEX_DURATION = 0) ───────
 
     function testTokensLockedIfNoGraduation() public {
         token.approve(address(controller), totalAmount);
-        address wallet = controller.createAllocation(
+        controller.createAllocation(
             address(token),
             dev,
             totalAmount,
@@ -183,11 +176,10 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        // Phase 2: PRE_DEX_DURATION = 0 — all tokens are immediately releasable
-        uint256 releasable = VestingWallet(payable(wallet)).releasable(address(token));
-        assertEq(releasable, totalAmount);
+        // Phase 2: tokens sit in controller, immediately claimable
+        assertEq(controller.getClaimable(address(token)), totalAmount);
 
-        // Dev has no tokens because old wallet beneficiary is controller
+        // Dev has no tokens until they call claim()
         assertEq(token.balanceOf(dev), 0);
 
         // No graduation — check graduated flag
@@ -225,7 +217,7 @@ contract VestingControllerTest is Test {
 
     function testGetClaimable() public {
         token.approve(address(controller), totalAmount);
-        address wallet = controller.createAllocation(
+        controller.createAllocation(
             address(token),
             dev,
             totalAmount,
@@ -233,10 +225,9 @@ contract VestingControllerTest is Test {
             startTime
         );
 
-        vm.warp(startTime + 365 days);
+        // Phase 2: immediately claimable, no warp needed
         uint256 claimable = controller.getClaimable(address(token));
-        assertGt(claimable, 0);
-        assertEq(claimable, VestingWallet(payable(wallet)).releasable(address(token)));
+        assertEq(claimable, totalAmount);
     }
 
     // ─── testLPWithdrawnAfterLockEnd ───────────────────────────────────────────

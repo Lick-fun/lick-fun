@@ -1,17 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-import "@openzeppelin/contracts/finance/VestingWallet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title VestingController
- * @notice Manages dev allocation vesting using OZ VestingWallet with three-tier lock system
- * @dev Controller is the beneficiary of pre-DEX VestingWallet (730d linear).
- *      On graduation, sweeps remaining tokens and redeploys with post-DEX schedule.
- *
- *      Phase 2: All duration constants are 0 — tokens are liquid immediately.
+ * @notice Manages dev allocation vesting for the Lick.fun launchpad.
+ * @dev Phase 2: All duration constants are 0 — tokens are liquid immediately.
+ *      Tokens are held directly in this contract (no per-token VestingWallet deploy)
+ *      to keep createToken gas under Monad testnet's 4M block gas limit.
+ *      Beneficiary can claim their dev allocation at any time via claim().
  *      Tier differentiation is via FeeRouter fee splits only, not locks.
  *      LP tokens are burned to 0xdead at graduation (GraduationRouter).
  *      lockLPTokens() and withdrawLP() are kept for ABI compatibility only.
@@ -21,7 +20,7 @@ contract VestingController is ReentrancyGuard {
     enum Tier { LIGHT, STANDARD, DIAMOND }
 
     struct DevAllocation {
-        address vestingWallet;     // deployed OZ VestingWallet (pre-DEX or post-DEX)
+        address vestingWallet;     // address(0) in Phase 2 — tokens held by controller directly
         address beneficiary;       // actual dev wallet
         Tier tier;
         uint256 totalAmount;
@@ -92,6 +91,8 @@ contract VestingController is ReentrancyGuard {
     error AlreadyGraduated();
     error AllocationNotFound();
     error NoLP();
+    error NothingToClaim();
+    error NotBeneficiary();
 
     constructor() {
         owner = msg.sender;
@@ -145,17 +146,13 @@ contract VestingController is ReentrancyGuard {
 
         (uint256 lockDays, uint256 vestDays) = getTierParams(tier);
 
-        // Deploy VestingWallet with controller as beneficiary (pre-DEX)
-        // duration = 730 days, start = startTime
-        VestingWallet wallet = new VestingWallet(
-            address(this),       // beneficiary = controller (we'll sweep on graduation)
-            uint64(startTime),
-            uint64(PRE_DEX_DURATION)
-        );
-        vestingWallet = address(wallet);
+        // Phase 2: PRE_DEX_DURATION = 0 — skip VestingWallet deploy to save ~450k gas.
+        // Tokens are already held by this contract (Factory transferred them before calling).
+        // Beneficiary claims directly via claim().
+        vestingWallet = address(0);
 
         allocations[token] = DevAllocation({
-            vestingWallet: vestingWallet,
+            vestingWallet: address(0),
             beneficiary: beneficiary,
             tier: tier,
             totalAmount: totalAmount,
@@ -166,10 +163,7 @@ contract VestingController is ReentrancyGuard {
             initialized: true
         });
 
-        // Transfer tokens from this contract to the VestingWallet (C4 fix: self-transfer)
-        IERC20(token).transfer(vestingWallet, totalAmount);
-
-        emit AllocationCreated(token, beneficiary, vestingWallet, tier, totalAmount, startTime);
+        emit AllocationCreated(token, beneficiary, address(0), tier, totalAmount, startTime);
     }
 
     /**
@@ -195,17 +189,11 @@ contract VestingController is ReentrancyGuard {
 
         (uint256 lockDays, uint256 vestDays) = getTierParams(tier);
 
-        // Deploy VestingWallet with controller as beneficiary (pre-DEX)
-        // duration = 730 days, start = startTime
-        VestingWallet wallet = new VestingWallet(
-            address(this),       // beneficiary = controller (we'll sweep on graduation)
-            uint64(startTime),
-            uint64(PRE_DEX_DURATION)
-        );
-        vestingWallet = address(wallet);
+        // Phase 2: no VestingWallet deploy — tokens held by this contract.
+        vestingWallet = address(0);
 
         allocations[token] = DevAllocation({
-            vestingWallet: vestingWallet,
+            vestingWallet: address(0),
             beneficiary: beneficiary,
             tier: tier,
             totalAmount: totalAmount,
@@ -216,10 +204,35 @@ contract VestingController is ReentrancyGuard {
             initialized: true
         });
 
-        // Transfer tokens from caller to the VestingWallet
-        IERC20(token).transferFrom(msg.sender, vestingWallet, totalAmount);
+        // Transfer tokens from caller into this contract
+        IERC20(token).transferFrom(msg.sender, address(this), totalAmount);
 
-        emit AllocationCreated(token, beneficiary, vestingWallet, tier, totalAmount, startTime);
+        emit AllocationCreated(token, beneficiary, address(0), tier, totalAmount, startTime);
+    }
+
+    // ─── Claim ────────────────────────────────────────────────────────────────
+
+    /**
+     * @notice Claim dev allocation tokens. Phase 2: tokens are immediately claimable.
+     * @param token The LickToken address whose dev allocation to claim
+     * @dev Only callable by the beneficiary. Transfers all remaining tokens to beneficiary.
+     */
+    function claim(address token) external nonReentrant {
+        DevAllocation storage alloc = allocations[token];
+        if (!alloc.initialized) revert AllocationNotFound();
+        if (msg.sender != alloc.beneficiary) revert NotBeneficiary();
+
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        if (balance == 0) revert NothingToClaim();
+
+        // Cap at totalAmount to avoid sweeping unrelated token balances
+        uint256 amount = balance < alloc.totalAmount ? balance : alloc.totalAmount;
+        if (amount == 0) revert NothingToClaim();
+
+        // Reduce stored amount before transfer (CEI)
+        alloc.totalAmount -= amount;
+
+        IERC20(token).transfer(alloc.beneficiary, amount);
     }
 
     // ─── Graduation ───────────────────────────────────────────────────────────
@@ -312,13 +325,16 @@ contract VestingController is ReentrancyGuard {
     function getClaimable(address token) external view returns (uint256) {
         DevAllocation storage alloc = allocations[token];
         if (!alloc.initialized) return 0;
-        return VestingWallet(payable(alloc.vestingWallet)).releasable(token);
+        // Phase 2: tokens held directly — claimable = min(balance, totalAmount)
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        return balance < alloc.totalAmount ? balance : alloc.totalAmount;
     }
 
     /**
-     * @notice Returns the active vesting wallet address for a token
+     * @notice Returns the active vesting wallet address for a token.
+     * @dev Phase 2: always returns address(0) — tokens are held by this contract directly.
      * @param token The token address
-     * @return wallet The current VestingWallet address
+     * @return wallet Always address(0) in Phase 2
      */
     function getVestingWallet(address token) external view returns (address) {
         return allocations[token].vestingWallet;

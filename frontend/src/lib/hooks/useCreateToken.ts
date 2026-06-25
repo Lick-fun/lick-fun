@@ -353,7 +353,7 @@ export function useCreateToken(): UseCreateTokenResult {
           abi: FactoryABI,
           functionName: "createTokenWithPreset",
           args: [name, symbol, address, 0n, PRESET_ENUM_INDEX[preset]],
-          gas: 4_000_000n,
+          gas: 3_000_000n,
         });
       } else {
         await writeContractAsync({
@@ -361,7 +361,7 @@ export function useCreateToken(): UseCreateTokenResult {
           abi: FactoryABI,
           functionName: "createToken",
           args: [name, symbol, address, 0n],
-          gas: 4_000_000n,
+          gas: 3_000_000n,
         });
       }
     } catch (err) {
