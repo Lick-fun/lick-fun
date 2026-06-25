@@ -28,10 +28,10 @@ chains:
       url: https://monad-testnet.hypersync.xyz
     rpc:
       url: https://testnet-rpc.monad.xyz
-    start_block: 40482913
+    start_block: 40486351
     contracts:
       - name: Factory
-        address: "0xcaB40ade3533487B352383a495425bb778822ebE"
+        address: "0x6355D4405c2BCd722c0499f4997A37C7f8B7879f"
       - name: BondingCurve
       - name: FeeRouter
-        address: "0x2FaA3E69C26535f56870da867Ff2F6AbdE6ba7B2"
+        address: "0x7b433B3F5C6D6Af67ec85ADbCdeC8b5a8AFAA6BA"

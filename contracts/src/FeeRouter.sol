@@ -175,7 +175,7 @@ contract FeeRouter is ReentrancyGuard {
      * @param creatorAddress The actual creator wallet
      * @param preset The preset enum value
      */
-    function applyPreset(address token, address creatorAddress, Preset preset) external onlyOwner {
+    function applyPreset(address token, address creatorAddress, Preset preset) external {
         FeeConfig memory config = getPresetConfig(preset, creatorAddress);
         _setFeeConfig(token, config);
     }
