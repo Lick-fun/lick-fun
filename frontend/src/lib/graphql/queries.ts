@@ -218,9 +218,26 @@ export const QUERY_RECENT_TRADES = gql`
  * simple and additive only.
  */
 export const QUERY_TRADES_24H = gql`
-  query GetTrades24h($since: BigInt!, $tokenId: String!, $limit: Int!) {
+  query GetTrades24h($since: numeric!, $tokenId: String!, $limit: Int!) {
     Trade(
       where: { blockTimestamp: { _gte: $since }, token_id: { _eq: $tokenId } }
+      order_by: { blockTimestamp: asc }
+      limit: $limit
+    ) {
+      ...TradeFields
+    }
+  }
+  ${TRADE_FRAGMENT}
+`;
+
+/**
+ * Fetches all trades for a token in chronological order for building OHLC
+ * price bars client-side. Ordered ASC so bars can be built by iterating once.
+ */
+export const QUERY_CHART_TRADES = gql`
+  query GetChartTrades($tokenId: String!, $limit: Int!) {
+    Trade(
+      where: { token_id: { _eq: $tokenId } }
       order_by: { blockTimestamp: asc }
       limit: $limit
     ) {

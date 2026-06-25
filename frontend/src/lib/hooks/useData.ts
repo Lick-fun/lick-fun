@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount, useReadContracts } from "wagmi";
 import { mockTokens, mockMarkets, getMockOdds } from "@/lib/mock/data";
@@ -15,6 +15,7 @@ import {
   QUERY_ALL_TOKENS,
   QUERY_TOKEN,
   QUERY_TRADES_BY_TOKEN,
+  QUERY_CHART_TRADES,
   QUERY_PROFILE,
   QUERY_ALL_PROFILES,
   QUERY_LEADERBOARD,
@@ -95,6 +96,7 @@ export function useAllTokens() {
         decorateToken(toBigIntToken(r))
       );
     },
+    refetchInterval: 10_000, // live prices on home + discover grids
   });
 }
 
@@ -110,6 +112,7 @@ export function useToken(tokenId: string) {
       if (!res.Token_by_pk) return null;
       return decorateToken(toBigIntToken(res.Token_by_pk));
     },
+    refetchInterval: 5_000, // live price on token detail page
   });
 }
 
@@ -125,6 +128,7 @@ export function useTokenTrades(tokenId: string) {
       );
       return ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
     },
+    refetchInterval: 10_000, // keep recent trades list fresh
   });
 }
 
@@ -204,58 +208,6 @@ export function useRecentTrades(limit: number = 10) {
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
 const DAY_SECONDS = 86_400n;
-const VIRTUAL_MON_24H = 80_000n * 10n ** 18n;
-const VIRTUAL_TOKENS_24H = 477_000_000n * 10n ** 18n;
-const K_24H = VIRTUAL_MON_24H * VIRTUAL_TOKENS_24H;
-
-/**
- * Mirrors the BondingCurve CPMM math to derive realMon from soldTokens.
- * This lets us reconstruct a near-exact price at the time of any historical
- * trade by winding the on-chain state forward/backward from that trade.
- *
- * Formula: realMon = K / (VIRTUAL_TOKENS - soldTokens) - VIRTUAL_MON
- */
-function deriveRealMon24h(soldTokens: bigint): bigint {
-  const remaining = VIRTUAL_TOKENS_24H - soldTokens;
-  if (remaining <= 0n) return 0n;
-  const quotient = K_24H / remaining;
-  return quotient > VIRTUAL_MON_24H ? quotient - VIRTUAL_MON_24H : 0n;
-}
-
-/**
- * Computes the spot price in MON for a given soldTokens state.
- * Same calculation as getTokenPrice() but kept local for clarity.
- */
-function priceFromSoldTokens(soldTokens: bigint): number {
-  const reserveTokens = VIRTUAL_TOKENS_24H - soldTokens;
-  if (reserveTokens <= 0n) return 0;
-  const reserveMon = VIRTUAL_MON_24H + deriveRealMon24h(soldTokens);
-  return Number(reserveMon) / Number(reserveTokens);
-}
-
-/**
- * Reconstructs the state of soldTokens *after* a trade by replaying it.
- * - For a buy: soldTokens increased by amountOut.
- * - For a sell: soldTokens decreased by amountIn.
- */
-function soldTokensAfterTrade(trade: TradeEntity): bigint {
-  // We need the token's initial soldTokens at launch, which is 0n.
-  // The trade table itself only records deltas, but the indexer stores the
-  // *resulting* soldTokens on the Token row. We approximate by walking back
-  // from the current Token.soldTokens via the trade history — however, for a
-  // single reference trade we can derive the post-trade soldTokens only if we
-  // know the pre-trade state. To keep this client-side and avoid a full
-  // history replay, we use the trade's amountOut/amountIn to compute the price
-  // at the moment the trade settled: pre-trade + delta/2 gives a mid-trade
-  // approximation accurate enough for a percentage badge.
-  //
-  // Better approach that works without full history: the curve price is a
-  // function of soldTokens. At settlement, soldTokens_after = soldTokens_before
-  // + delta. The exact effective price paid (ignoring fees) is amountIn/amountOut
-  // for a buy, or amountOut/amountIn for a sell. We use that directly as the
-  // historical reference price — it's the actual market price at that trade.
-  return 0n;
-}
 
 /**
  * Returns the effective trade price in MON per token from a single Trade.
@@ -320,7 +272,7 @@ export function useTokenPriceChanges(tokenIds: string[]) {
 
       return map;
     },
-    refetchInterval: 60_000, // refresh every 60s
+    refetchInterval: 15_000, // refresh every 15s
     enabled: tokenIds.length > 0,
   });
 }
@@ -944,4 +896,119 @@ export function reputationColor(score: number): string {
   if (score >= 70) return "text-green-400";
   if (score >= 30) return "text-blue-400";
   return "text-yellow-400";
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* OHLC Price Bar types & hook (powers the TradingView Lightweight Charts chart)    */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+export type ChartResolution = "1" | "5" | "15" | "60" | "240" | "1D";
+
+/** Resolution label → seconds per candle */
+const RESOLUTION_SECONDS: Record<ChartResolution, number> = {
+  "1": 60,
+  "5": 300,
+  "15": 900,
+  "60": 3_600,
+  "240": 14_400,
+  "1D": 86_400,
+};
+
+export interface OHLCBar {
+  /** Unix timestamp (seconds) — start of the candle bucket */
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  /** MON volume for the candle */
+  volume: number;
+}
+
+/**
+ * Derives the effective traded price in MON per token from a single trade.
+ * Buy:  amountIn (MON wei) / amountOut (token wei)
+ * Sell: amountOut (MON wei) / amountIn (token wei)
+ */
+function tradePrice(trade: TradeEntity): number {
+  if (trade.isBuy) {
+    if (trade.amountOut === 0n) return 0;
+    return Number(trade.amountIn) / Number(trade.amountOut);
+  }
+  if (trade.amountIn === 0n) return 0;
+  return Number(trade.amountOut) / Number(trade.amountIn);
+}
+
+/**
+ * Aggregates an array of trades (sorted ASC by blockTimestamp) into OHLC candles.
+ * Each candle covers exactly `bucketSecs` seconds.
+ */
+function buildOHLCBars(trades: TradeEntity[], bucketSecs: number): OHLCBar[] {
+  if (trades.length === 0) return [];
+
+  const bars = new Map<number, OHLCBar>();
+
+  for (const trade of trades) {
+    const price = tradePrice(trade);
+    if (price === 0) continue;
+
+    const ts = Number(trade.blockTimestamp);
+    const bucketTime = Math.floor(ts / bucketSecs) * bucketSecs;
+
+    const vol = trade.isBuy
+      ? Number(trade.amountIn) / 1e18   // MON in
+      : Number(trade.amountOut) / 1e18; // MON out
+
+    const existing = bars.get(bucketTime);
+    if (!existing) {
+      bars.set(bucketTime, {
+        time: bucketTime,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume: vol,
+      });
+    } else {
+      existing.high = Math.max(existing.high, price);
+      existing.low = Math.min(existing.low, price);
+      existing.close = price;
+      existing.volume += vol;
+    }
+  }
+
+  return Array.from(bars.values()).sort((a, b) => a.time - b.time);
+}
+
+/**
+ * Fetches trades for a token (up to 1000, ASC) and aggregates them into OHLC
+ * candles for the selected resolution. Polls every 10s to keep the latest candle
+ * live on the token detail page chart.
+ *
+ * Returns `bars`, the current `resolution`, and a `setResolution` setter so the
+ * chart resolution tabs can switch the candle size without re-mounting.
+ */
+export function useTokenPriceBars(tokenId: string) {
+  const [resolution, setResolution] = useState<ChartResolution>("5");
+
+  const { data: trades = [], isLoading } = useQuery({
+    queryKey: ["chart-trades", tokenId.toLowerCase()],
+    enabled: !!tokenId,
+    queryFn: async () => {
+      const client = getGraphQLClient();
+      const res = await client.request<{ Trade: unknown[] }>(
+        QUERY_CHART_TRADES,
+        { tokenId: tokenId.toLowerCase(), limit: 1000 }
+      );
+      return ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
+    },
+    refetchInterval: 10_000,
+  });
+
+  const bars = useMemo(
+    () => buildOHLCBars(trades, RESOLUTION_SECONDS[resolution]),
+    [trades, resolution]
+  );
+
+  return { bars, resolution, setResolution, isLoading };
 }

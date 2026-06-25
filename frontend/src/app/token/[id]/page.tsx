@@ -1,19 +1,26 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   useToken, useTokenTrades, useMarket, useProfile, useTokenMeta,
+  useTokenPriceBars,
   formatMon, formatTimeAgo, formatAddress,
   computeReputation, reputationColor,
 } from "@/lib/hooks/useData";
 import { TradePanel } from "@/components/token/TradePanel";
 import { CurveChart } from "@/components/token/CurveChart";
+// PriceChart uses lightweight-charts which accesses window — must be client-only
+const PriceChart = dynamic(
+  () => import("@/components/token/PriceChart").then((m) => m.PriceChart),
+  { ssr: false }
+);
 import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { TierBadge } from "@/components/ui/Badge";
 import { TokenImage } from "@/components/ui/TokenImage";
-import { useState } from "react";
 import { ArrowLeft, GraduationCap, TrendingUp, Shield, User, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { BetForm } from "@/components/markets/BetForm";
 
@@ -29,6 +36,24 @@ export default function TokenDetailPage() {
   const { data: creatorProfile, isLoading: profileLoading } = useProfile(creatorAddress);
   const reputation = creatorProfile ? computeReputation(creatorProfile) : null;
   const { name: tokenName, symbol: tokenSymbol } = useTokenMeta(tokenId, token?.name ?? "", token?.symbol ?? "");
+  const { bars, resolution, setResolution, isLoading: barsLoading } = useTokenPriceBars(tokenId);
+
+  // Chart tab: "price" | "curve"
+  const [chartTab, setChartTab] = useState<"price" | "curve">("price");
+
+  // Price flash effect: flashes green when price rises, red when it falls
+  const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
+  const prevPrice = useRef<number | null>(null);
+  useEffect(() => {
+    const current = token?.price?.monPerToken ?? null;
+    if (current !== null && prevPrice.current !== null && current !== prevPrice.current) {
+      setPriceFlash(current > prevPrice.current ? "up" : "down");
+      const t = setTimeout(() => setPriceFlash(null), 1200);
+      prevPrice.current = current;
+      return () => clearTimeout(t);
+    }
+    if (current !== null) prevPrice.current = current;
+  }, [token?.price?.monPerToken]);
 
   if (tokenLoading || tradesLoading || profileLoading) {
     return <div className="max-w-6xl mx-auto pl-sidebar pr-5"><LoadingSpinner label="Loading token..." /></div>;
@@ -95,13 +120,18 @@ export default function TokenDetailPage() {
             </div>
           </div>
 
-          {/* Right: price */}
+          {/* Right: price — flashes on update */}
           <div className="text-right shrink-0">
             <div className="text-figma-3xl text-figma-white font-bold font-mono">
               {token.price?.marketCapMon.toFixed(1) ?? "0"}
             </div>
             <div className="text-figma-xs text-figma-muted">Market Cap (MON)</div>
-            <div className="text-figma-sm text-figma-muted font-mono mt-1">
+            <div
+              className={[
+                "text-figma-sm font-mono mt-1 transition-colors duration-500",
+                priceFlash === "up" ? "text-green-400" : priceFlash === "down" ? "text-red-500" : "text-figma-muted",
+              ].join(" ")}
+            >
               {token.price?.monPerToken.toFixed(8)} MON/token
             </div>
           </div>
@@ -137,10 +167,45 @@ export default function TokenDetailPage() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left: Chart + Trades */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Chart */}
+          {/* Chart — Price (TradingView) or Bonding Curve */}
           <div className="rounded-card border border-figma-card bg-figma-card p-5">
-            <h3 className="text-figma-md text-figma-white font-semibold mb-4">Bonding Curve</h3>
-            <CurveChart trades={trades} graduated={token.graduated} realMon={token.realMon} />
+            {/* Tab header */}
+            <div className="flex items-center gap-2 mb-4">
+              <button
+                onClick={() => setChartTab("price")}
+                className={[
+                  "px-3 py-1.5 rounded text-sm font-semibold transition-colors",
+                  chartTab === "price"
+                    ? "bg-figma-green text-black"
+                    : "text-figma-muted hover:text-figma-white",
+                ].join(" ")}
+              >
+                Price Chart
+              </button>
+              <button
+                onClick={() => setChartTab("curve")}
+                className={[
+                  "px-3 py-1.5 rounded text-sm font-semibold transition-colors",
+                  chartTab === "curve"
+                    ? "bg-figma-green text-black"
+                    : "text-figma-muted hover:text-figma-white",
+                ].join(" ")}
+              >
+                Bonding Curve
+              </button>
+            </div>
+
+            {chartTab === "price" ? (
+              <PriceChart
+                bars={bars}
+                resolution={resolution}
+                setResolution={setResolution}
+                isLoading={barsLoading}
+                tokenSymbol={displaySymbol}
+              />
+            ) : (
+              <CurveChart trades={trades} graduated={token.graduated} realMon={token.realMon} />
+            )}
           </div>
 
           {/* Recent Trades */}

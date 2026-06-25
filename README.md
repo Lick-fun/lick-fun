@@ -8,7 +8,7 @@
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 [![Tests](https://img.shields.io/badge/Tests-137%20Forge%20•%2058%20Vitest-green)](.)
 
-**Status:** 3 security audit passes · 137 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · Phase 3 (USD MC display, founder token) next
+**Status:** 3 security audit passes · 137 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · TradingView Lightweight Charts price chart live on token detail page · Phase 3 (USD MC display, founder token) next
 
 ---
 
@@ -77,19 +77,20 @@ Connected wallet → click Profile in nav → see live trading stats, reputation
 | VestingController (Phase 1) | `0xAA5b7D3ab8387CdEE8767f4E622101da191C6AfC` |
 | LickFactory (DEX) | `0x6848A334f9f7C2Cd5a2b34580EcC05F1616bAE48` |
 
-### Phase 2 (FeeRouter tier system)
+### Phase 2 (FeeRouter tier system — applyPreset fix redeployed 2026-06-25, block 40486351)
 
 | Contract | Address |
 |---|---|
-| Factory (Phase 2) | `0x0Ba732dd3072764634bC410914b2D4e9fA7c0862` |
-| FeeRouter | `0x1bC6FA459AE10738A5bFeDD08239386C2d3dec4f` |
-| GraduationRouter | `0xd7cdb6D52f76EcaF226A32111CB6A2681a186Ca1` |
-| VaultLPSupport | `0x8fD0e571721a3FB1Fd140676E4d248a195FbC670` |
-| VaultBuybackBurn | `0x5094a0Dbae5FdAE06D495171944daefB01570415` |
+| Factory (Phase 2) | `0x6355D4405c2BCd722c0499f4997A37C7f8B7879f` |
+| FeeRouter | `0x7b433B3F5C6D6Af67ec85ADbCdeC8b5a8AFAA6BA` |
+| GraduationRouter | `0x97b4229951eDb4067560bB37B39cbCb3C1351CeF` |
+| VaultLPSupport | `0x9d470C278234E2b895afccD0a1D1DF5A77Fb7edd` |
+| VaultBuybackBurn | `0xdF3eDa57950e54feA6432cfDCc1EcD6aBB452D48` |
+| PredictionMarket | `0x73e4dd64abf9909c06c9b9111f35ab4902ec37e2` |
 | VestingController (Phase 2) | `0xC97C71435c3Fe98a955e939D1B6f509327795C1D` |
 
 RPC: https://testnet-rpc.monad.xyz
-Envio: https://indexer.dev.hyperindex.xyz/6601ad1/v1/graphql
+Envio: https://indexer.dev.hyperindex.xyz/7dfa25f/v1/graphql
 
 ---
 
@@ -100,9 +101,9 @@ lick-fun/
 ├── contracts/          Foundry project (13 Solidity contracts, 136 tests)
 │   ├── src/            13 contracts (Factory, BondingCurve, FeeRouter, etc.)
 │   ├── script/         Deploy scripts
-│   └── test/           13 test files, 136 Forge tests
-├── frontend/           Next.js 15 app (7 pages, reputation UI components)
+│   └── test/           13 test files, 136 Forge tests, TradingView Lightweight Charts)
 │   ├── src/app/        Routes: / /create /discover /how-it-works /markets /profile/[address] /token/[id]
+│   └── src/components/ UI + layout + reputation (TierBadge, BadgeGrid, ReputationScore, PriceChartdress] /token/[id]
 │   └── src/components/ UI + layout + reputation (TierBadge, BadgeGrid, ReputationScore)
 ├── indexer/            Envio HyperIndex v3 config + handlers (5 entities)
 ├── reputation/         Off-chain TypeScript scoring engine (10 badges, 3 tiers, Merkle anchor)
@@ -202,6 +203,8 @@ ProfileRegistry            Wallet linking (0.1 MON bond), daily Merkle anchor
 | + | Envio indexer v3 ESM rewrite + live GraphQL | done |
 | + | Phase 2: FeeRouter tiers + vaults + LP burn to 0xdead | done |
 | + | Phase 2: Audit pass 3 (10 fixes, 136 tests) | done |
+| + | Phase 2: applyPreset fix redeployed (block 40486351) | done |
+| + | TradingView Lightweight Charts price chart on token detail page | done |
 | -> | Phase 3: USD market cap display | pending |
 | -> | Phase 3: Founder-first-token launch | pending |
 | -> | Phase 3: protocolFeeReceiver to multisig | pending |

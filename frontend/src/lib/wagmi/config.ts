@@ -31,7 +31,14 @@ const monadChain = defineChain({
   },
 });
 
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "fallback-id";
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+
+if (!projectId) {
+  throw new Error(
+    "NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set.\n" +
+    "Get a free project ID at https://cloud.walletconnect.com and add it to frontend/.env.local"
+  );
+}
 
 export const wagmiConfig = getDefaultConfig({
   appName: "Lick.fun",

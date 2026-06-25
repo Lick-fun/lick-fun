@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { TokenImage } from "@/components/ui/TokenImage";
 import { formatPriceChange } from "@/lib/hooks/useData";
@@ -39,6 +40,28 @@ export function TokenCard({
   priceChangePct,
 }: TokenCardProps) {
   const change = formatPriceChange(priceChangePct);
+
+  // Flash green/red when price or MC updates
+  const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
+  const prevPriceMon = useRef<string | undefined>(priceMon);
+  const prevMc = useRef<string>(mc);
+
+  useEffect(() => {
+    if (prevPriceMon.current !== undefined && priceMon !== undefined && priceMon !== prevPriceMon.current) {
+      const direction = priceMon > prevPriceMon.current ? "up" : "down";
+      setPriceFlash(direction);
+      const t = setTimeout(() => setPriceFlash(null), 800);
+      prevPriceMon.current = priceMon;
+      return () => clearTimeout(t);
+    }
+    prevPriceMon.current = priceMon;
+  }, [priceMon]);
+
+  useEffect(() => {
+    if (mc !== prevMc.current) {
+      prevMc.current = mc;
+    }
+  }, [mc]);
 
   return (
     <div
@@ -123,7 +146,10 @@ export function TokenCard({
           <div className="flex items-center justify-between w-full mt-[2px]">
             {priceMon ? (
               <span
-                className="text-figma-white font-figma-bold"
+                className={cn(
+                  "font-figma-bold transition-colors duration-300",
+                  priceFlash === "up" ? "text-green-400" : priceFlash === "down" ? "text-red-500" : "text-figma-white"
+                )}
                 style={{ fontSize: "10px", lineHeight: "12px" }}
               >
                 {priceMon}
