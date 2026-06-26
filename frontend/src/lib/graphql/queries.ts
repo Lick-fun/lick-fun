@@ -84,6 +84,16 @@ export interface ClaimIndexEntity {
   claimedAt: bigint;
 }
 
+export interface FeeEventEntity {
+  id: string;
+  token: string;
+  totalAmount: bigint;
+  creatorShare: bigint;
+  lpShare: bigint;
+  buybackShare: bigint;
+  blockTimestamp: bigint;
+}
+
 export interface EnvioProfileResponse {
   Profile_by_pk?: ProfileEntity | null;
   Token: TokenEntity[];
@@ -400,4 +410,75 @@ export const QUERY_CLAIMS_BY_MARKET = gql`
     }
   }
   ${CLAIM_FRAGMENT}
+`;
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* Profile Holdings & Creator Fees Queries                                         */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+const FEE_EVENT_FRAGMENT = gql`
+  fragment FeeEventFields on FeeEvent {
+    id
+    token
+    totalAmount
+    creatorShare
+    lpShare
+    buybackShare
+    blockTimestamp
+  }
+`;
+
+/**
+ * Fetches all trades placed by a specific wallet address, ordered by timestamp
+ * descending. Used to compute token holdings (aggregate buys/sells per token)
+ * and to power the "Activity" tab on the profile page.
+ */
+export const QUERY_TRADES_BY_TRADER = gql`
+  query GetTradesByTrader($trader: String!, $limit: Int!) {
+    Trade(
+      where: { trader: { _eq: $trader } }
+      order_by: { blockTimestamp: desc }
+      limit: $limit
+    ) {
+      ...TradeFields
+    }
+  }
+  ${TRADE_FRAGMENT}
+`;
+
+/**
+ * Fetches all FeeEvents for a list of token addresses. Used to compute
+ * creator fees distributed per token on the profile page.
+ *
+ * Envio supports `_in` filtering on string fields, so we can fetch all
+ * FeeEvents for a creator's tokens in one query.
+ */
+export const QUERY_FEE_EVENTS_BY_TOKENS = gql`
+  query GetFeeEventsByTokens($tokenIds: [String!]!, $limit: Int!) {
+    FeeEvent(
+      where: { token: { _in: $tokenIds } }
+      order_by: { blockTimestamp: desc }
+      limit: $limit
+    ) {
+      ...FeeEventFields
+    }
+  }
+  ${FEE_EVENT_FRAGMENT}
+`;
+
+/**
+ * Fetches all FeeEvents for a single token. Used to show fee breakdown
+ * on the token detail page (future use).
+ */
+export const QUERY_FEE_EVENTS_BY_TOKEN = gql`
+  query GetFeeEventsByToken($tokenId: String!, $limit: Int!) {
+    FeeEvent(
+      where: { token: { _eq: $tokenId } }
+      order_by: { blockTimestamp: desc }
+      limit: $limit
+    ) {
+      ...FeeEventFields
+    }
+  }
+  ${FEE_EVENT_FRAGMENT}
 `;

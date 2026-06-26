@@ -1,279 +1,309 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import * as ToggleGroup from "@radix-ui/react-toggle-group";
 import * as Label from "@radix-ui/react-label";
-import { Info, AlertCircle, Lock } from "lucide-react";
+import { AlertCircle, Flame, Droplets, User, Gift } from "lucide-react";
 import clsx from "clsx";
+import { isAddress } from "viem";
 
 /**
- * FeeConfigSelector — Tier-based fee configuration UI.
+ * FeeConfigSelector — Custom fee allocation UI.
  *
- * Allows the user to pick a preset (STARTER / CREATOR EXTRA / CREATOR + LP SUPPORT / CUSTOM)
- * or define a custom split for CUSTOM (Diamond) tier tokens.
+ * Four fee destinations: Buyback & Burn · LP Support · Creator · Gift
+ * Each row has an ON/OFF toggle and a % input in the summary.
+ * Gift row reveals a wallet address input when toggled ON.
  *
- * CUSTOM (Diamond) is fully customisable — any split that sums to 100% is valid.
- * No minimum on any field.
+ * All enabled shares must sum to exactly 100%. The component emits
+ * (config, isValid) on every change. isValid is false when sum ≠ 100%
+ * or when gift is ON but no valid address is entered.
  *
- * The component is purely presentational — it emits the selected preset
- * and (for CUSTOM) the custom config via the `onChange` callback.
- *
- * Reputation gating: pass `allowedPresets` to restrict which tiers are selectable
- * based on the connected wallet's reputation tier. Locked tiers are shown greyed-out
- * with a tooltip explaining the requirement.
+ * No tier gating — available to all users.
  */
 
+// ─── Exported types ──────────────────────────────────────────────────────────
+
+/** @deprecated kept for backwards compat — only DIAMOND is used now */
 export type FeePreset = "LIGHT" | "STANDARD_A" | "STANDARD_B" | "DIAMOND";
 
 export interface CustomFeeConfig {
-  /** Creator share in basis points (0–10000). */
   creatorBps: number;
-  /** LP support share in basis points (0–10000). */
   lpBps: number;
-  /** Buyback & burn share in basis points (0–10000). */
   burnBps: number;
+  giftBps: number;
+  giftRecipient: string;
 }
 
-interface FeeConfigSelectorProps {
-  /** Called whenever the user changes the preset or custom config.
-   *  `isValid` indicates whether the current selection is a valid, submittable config
-   *  (presets are always valid; CUSTOM is valid only when shares sum to 100%). */
-  onChange?: (
-    preset: FeePreset,
-    customConfig?: CustomFeeConfig,
-    isValid?: boolean,
-  ) => void;
-  /** Initial preset selection. Defaults to "LIGHT". */
-  defaultPreset?: FeePreset;
-  /** Optional list of presets the connected wallet is allowed to select.
-   *  If omitted, all presets are available. Locked presets are shown greyed-out. */
-  allowedPresets?: FeePreset[];
+export interface FeeConfigSelectorProps {
+  onChange?: (config: CustomFeeConfig, isValid: boolean) => void;
+  defaultConfig?: CustomFeeConfig;
 }
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const BPS_DENOM = 10_000;
 
-const PRESET_INFO: Record<
-  FeePreset,
-  { name: string; split: string; description: string }
-> = {
-  LIGHT: {
-    name: "STARTER",
-    split: "10% creator · 80% LP · 10% burn",
-    description: "Entry tier — minimal creator share, maximum LP support",
-  },
-  STANDARD_A: {
-    name: "CREATOR EXTRA",
-    split: "30% creator · 60% LP · 10% burn",
-    description: "Builder tier — balanced creator earnings",
-  },
-  STANDARD_B: {
-    name: "CREATOR + LP SUPPORT",
-    split: "20% creator · 70% LP · 10% burn",
-    description: "Community-focused split",
-  },
-  DIAMOND: {
-    name: "CUSTOM",
-    split: "Custom — you choose",
-    description: "Fully customisable — set any allocation you want",
-  },
+const DEFAULT_CONFIG: CustomFeeConfig = {
+  burnBps: 1000,    // 10%
+  lpBps: 8000,      // 80%
+  creatorBps: 1000, // 10%
+  giftBps: 0,
+  giftRecipient: "",
 };
 
-/** Reputation tier required to access each preset. */
-const PRESET_MIN_TIER: Record<FeePreset, "Starter" | "Established" | "Verified"> = {
-  LIGHT: "Starter",
-  STANDARD_A: "Established",
-  STANDARD_B: "Established",
-  DIAMOND: "Verified",
-};
+type RowKey = "burn" | "lp" | "creator" | "gift";
+
+interface RowDef {
+  key: RowKey;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  configKey: keyof Pick<CustomFeeConfig, "burnBps" | "lpBps" | "creatorBps" | "giftBps">;
+}
+
+const ROWS: RowDef[] = [
+  {
+    key: "burn",
+    label: "Buyback & Burn",
+    description: "Used to buy back and burn tokens, reducing supply",
+    icon: <Flame className="h-4 w-4 text-orange-400" />,
+    configKey: "burnBps",
+  },
+  {
+    key: "lp",
+    label: "LP Support",
+    description: "Feeds into liquidity pools to deepen token liquidity",
+    icon: <Droplets className="h-4 w-4 text-blue-400" />,
+    configKey: "lpBps",
+  },
+  {
+    key: "creator",
+    label: "Creator",
+    description: "Sent directly to your wallet on every trade",
+    icon: <User className="h-4 w-4 text-figma-green" />,
+    configKey: "creatorBps",
+  },
+  {
+    key: "gift",
+    label: "Gift",
+    description: "Split to any wallet — team, partner or community fund",
+    icon: <Gift className="h-4 w-4 text-figma-purple-soft" />,
+    configKey: "giftBps",
+  },
+];
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function FeeConfigSelector({
   onChange,
-  defaultPreset = "LIGHT",
-  allowedPresets,
+  defaultConfig = DEFAULT_CONFIG,
 }: FeeConfigSelectorProps) {
-  const [preset, setPreset] = useState<FeePreset>(defaultPreset);
-  const [custom, setCustom] = useState<CustomFeeConfig>({
-    creatorBps: 0,
-    lpBps: 8000,
-    burnBps: 2000,
+  const [config, setConfig] = useState<CustomFeeConfig>(defaultConfig);
+  // Gift defaults OFF; all others default ON
+  const [enabled, setEnabled] = useState<Record<RowKey, boolean>>({
+    burn: true,
+    lp: true,
+    creator: true,
+    gift: false,
   });
 
-  const isAllowed = useCallback(
-    (p: FeePreset) => !allowedPresets || allowedPresets.includes(p),
-    [allowedPresets],
+  const totalBps =
+    config.burnBps + config.lpBps + config.creatorBps + config.giftBps;
+  const totalPct = totalBps / 100;
+  const sumValid = totalBps === BPS_DENOM;
+  const giftAddressValid =
+    !enabled.gift || (config.giftBps === 0) || isAddress(config.giftRecipient);
+  const isValid = sumValid && giftAddressValid;
+
+  const emit = useCallback(
+    (next: CustomFeeConfig, nextEnabled: Record<RowKey, boolean>) => {
+      const total =
+        next.burnBps + next.lpBps + next.creatorBps + next.giftBps;
+      const giftOk =
+        !nextEnabled.gift || next.giftBps === 0 || isAddress(next.giftRecipient);
+      onChange?.(next, total === BPS_DENOM && giftOk);
+    },
+    [onChange],
   );
 
-  const handlePresetChange = useCallback(
-    (value: string) => {
-      if (!value) return;
-      const newPreset = value as FeePreset;
-      if (!isAllowed(newPreset)) return;
-      setPreset(newPreset);
-      if (newPreset === "DIAMOND") {
-        // For CUSTOM, validity depends on the current custom split.
-        const valid = custom.creatorBps + custom.lpBps + custom.burnBps === BPS_DENOM;
-        onChange?.(newPreset, custom, valid);
-      } else {
-        onChange?.(newPreset, undefined, true);
+  // Toggle a row ON / OFF
+  const handleToggle = useCallback(
+    (key: RowKey) => {
+      const nowEnabled = !enabled[key];
+      const nextEnabled = { ...enabled, [key]: nowEnabled };
+
+      let nextConfig = { ...config };
+      if (!nowEnabled) {
+        // Turning OFF — zero out its bps
+        const bpsKey = ROWS.find((r) => r.key === key)!.configKey;
+        nextConfig = { ...nextConfig, [bpsKey]: 0 };
+        if (key === "gift") nextConfig.giftRecipient = "";
       }
+
+      setEnabled(nextEnabled);
+      setConfig(nextConfig);
+      emit(nextConfig, nextEnabled);
     },
-    [onChange, custom, isAllowed],
+    [enabled, config, emit],
   );
 
-  const handleCustomChange = useCallback(
-    (field: keyof CustomFeeConfig, value: number) => {
-      const newCustom = { ...custom, [field]: value };
-      setCustom(newCustom);
-      const valid = newCustom.creatorBps + newCustom.lpBps + newCustom.burnBps === BPS_DENOM;
-      onChange?.("DIAMOND", newCustom, valid);
+  // % input change
+  const handlePctChange = useCallback(
+    (key: RowKey, rawValue: string) => {
+      const bpsKey = ROWS.find((r) => r.key === key)!.configKey;
+      const pct = Number(rawValue);
+      const bps = Number.isFinite(pct) ? Math.round(Math.min(100, Math.max(0, pct)) * 100) : 0;
+      const nextConfig = { ...config, [bpsKey]: bps };
+      setConfig(nextConfig);
+      emit(nextConfig, enabled);
     },
-    [custom, onChange],
+    [config, enabled, emit],
   );
 
-  const sumValid =
-    custom.creatorBps + custom.lpBps + custom.burnBps === BPS_DENOM;
+  // Gift address change
+  const handleAddressChange = useCallback(
+    (value: string) => {
+      const nextConfig = { ...config, giftRecipient: value };
+      setConfig(nextConfig);
+      emit(nextConfig, enabled);
+    },
+    [config, enabled, emit],
+  );
+
+  const getBps = (key: RowKey) =>
+    config[ROWS.find((r) => r.key === key)!.configKey];
 
   return (
-    <div className="w-full space-y-4">
-      {/* ─── Preset selector ─────────────────────────────────────────────── */}
+    <div className="w-full space-y-3">
+      {/* ─── Header ──────────────────────────────────────────────────────── */}
       <div>
-        <Label.Root className="mb-2 block text-figma-md font-medium text-figma-white">
-          Fee Tier
+        <Label.Root className="block text-figma-md font-semibold text-figma-white">
+          Fee Strategy{" "}
+          <span className="font-normal text-figma-muted">(Required)</span>
         </Label.Root>
-        <ToggleGroup.Root
-          type="single"
-          value={preset}
-          onValueChange={handlePresetChange}
-          className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-        >
-          {(Object.keys(PRESET_INFO) as FeePreset[]).map((p) => {
-            const allowed = isAllowed(p);
-            return (
-              <ToggleGroup.Item
-                key={p}
-                value={p}
-                disabled={!allowed}
-                title={
-                  allowed
-                    ? undefined
-                    : `Requires ${PRESET_MIN_TIER[p]} reputation`
-                }
-                className={clsx(
-                  "relative rounded-pill border px-3 py-3 text-left transition-colors",
-                  allowed
-                    ? "data-[state=on]:border-figma-green data-[state=on]:bg-figma-green/10 data-[state=off]:border-figma-surface data-[state=off]:bg-figma-card hover:border-figma-green/50"
-                    : "border-figma-surface bg-figma-card/40 opacity-40 cursor-not-allowed",
-                )}
-              >
-                {!allowed && (
-                  <Lock className="absolute right-2 top-2 h-3 w-3 text-figma-muted" />
-                )}
-                <div className="text-figma-md font-semibold text-figma-white">
-                  {PRESET_INFO[p].name}
-                </div>
-                <div className="mt-1 text-figma-xs text-figma-muted">
-                  {PRESET_INFO[p].split}
-                </div>
-              </ToggleGroup.Item>
-            );
-          })}
-        </ToggleGroup.Root>
-        {allowedPresets && (
-          <p className="mt-2 text-figma-xs text-figma-muted">
-            Locked tiers require a higher reputation score.
-          </p>
-        )}
+        <p className="mt-0.5 text-figma-xs text-figma-muted">
+          Allocate the 1% creator fee collected on every trade.
+        </p>
       </div>
 
-      {/* ─── DIAMOND custom sliders ───────────────────────────────────────── */}
-      {preset === "DIAMOND" && (
-        <div className="animate-slide-up space-y-4 rounded-card border border-figma-surface bg-figma-card p-4">
-          <div className="flex items-start gap-2">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-figma-green" />
-            <p className="text-figma-sm text-figma-muted">
-              Fully customisable — set any allocation you want. All three shares
-              must total 100%.
-            </p>
-          </div>
+      {/* ─── Toggle rows ─────────────────────────────────────────────────── */}
+      <div className="divide-y divide-figma-surface rounded-card border border-figma-surface overflow-hidden">
+        {ROWS.map((row) => {
+          const isOn = enabled[row.key];
+          return (
+            <div key={row.key} className="bg-figma-surface/50">
+              {/* Row header */}
+              <div className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="shrink-0">{row.icon}</span>
+                  <div className="min-w-0">
+                    <div className="text-figma-sm font-semibold text-figma-white">
+                      {row.label}
+                    </div>
+                    <div className="text-figma-xs text-figma-muted leading-tight mt-0.5 truncate">
+                      {row.description}
+                    </div>
+                  </div>
+                </div>
 
-          {/* Creator slider */}
-          <div>
-            <div className="mb-1 flex justify-between">
-              <Label.Root className="text-figma-sm text-figma-white">
-                Creator
-              </Label.Root>
-              <span className="text-figma-sm text-figma-muted">
-                {(custom.creatorBps / 100).toFixed(0)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={BPS_DENOM}
-              step={100}
-              value={custom.creatorBps}
-              onChange={(e) =>
-                handleCustomChange("creatorBps", Number(e.target.value))
-              }
-              className="w-full accent-figma-green"
-            />
-          </div>
+                {/* Toggle switch */}
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isOn}
+                  onClick={() => handleToggle(row.key)}
+                  className={clsx(
+                    "relative shrink-0 h-6 w-11 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-figma-green",
+                    isOn ? "bg-figma-green" : "bg-figma-surface border border-white/20",
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200",
+                      isOn ? "translate-x-5" : "translate-x-0.5",
+                    )}
+                  />
+                </button>
+              </div>
 
-          {/* LP slider — no floor */}
-          <div>
-            <div className="mb-1 flex justify-between">
-              <Label.Root className="text-figma-sm text-figma-white">
-                LP Support
-              </Label.Root>
-              <span className="text-figma-sm text-figma-muted">
-                {(custom.lpBps / 100).toFixed(0)}%
-              </span>
+              {/* Gift address input — shown only when gift is ON */}
+              {row.key === "gift" && isOn && (
+                <div className="px-4 pb-3">
+                  <input
+                    type="text"
+                    placeholder="Recipient wallet address (0x…)"
+                    value={config.giftRecipient}
+                    onChange={(e) => handleAddressChange(e.target.value)}
+                    className={clsx(
+                      "w-full rounded-pill border bg-figma-card px-3 py-2 text-figma-sm text-figma-white placeholder-figma-muted/60 outline-none transition-colors",
+                      config.giftRecipient && !isAddress(config.giftRecipient)
+                        ? "border-figma-red focus:border-figma-red"
+                        : "border-figma-surface focus:border-figma-green",
+                    )}
+                  />
+                  {config.giftRecipient && !isAddress(config.giftRecipient) && (
+                    <p className="mt-1 flex items-center gap-1 text-figma-xs text-figma-red">
+                      <AlertCircle className="h-3 w-3" />
+                      Enter a valid wallet address
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-            <input
-              type="range"
-              min={0}
-              max={BPS_DENOM}
-              step={100}
-              value={custom.lpBps}
-              onChange={(e) =>
-                handleCustomChange("lpBps", Number(e.target.value))
-              }
-              className="w-full accent-figma-green"
-            />
-          </div>
+          );
+        })}
+      </div>
 
-          {/* Burn slider */}
-          <div>
-            <div className="mb-1 flex justify-between">
-              <Label.Root className="text-figma-sm text-figma-white">
-                Buyback &amp; Burn
-              </Label.Root>
-              <span className="text-figma-sm text-figma-muted">
-                {(custom.burnBps / 100).toFixed(0)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={BPS_DENOM}
-              step={100}
-              value={custom.burnBps}
-              onChange={(e) =>
-                handleCustomChange("burnBps", Number(e.target.value))
-              }
-              className="w-full accent-figma-green"
-            />
-          </div>
-
-          {/* Sum validation */}
-          {!sumValid && (
-            <div className="flex items-center gap-1 text-figma-xs text-figma-red">
-              <AlertCircle className="h-3 w-3" />
-              Splits must total 100%
-            </div>
-          )}
+      {/* ─── Summary bar ─────────────────────────────────────────────────── */}
+      <div className="rounded-card border border-figma-surface bg-figma-card p-4 space-y-3">
+        {/* Header row */}
+        <div className="flex items-center justify-between">
+          <span className="text-figma-xs font-semibold uppercase tracking-wider text-figma-muted">
+            Summary <span className="font-normal normal-case">(Total 1% Fee)</span>
+          </span>
+          <span
+            className={clsx(
+              "text-figma-sm font-bold tabular-nums",
+              sumValid ? "text-figma-green" : "text-figma-red",
+            )}
+          >
+            {totalPct.toFixed(0)}% / 100%
+          </span>
         </div>
-      )}
+
+        {/* Allocation rows — only enabled destinations */}
+        <div className="space-y-2">
+          {ROWS.filter((r) => enabled[r.key]).map((row) => (
+            <div key={row.key} className="flex items-center gap-3">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="shrink-0">{row.icon}</span>
+                <span className="text-figma-sm text-figma-white truncate">
+                  {row.label}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={getBps(row.key) / 100}
+                  onChange={(e) => handlePctChange(row.key, e.target.value)}
+                  className="w-14 rounded-pill border border-figma-surface bg-figma-surface px-2 py-1 text-right text-figma-sm text-figma-white tabular-nums outline-none focus:border-figma-green [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <span className="text-figma-sm text-figma-muted">%</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Validation error */}
+        {!sumValid && (
+          <div className="flex items-center gap-1.5 text-figma-xs text-figma-red pt-1 border-t border-figma-surface">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+            <span>Total allocation must equal 100%</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

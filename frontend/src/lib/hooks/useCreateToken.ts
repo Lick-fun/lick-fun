@@ -9,18 +9,7 @@ import {
   FACTORY_ADDRESS,
   FEE_ROUTER_ADDRESS,
 } from "@/lib/wagmi/contracts";
-import type { FeePreset } from "@/components/fee/FeeConfigSelector";
-
-/**
- * Maps the frontend FeePreset key to the on-chain FeeRouter.Preset enum index.
- * Contract enum: { DEFAULT=0, ECOSYSTEM=1, LIGHT=2, STANDARD_A=3, STANDARD_B=4, DIAMOND=5 }
- */
-const PRESET_ENUM_INDEX: Record<FeePreset, number> = {
-  LIGHT: 2,
-  STANDARD_A: 3,
-  STANDARD_B: 4,
-  DIAMOND: 5,
-};
+import type { CustomFeeConfig } from "@/components/fee/FeeConfigSelector";
 
 /**
  * High-level state machine exposed to the UI.
@@ -45,8 +34,8 @@ export interface UseCreateTokenResult {
     telegram?: string;
     twitter?: string;
     website?: string;
-    /** Selected fee preset. Defaults to LIGHT (Starter). */
-    preset?: FeePreset;
+    /** Custom fee config — creator/LP/burn/gift splits. */
+    customFeeConfig?: CustomFeeConfig;
     /** Optional dev pre-buy amount in MON (string from input). "" / "0" = no dev buy. */
     devBuyAmountMon?: string;
   }) => Promise<void>;
@@ -238,7 +227,7 @@ export function useCreateToken(): UseCreateTokenResult {
     telegram,
     twitter,
     website,
-    preset = "LIGHT",
+    customFeeConfig,
     devBuyAmountMon = "",
   }: {
     name: string;
@@ -248,7 +237,7 @@ export function useCreateToken(): UseCreateTokenResult {
     telegram?: string;
     twitter?: string;
     website?: string;
-    preset?: FeePreset;
+    customFeeConfig?: CustomFeeConfig;
     devBuyAmountMon?: string;
   }) => {
     if (!address) throw new Error("Wallet not connected");
@@ -325,34 +314,42 @@ export function useCreateToken(): UseCreateTokenResult {
     // Step 2: Deploy token on-chain (ONE wallet signature)
     //
     // Routing logic:
-    //  - If a FeeRouter is configured AND the chosen preset is one of the fixed
-    //    presets (LIGHT / STANDARD_A / STANDARD_B), use createTokenWithPreset so
-    //    fees are split by the FeeRouter at launch.
-    //  - DIAMOND (Custom) cannot be applied via createTokenWithPreset (the contract
-    //    reverts with UseCustomConfig — the split must be set by the owner via
-    //    setCustomConfig afterwards). For now DIAMOND falls back to the standard
-    //    createToken flow; the custom split is configured by an admin operation.
-    //  - If no FeeRouter is configured, always use the standard createToken.
+    //  - If a FeeRouter is configured AND a customFeeConfig is provided,
+    //    use createTokenWithCustomConfig so fees are split by FeeRouter at launch.
+    //  - If no FeeRouter is configured, fall back to the standard createToken.
     const feeRouterConfigured =
       FEE_ROUTER_ADDRESS !== "0x0000000000000000000000000000000000000000";
-    const usePreset = feeRouterConfigured && preset !== "DIAMOND";
+    const useCustomConfig = feeRouterConfigured && !!customFeeConfig;
 
     console.info("[useCreateToken] Calling create on-chain:", {
       factory: FACTORY_ADDRESS,
       name,
       symbol,
       creator: address,
-      preset,
-      usePreset,
+      useCustomConfig,
+      customFeeConfig,
       devBuyAmountMon,
     });
     try {
-      if (usePreset) {
+      if (useCustomConfig && customFeeConfig) {
+        const giftAddr = (customFeeConfig.giftBps > 0 && customFeeConfig.giftRecipient)
+          ? customFeeConfig.giftRecipient as `0x${string}`
+          : "0x0000000000000000000000000000000000000000" as `0x${string}`;
         await writeContractAsync({
           address: FACTORY_ADDRESS,
           abi: FactoryABI,
-          functionName: "createTokenWithPreset",
-          args: [name, symbol, address, 0n, PRESET_ENUM_INDEX[preset]],
+          functionName: "createTokenWithCustomConfig",
+          args: [
+            name,
+            symbol,
+            address,
+            0n,
+            BigInt(customFeeConfig.creatorBps),
+            BigInt(customFeeConfig.lpBps),
+            BigInt(customFeeConfig.burnBps),
+            BigInt(customFeeConfig.giftBps),
+            giftAddr,
+          ],
           gas: 4_000_000n, // testnet workaround: actual cost ~3.6M; mainnet can auto-estimate
         });
       } else {

@@ -9,10 +9,8 @@ import { useRouter } from "next/navigation";
 import { parseEther, formatEther } from "viem";
 import { cn } from "@/lib/utils";
 import { useCreateToken } from "@/lib/hooks/useCreateToken";
-import { useReputation } from "@/lib/hooks/useReputation";
 import {
   FeeConfigSelector,
-  type FeePreset,
   type CustomFeeConfig,
 } from "@/components/fee/FeeConfigSelector";
 import {
@@ -28,13 +26,6 @@ const MAX_IMAGE_SIZE_MB = 10;
 const ACCEPTED_IMAGE_TYPES = [
   "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
 ];
-
-/** Fee presets accessible per reputation tier. */
-const TIER_ALLOWED_PRESETS: Record<string, FeePreset[]> = {
-  Starter: ["LIGHT"],
-  Established: ["LIGHT", "STANDARD_A", "STANDARD_B"],
-  Verified: ["LIGHT", "STANDARD_A", "STANDARD_B", "DIAMOND"],
-};
 
 /** Lightweight URL prefix validators for social links (nad.fun pattern). */
 function validateSocial(
@@ -64,8 +55,14 @@ export default function CreateTokenPage() {
   const [twitter, setTwitter] = useState("");
   const [website, setWebsite] = useState("");
 
-  // Fee tier selection
-  const [feePreset, setFeePreset] = useState<FeePreset>("LIGHT");
+  // Fee config (custom split — all users)
+  const [customFee, setCustomFee] = useState<CustomFeeConfig>({
+    burnBps: 1000,
+    lpBps: 8000,
+    creatorBps: 1000,
+    giftBps: 0,
+    giftRecipient: "",
+  });
   const [feeValid, setFeeValid] = useState(true);
 
   // Dev purchase (optional creator pre-buy — exempt from anti-sniping)
@@ -76,14 +73,6 @@ export default function CreateTokenPage() {
     tokenAddress, txHash, error, reset, uploadStatus, step,
   } = useCreateToken();
   const router = useRouter();
-
-  // Determine which fee tiers the connected wallet can access by reputation.
-  const { data: reputation } = useReputation(address ?? "");
-  const tier = reputation?.tier ?? "Starter";
-  const allowedPresets = useMemo(
-    () => TIER_ALLOWED_PRESETS[tier] ?? TIER_ALLOWED_PRESETS.Starter,
-    [tier],
-  );
 
   // Connected wallet's native MON balance (for the dev-purchase row).
   const { data: monBalance } = useBalance({ address });
@@ -130,9 +119,9 @@ export default function CreateTokenPage() {
   }, [devBuyValid, devBuyMonFloat, devBuyTrimmed]);
 
   const handleFeeChange = useCallback(
-    (preset: FeePreset, _config?: CustomFeeConfig, isValid?: boolean) => {
-      setFeePreset(preset);
-      setFeeValid(isValid ?? true);
+    (config: CustomFeeConfig, isValid: boolean) => {
+      setCustomFee(config);
+      setFeeValid(isValid);
     },
     [],
   );
@@ -215,7 +204,7 @@ export default function CreateTokenPage() {
         telegram: telegram.trim() || undefined,
         twitter: twitter.trim() || undefined,
         website: website.trim() || undefined,
-        preset: feePreset,
+        customFeeConfig: customFee,
         devBuyAmountMon: devBuyMonFloat > 0 ? devBuyTrimmed : "",
       });
     } catch (err) {
@@ -574,30 +563,11 @@ export default function CreateTokenPage() {
           </div>
         </div>
 
-        {/* ── Fee Tier ── */}
+        {/* ── Fee Strategy ── */}
         <div className="rounded-card border border-figma-card bg-figma-card p-4">
-          <div className="flex items-center gap-1.5 mb-3">
-            <Coins className="w-3.5 h-3.5 text-figma-green" />
-            <h2 className="text-figma-xs font-semibold text-figma-muted uppercase tracking-wider">
-              Fee Tier
-            </h2>
-            <span className="text-figma-xs text-figma-muted ml-auto">
-              {tier} wallet
-            </span>
-          </div>
           <FeeConfigSelector
-            allowedPresets={allowedPresets}
-            defaultPreset="LIGHT"
             onChange={handleFeeChange}
           />
-          {feePreset === "DIAMOND" && (
-            <p className="mt-2 text-figma-xs text-figma-muted flex items-start gap-1.5">
-              <Info className="w-3 h-3 shrink-0 mt-0.5" />
-              Custom splits are applied by an admin after launch via
-              setCustomConfig. Your token deploys with the standard fee routing
-              until then.
-            </p>
-          )}
         </div>
 
         {/* ── Bottom row: Dev Purchase (left) + Deploy Cost (right) ── */}

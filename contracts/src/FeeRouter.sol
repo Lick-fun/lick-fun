@@ -180,6 +180,38 @@ contract FeeRouter is ReentrancyGuard {
         _setFeeConfig(token, config);
     }
 
+    /**
+     * @notice Applies a fully custom fee config for a token. Callable by anyone (e.g. Factory).
+     * @dev Uses the same _setFeeConfig validation: bps must sum to 10000, AlreadyInitialized guard.
+     * @param token The token address
+     * @param creatorAddress The actual creator wallet
+     * @param creatorShareBps Creator's cut in bps
+     * @param lpSupportBps LP support vault cut in bps
+     * @param buybackBurnBps Buyback & burn vault cut in bps
+     * @param giftBps Gift recipient cut in bps (0 if no gift)
+     * @param giftRecipient Gift recipient address (address(0) if giftBps == 0)
+     */
+    function applyCustomConfig(
+        address token,
+        address creatorAddress,
+        uint256 creatorShareBps,
+        uint256 lpSupportBps,
+        uint256 buybackBurnBps,
+        uint256 giftBps,
+        address giftRecipient
+    ) external {
+        FeeConfig memory config = FeeConfig({
+            creatorShareBps: creatorShareBps,
+            lpSupportBps: lpSupportBps,
+            buybackBurnBps: buybackBurnBps,
+            giftBps: giftBps,
+            giftRecipient: giftRecipient,
+            creator: creatorAddress,
+            initialized: true
+        });
+        _setFeeConfig(token, config);
+    }
+
     // ─── Fee Collection ───────────────────────────────────────────────────────
 
     /**

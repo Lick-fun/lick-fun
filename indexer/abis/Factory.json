@@ -1,4 +1,4 @@
-[
+﻿[
   {
     "type": "constructor",
     "inputs": [
@@ -9,32 +9,6 @@
       }
     ],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "BPS_DENOM",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "DEV_ALLOC_BPS",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -59,6 +33,70 @@
         "name": "startTime",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "tokenAddr",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "curveAddr",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "createTokenWithCustomConfig",
+    "inputs": [
+      {
+        "name": "name",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "symbol",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "creatorAddress",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "startTime",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "creatorShareBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "lpSupportBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "buybackBurnBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "giftBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "giftRecipient",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [
@@ -225,19 +263,6 @@
   },
   {
     "type": "function",
-    "name": "setVestingController",
-    "inputs": [
-      {
-        "name": "_vestingController",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "tokenToCurve",
     "inputs": [
       {
@@ -285,19 +310,6 @@
         "name": "createdAt",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "vestingController",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -359,19 +371,6 @@
       },
       {
         "name": "creator",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "VestingControllerSet",
-    "inputs": [
-      {
-        "name": "vestingController",
         "type": "address",
         "indexed": true,
         "internalType": "address"

@@ -200,4 +200,80 @@ contract Factory {
 
         emit TokenCreated(tokenAddr, curveAddr, creatorAddress);
     }
+
+    /**
+     * @notice Creates a new LickToken + BondingCurve pair with a fully custom fee config.
+     * @param name Token name
+     * @param symbol Token symbol
+     * @param creatorAddress Creator wallet
+     * @param startTime Anti-snipe start time (0 = now)
+     * @param creatorShareBps Creator's cut of the 1% creator fee (in bps, e.g. 1000 = 10%)
+     * @param lpSupportBps LP support vault cut (bps)
+     * @param buybackBurnBps Buyback & burn vault cut (bps)
+     * @param giftBps Gift recipient cut (bps, 0 if unused)
+     * @param giftRecipient Gift recipient address (address(0) if giftBps == 0)
+     * @return tokenAddr The new LickToken address
+     * @return curveAddr The new BondingCurve address
+     * @dev All four bps values must sum to 10000. Reverts if feeRouter is not set.
+     */
+    function createTokenWithCustomConfig(
+        string calldata name,
+        string calldata symbol,
+        address creatorAddress,
+        uint256 startTime,
+        uint256 creatorShareBps,
+        uint256 lpSupportBps,
+        uint256 buybackBurnBps,
+        uint256 giftBps,
+        address giftRecipient
+    ) external returns (address tokenAddr, address curveAddr) {
+        if (feeRouter == address(0)) revert ZeroAddress();
+        uint256 st = startTime == 0 ? block.timestamp : startTime;
+
+        // Deploy token
+        LickToken tok = new LickToken(name, symbol);
+        tokenAddr = address(tok);
+
+        // Deploy curve with creator = feeRouter (fees flow through FeeRouter)
+        BondingCurve curve = new BondingCurve(
+            tokenAddr,
+            protocolTreasury,
+            feeRouter,
+            st,
+            graduationRouter
+        );
+        curveAddr = address(curve);
+
+        // Transfer 100% of supply to the curve
+        tok.transfer(curveAddr, tok.totalSupply());
+
+        // Set feeRouter on BondingCurve so creator fees route through FeeRouter
+        curve.setFeeRouter(feeRouter);
+
+        // Create prediction market if configured
+        if (predictionMarket != address(0)) {
+            PredictionMarket(predictionMarket).createMarket(tokenAddr, curveAddr);
+        }
+
+        tokenToCurve[tokenAddr] = curveAddr;
+        tokens.push(TokenInfo({
+            token: tokenAddr,
+            curve: curveAddr,
+            creator: creatorAddress,
+            createdAt: block.timestamp
+        }));
+
+        // Apply the custom fee config
+        FeeRouter(feeRouter).applyCustomConfig(
+            tokenAddr,
+            creatorAddress,
+            creatorShareBps,
+            lpSupportBps,
+            buybackBurnBps,
+            giftBps,
+            giftRecipient
+        );
+
+        emit TokenCreated(tokenAddr, curveAddr, creatorAddress);
+    }
 }

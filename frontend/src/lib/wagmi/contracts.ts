@@ -50,6 +50,26 @@ export const FactoryABI = [
   },
   {
     type: "function",
+    name: "createTokenWithCustomConfig",
+    inputs: [
+      { name: "name", type: "string", internalType: "string" },
+      { name: "symbol", type: "string", internalType: "string" },
+      { name: "creatorAddress", type: "address", internalType: "address" },
+      { name: "startTime", type: "uint256", internalType: "uint256" },
+      { name: "creatorShareBps", type: "uint256", internalType: "uint256" },
+      { name: "lpSupportBps", type: "uint256", internalType: "uint256" },
+      { name: "buybackBurnBps", type: "uint256", internalType: "uint256" },
+      { name: "giftBps", type: "uint256", internalType: "uint256" },
+      { name: "giftRecipient", type: "address", internalType: "address" },
+    ],
+    outputs: [
+      { name: "tokenAddr", type: "address", internalType: "address" },
+      { name: "curveAddr", type: "address", internalType: "address" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
     name: "protocolFeeReceiver",
     inputs: [],
     outputs: [{ name: "", type: "address", internalType: "address" }],

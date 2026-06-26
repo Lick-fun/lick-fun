@@ -38,5 +38,15 @@
     "metadataUri": "https://link.storjshare.io/s/jvqgktahde346s3s65orx4mmtk4a/lickfun/tokens/lickfun-1782454929241-metadata.json?wrap=0",
     "imageUri": "https://link.storjshare.io/s/jvqgktahde346s3s65orx4mmtk4a/lickfun/tokens/lickfun-1782454929241.png?wrap=0",
     "registeredAt": 1782454936693
+  },
+  "0x2b7c56351701bb66e35a895a1b9a831fe19abc89": {
+    "metadataUri": "https://link.storjshare.io/s/jvqgktahde346s3s65orx4mmtk4a/lickfun/tokens/mon-1782466522554-metadata.json?wrap=0",
+    "imageUri": "https://link.storjshare.io/s/jvqgktahde346s3s65orx4mmtk4a/lickfun/tokens/mon-1782466522554.jpg?wrap=0",
+    "registeredAt": 1782466531439
+  },
+  "0x4b03e3a03d06d783ff1e72a9f09cd4c3cc16fc24": {
+    "metadataUri": "https://link.storjshare.io/s/jvqgktahde346s3s65orx4mmtk4a/lickfun/tokens/liky-1782466569998-metadata.json?wrap=0",
+    "imageUri": "https://link.storjshare.io/s/jvqgktahde346s3s65orx4mmtk4a/lickfun/tokens/liky-1782466569998.png?wrap=0",
+    "registeredAt": 1782466578451
   }
 }
