@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Send, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TokenImage } from "@/components/ui/TokenImage";
+import { CreatorBadge } from "@/components/ui/CreatorBadge";
 import { formatPriceChange } from "@/lib/hooks/useData";
+import { useTokenIpfsMeta } from "@/lib/hooks/useTokenImage";
 
 interface TokenCardProps {
   tokenAddress?: string;     // contract address — used for image lookup
@@ -22,6 +25,8 @@ interface TokenCardProps {
   priceMon?: string;
   /** Optional 24h percentage change number, e.g. +12.34 or -5.67 */
   priceChangePct?: number;
+  /** Creator wallet address — shows avatar + name below token name */
+  creator?: string;
 }
 
 export function TokenCard({
@@ -38,8 +43,12 @@ export function TokenCard({
   isAnimated = false,
   priceMon,
   priceChangePct,
+  creator,
 }: TokenCardProps) {
   const change = formatPriceChange(priceChangePct);
+
+  // Fetch IPFS metadata for social links (TG / X / Web) — cached 10 min
+  const { data: ipfsMeta } = useTokenIpfsMeta(tokenAddress);
 
   // Flash green/red when price or MC updates
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
@@ -97,7 +106,7 @@ export function TokenCard({
           </div>
         )}
 
-        {/* Name + Description */}
+        {/* Name + Description + Creator + Socials */}
         <div className="flex flex-col gap-[3px] flex-1 min-w-0">
           <span
             className="text-figma-white font-figma-bold"
@@ -106,12 +115,82 @@ export function TokenCard({
             {tokenName}{" "}
             <span className="text-figma-muted font-figma-bold">(${symbol})</span>
           </span>
+
+          {/* Creator badge (avatar + name) */}
+          {creator && <CreatorBadge address={creator} />}
+
           <span
             className="text-figma-muted font-figma-regular truncate"
             style={{ fontSize: "10px", lineHeight: "1.3" }}
           >
             {description}
           </span>
+
+          {/* Social links (TG / X / Web) — icon-only, only renders if any exist */}
+          {(ipfsMeta?.telegram || ipfsMeta?.twitter || ipfsMeta?.website) && (
+            <div className="flex items-center gap-[4px] mt-[2px]">
+              {ipfsMeta.telegram && (
+                <a
+                  href={ipfsMeta.telegram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  title="Telegram"
+                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors"
+                  style={{
+                    width: "18px",
+                    height: "18px",
+                    borderRadius: "4px",
+                    background: "#1B1B1B",
+                  }}
+                >
+                  <Send style={{ width: "10px", height: "10px" }} />
+                </a>
+              )}
+              {ipfsMeta.twitter && (
+                <a
+                  href={ipfsMeta.twitter}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  title="Twitter / X"
+                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors"
+                  style={{
+                    width: "18px",
+                    height: "18px",
+                    borderRadius: "4px",
+                    background: "#1B1B1B",
+                  }}
+                >
+                  <svg
+                    style={{ width: "10px", height: "10px" }}
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.26 5.632 5.905-5.632Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                </a>
+              )}
+              {ipfsMeta.website && (
+                <a
+                  href={ipfsMeta.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  title="Website"
+                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors"
+                  style={{
+                    width: "18px",
+                    height: "18px",
+                    borderRadius: "4px",
+                    background: "#1B1B1B",
+                  }}
+                >
+                  <Globe style={{ width: "10px", height: "10px" }} />
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

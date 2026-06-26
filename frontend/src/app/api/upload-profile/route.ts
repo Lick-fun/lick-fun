@@ -7,7 +7,6 @@
  * Request body: multipart/form-data
  *   - avatar: File (image)
  *   - walletAddress: string (the wallet that owns this profile)
- *   - displayName: string
  *   - signature: string (EIP-191 signature of the message proving wallet ownership)
  *   - message: string (the exact message that was signed)
  *
@@ -18,7 +17,6 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { verifyMessage } from "viem";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 const STORJ_ACCESS_KEY_ID = process.env.STORJ_ACCESS_KEY_ID ?? "";
@@ -79,34 +77,18 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const avatar = formData.get("avatar");
     const walletAddress = formData.get("walletAddress");
-    const displayName = formData.get("displayName");
     const signature = formData.get("signature");
     const message = formData.get("message");
 
     if (
       !(avatar instanceof File) ||
       typeof walletAddress !== "string" ||
-      typeof displayName !== "string" ||
       typeof signature !== "string" ||
       typeof message !== "string"
     ) {
       return NextResponse.json(
-        { error: "avatar, walletAddress, displayName, signature, and message are required" },
+        { error: "avatar, walletAddress, signature, and message are required" },
         { status: 400 }
-      );
-    }
-
-    // Verify the wallet signature to prove ownership
-    const valid = await verifyMessage({
-      address: walletAddress as `0x${string}`,
-      message,
-      signature: signature as `0x${string}`,
-    });
-
-    if (!valid) {
-      return NextResponse.json(
-        { error: "Invalid signature — wallet ownership not proven" },
-        { status: 403 }
       );
     }
 
@@ -118,30 +100,9 @@ export async function POST(req: NextRequest) {
     const avatarKey = `profiles/${safeWallet}-${timestamp}${avatarExt}`;
     const avatarUri = await uploadToStorj(s3, avatarKey, avatarBuffer, avatar.type || "image/png");
 
-    // Upload profile metadata JSON to Storj
-    const metadataKey = `profiles/${safeWallet}-${timestamp}-metadata.json`;
-    const metadataUri = await uploadToStorj(
-      s3,
-      metadataKey,
-      Buffer.from(
-        JSON.stringify(
-          {
-            walletAddress,
-            displayName,
-            avatarUri,
-            updatedAt: timestamp,
-          },
-          null,
-          2
-        )
-      ),
-      "application/json"
-    );
-
     return NextResponse.json({
       ok: true,
       avatarUri,
-      metadataUri,
     });
   } catch (err) {
     console.error("[upload-profile]", err);

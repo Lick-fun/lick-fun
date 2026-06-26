@@ -227,6 +227,7 @@ export default function DiscoverPage() {
                   progress={token.progress}
                   priceMon={formatPriceMon(token.price.monPerToken)}
                   priceChangePct={pct}
+                  creator={token.creator}
                 />
               </Link>
             );

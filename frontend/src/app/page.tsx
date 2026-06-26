@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { TokenCard, TokenCardAnimated } from "@/components/token/TokenCard";
 import { TokenAvatar } from "@/components/ui/TokenImage";
+import { CreatorBadge } from "@/components/ui/CreatorBadge";
 import {
   TokenCardSkeleton,
   TrendingSkeletonCard,
@@ -302,6 +303,13 @@ export default function HomePage() {
                     </span>
                   </div>
 
+                  {/* Creator badge */}
+                  {token.creator && (
+                    <div className="relative z-10">
+                      <CreatorBadge address={token.creator} />
+                    </div>
+                  )}
+
                   {/* Token avatar */}
                   <TokenAvatar
                     tokenAddress={token.id}
@@ -468,6 +476,7 @@ export default function HomePage() {
                     progress={token.progress}
                     priceMon={formatPriceMon(token.price.monPerToken)}
                     priceChangePct={pct}
+                    creator={token.creator}
                   />
                 ) : (
                   <TokenCard
@@ -482,6 +491,7 @@ export default function HomePage() {
                     progress={token.progress}
                     priceMon={formatPriceMon(token.price.monPerToken)}
                     priceChangePct={pct}
+                    creator={token.creator}
                   />
                 )}
             </Link>

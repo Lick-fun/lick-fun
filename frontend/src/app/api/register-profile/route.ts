@@ -1,12 +1,14 @@
 /**
  * POST /api/register-profile
- * Body: { walletAddress, displayName, avatarUri, signature, message }
+ * Body: { walletAddress, signature, message, displayName?, avatarUri? }
  *
  * Stores a mapping of walletAddress → { displayName, avatarUri } in a lightweight
- * JSON file on disk. The actual avatar content lives on IPFS forever regardless
+ * JSON file on disk. The actual avatar content lives on Storj forever regardless
  * of whether this server is running.
  *
  * Requires a valid EIP-191 signature proving the wallet owns the profile.
+ * At least one of displayName or avatarUri must be provided.
+ * Fields are merged with any existing profile data — you can update just one field.
  */
 
 import { type NextRequest, NextResponse } from "next/server";
@@ -16,10 +18,8 @@ import { verifyMessage } from "viem";
 
 const DATA_FILE = path.join(process.cwd(), "src", "data", "profile-metadata.json");
 
-type ProfileStore = Record<
-  string,
-  { displayName: string; avatarUri: string; updatedAt: number }
->;
+type ProfileEntry = { displayName: string; avatarUri: string; updatedAt: number };
+type ProfileStore = Record<string, ProfileEntry>;
 
 async function readStore(): Promise<ProfileStore> {
   try {
@@ -46,15 +46,16 @@ export async function POST(req: NextRequest) {
       message?: string;
     };
 
-    if (
-      !walletAddress ||
-      !displayName ||
-      !avatarUri ||
-      !signature ||
-      !message
-    ) {
+    if (!walletAddress || !signature || !message) {
       return NextResponse.json(
-        { error: "walletAddress, displayName, avatarUri, signature, and message are required" },
+        { error: "walletAddress, signature, and message are required" },
+        { status: 400 }
+      );
+    }
+
+    if (!displayName && !avatarUri) {
+      return NextResponse.json(
+        { error: "At least one of displayName or avatarUri must be provided" },
         { status: 400 }
       );
     }
@@ -75,10 +76,12 @@ export async function POST(req: NextRequest) {
 
     const normalised = walletAddress.toLowerCase();
     const store = await readStore();
+    const existing = store[normalised] ?? { displayName: "", avatarUri: "", updatedAt: 0 };
 
+    // Merge — only overwrite the fields that were explicitly provided
     store[normalised] = {
-      displayName: displayName.trim(),
-      avatarUri,
+      displayName: displayName !== undefined ? displayName.trim() : existing.displayName,
+      avatarUri: avatarUri !== undefined ? avatarUri : existing.avatarUri,
       updatedAt: Date.now(),
     };
 

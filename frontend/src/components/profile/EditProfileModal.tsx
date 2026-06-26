@@ -19,8 +19,11 @@ export function EditProfileModal({
   onClose,
   onSuccess,
 }: EditProfileModalProps) {
-  const { isConnected } = useAccount();
+  const { isConnected, address: connectedAddress } = useAccount();
   const { signMessageAsync } = useSignMessage();
+
+  // Always use the checksummed address from wagmi (not the URL param which may be lowercase)
+  const signerAddress = connectedAddress ?? walletAddress;
 
   const [displayName, setDisplayName] = useState(currentDisplayName);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -47,17 +50,18 @@ export function EditProfileModal({
     setError(null);
   }
 
+  // Whether the user has actually changed anything
+  const nameChanged = displayName.trim() !== (currentDisplayName ?? "").trim();
+  const avatarChanged = avatarFile !== null;
+  const hasChanges = nameChanged || avatarChanged;
+
   async function handleSubmit() {
-    if (!isConnected) {
+    if (!isConnected || !connectedAddress) {
       setError("Please connect your wallet");
       return;
     }
-    if (!displayName.trim()) {
-      setError("Display name is required");
-      return;
-    }
-    if (!avatarFile && !currentAvatarUrl) {
-      setError("Please select an avatar image");
+    if (!hasChanges) {
+      setError("No changes to save");
       return;
     }
 
@@ -66,17 +70,21 @@ export function EditProfileModal({
 
     try {
       // Build the message to sign — proves wallet ownership
-      const message = `Update Lick.fun profile\nWallet: ${walletAddress}\nName: ${displayName.trim()}\nTimestamp: ${Date.now()}`;
+      const message = `Update Lick.fun profile\nWallet: ${signerAddress}\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
 
-      let avatarUri: string;
+      // Payload — only include fields that actually changed
+      const payload: Record<string, string> = {
+        walletAddress: signerAddress,
+        signature,
+        message,
+      };
 
-      if (avatarFile) {
-        // Upload new avatar + metadata to IPFS
+      if (avatarChanged && avatarFile) {
+        // Upload new avatar to Storj
         const uploadForm = new FormData();
         uploadForm.append("avatar", avatarFile);
-        uploadForm.append("walletAddress", walletAddress);
-        uploadForm.append("displayName", displayName.trim());
+        uploadForm.append("walletAddress", signerAddress);
         uploadForm.append("signature", signature);
         uploadForm.append("message", message);
 
@@ -91,27 +99,18 @@ export function EditProfileModal({
         }
 
         const uploadData = await uploadRes.json();
-        avatarUri = uploadData.avatarUri;
-      } else {
-        // Keep existing avatar — re-register with current URI
-        // (We don't have the raw URI here, so we re-fetch it)
-        const existing = await fetch(`/api/profile-image/${walletAddress.toLowerCase()}`);
-        if (!existing.ok) throw new Error("Existing avatar not found");
-        const existingData = await existing.json();
-        avatarUri = existingData.avatarUri;
+        payload.avatarUri = uploadData.avatarUri;
       }
 
-      // Register the profile metadata
+      if (nameChanged) {
+        payload.displayName = displayName.trim();
+      }
+
+      // Register the profile metadata (merges with existing)
       const registerRes = await fetch("/api/register-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          walletAddress,
-          displayName: displayName.trim(),
-          avatarUri,
-          signature,
-          message,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!registerRes.ok) {
@@ -146,7 +145,7 @@ export function EditProfileModal({
           Edit Profile
         </h2>
         <p className="text-figma-sm text-figma-muted mb-6">
-          Set a custom display name and avatar for your profile.
+          Update your display name, avatar, or both — changes are saved independently.
         </p>
 
         {/* Avatar upload */}
@@ -212,7 +211,7 @@ export function EditProfileModal({
         {/* Submit */}
         <button
           onClick={handleSubmit}
-          disabled={loading || !isConnected}
+          disabled={loading || !isConnected || !hasChanges}
           className="w-full flex items-center justify-center gap-2 h-[42px] rounded-pill bg-figma-green text-figma-bg font-semibold transition-colors hover:bg-figma-green-soft disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? (
@@ -221,7 +220,7 @@ export function EditProfileModal({
               Saving...
             </>
           ) : (
-            "Save Profile"
+            "Save Changes"
           )}
         </button>
 
