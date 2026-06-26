@@ -254,6 +254,16 @@ export default function HomePage() {
         <div className="absolute right-0 top-0 bottom-0 w-[34px] gradient-fade-left pointer-events-none z-10" />
       </div>
 
+      {/* ── Founder Token Banner (pinned, centred, above Trending Now) ── */}
+      <FounderTokenBanner
+        tokens={tokensWithMeta}
+        priceChangePct={
+          process.env.NEXT_PUBLIC_FOUNDER_TOKEN_ADDRESS
+            ? priceChangeMap.get(process.env.NEXT_PUBLIC_FOUNDER_TOKEN_ADDRESS.toLowerCase())
+            : undefined
+        }
+      />
+
       {/* ── Trending Now Banner ── */}
       <div className="flex items-center justify-center gap-3 mt-[20px]">
         <span className="text-3xl">🔥</span>
@@ -386,9 +396,6 @@ export default function HomePage() {
           })
         )}
       </div>
-
-      {/* ── Founder Token Banner (pinned, centred) ── */}
-      <FounderTokenBanner tokens={tokensWithMeta} />
 
       {/* ── Sort / Filter Bar ── */}
       <div className="flex items-center gap-3 mt-[20px]">
