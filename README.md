@@ -8,7 +8,7 @@
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 [![Tests](https://img.shields.io/badge/Tests-137%20Forge%20•%2058%20Vitest-green)](.)
 
-**Status:** 3 security audit passes · 137 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · TradingView Lightweight Charts price chart live on token detail page · Phase 3 (USD MC display, founder token) next
+**Status:** 3 security audit passes · 137 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · TradingView Lightweight Charts price chart live on token detail page · Token detail page redesigned (nad.fun-inspired 2-column layout with IPFS metadata, social links, stats grid) · Phase 3 (USD MC display, founder token) next
 
 ---
 
@@ -101,10 +101,10 @@ lick-fun/
 ├── contracts/          Foundry project (13 Solidity contracts, 136 tests)
 │   ├── src/            13 contracts (Factory, BondingCurve, FeeRouter, etc.)
 │   ├── script/         Deploy scripts
-│   └── test/           13 test files, 136 Forge tests, TradingView Lightweight Charts)
+│   └── test/           13 test files, 136 Forge tests
+├── frontend/           Next.js 15.5 (9 pages, wagmi, RainbowKit)
 │   ├── src/app/        Routes: / /create /discover /how-it-works /markets /profile/[address] /token/[id]
-│   └── src/components/ UI + layout + reputation (TierBadge, BadgeGrid, ReputationScore, PriceChartdress] /token/[id]
-│   └── src/components/ UI + layout + reputation (TierBadge, BadgeGrid, ReputationScore)
+│   └── src/components/ UI + layout + reputation + token (TradePanel, PriceChart, CurveChart)
 ├── indexer/            Envio HyperIndex v3 config + handlers (5 entities)
 ├── reputation/         Off-chain TypeScript scoring engine (10 badges, 3 tiers, Merkle anchor)
 ├── .memory/            RAG reference files (8 .txt files for Cline)
@@ -205,6 +205,9 @@ ProfileRegistry            Wallet linking (0.1 MON bond), daily Merkle anchor
 | + | Phase 2: Audit pass 3 (10 fixes, 136 tests) | done |
 | + | Phase 2: applyPreset fix redeployed (block 40486351) | done |
 | + | TradingView Lightweight Charts price chart on token detail page | done |
+| + | Token detail page redesign — nad.fun 2-column layout (IPFS metadata, social links, stats grid, compact header, trades table) | done |
+| + | PriceChart fix — async init now applies bars immediately after series creation | done |
+| + | TradePanel redesign — full-width Buy/Sell toggle, quick-select presets, cleaner layout | done |
 | -> | Phase 3: USD market cap display | pending |
 | -> | Phase 3: Founder-first-token launch | pending |
 | -> | Phase 3: protocolFeeReceiver to multisig | pending |
