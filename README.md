@@ -8,7 +8,7 @@
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 [![Tests](https://img.shields.io/badge/Tests-136%20Forge%20•%2058%20Vitest-green)](.)
 
-**Status:** 3 security audit passes · 136 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · PriceChart enhanced — volume histogram pane, OHLC crosshair header, chart type toggle (candle/bar/line), MCap/Price toggle, USD/MON quote toggle, log scale, fullscreen, extended timeframes (1W/1M) · Token detail page redesigned (nad.fun-inspired 2-column layout with IPFS metadata, social links, stats grid) · Prediction Markets page redesigned — token name/symbol/price/MC/progress on every card, stats bar, sort controls, YES/NO pool split bar, parimutuel payout fix, status badges · **Phase 3 shipped** — USD market cap display (CoinGecko feed), founder token banner, profile custom name + avatar (wallet-signed), ticker redesigned as full-width auto-scrolling marquee, charts default to MCap + USD, 24h % change bug fixed, token names now display in ticker + markets via GraphQL join, About page rewritten in buyer-friendly language · **Phase 3b shipped** — removed 10% auto dev allocation (100% supply to curve, creators buy their own tokens via dev pre-buy), TradePanel slippage control (default 10%, clickable with 1%/5%/10% presets + custom input), MAX button on dev buy reserves 10 MON for creation fee, sell MAX button uses formatEther to avoid 1-wei rounding bug, global CSS hides number input spinners · **Phase 3c shipped** — USD MC on every token card (home trending + grid, discover grid) via shared `lib/format.ts` helpers, bonding bar default `progress = 0` (was misleading `65`), discover cards now show live price + 24h change matching homepage, trending card fixed (removed fixed `h-[343px]` height that was clipping MC/VOL/bonding bar via `overflow-hidden`, added token name + ticker, added bonding curve progress bar with purple gradient)
+**Status:** 3 security audit passes · 136 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · **Phase 3 shipped** — custom fee config for all users (Nad.fun-style toggle-card UI with 4 destinations: Buyback & Burn / LP Support / Creator / Gift), tier gating removed, new `FeeRouter.applyCustomConfig()` + `Factory.createTokenWithCustomConfig()` deployed at block 40685542 · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · PriceChart enhanced — volume histogram pane, OHLC crosshair header, chart type toggle (candle/bar/line), MCap/Price toggle, USD/MON quote toggle, log scale, fullscreen, extended timeframes (1W/1M) · Token detail page redesigned (nad.fun-inspired 2-column layout with IPFS metadata, social links, stats grid) · Prediction Markets page redesigned — token name/symbol/price/MC/progress on every card, stats bar, sort controls, YES/NO pool split bar, parimutuel payout fix, status badges · **Phase 3 shipped** — USD market cap display (CoinGecko feed), founder token banner, profile custom name + avatar (wallet-signed), ticker redesigned as full-width auto-scrolling marquee, charts default to MCap + USD, 24h % change bug fixed, token names now display in ticker + markets via GraphQL join, About page rewritten in buyer-friendly language · **Phase 3b shipped** — removed 10% auto dev allocation (100% supply to curve, creators buy their own tokens via dev pre-buy), TradePanel slippage control (default 10%, clickable with 1%/5%/10% presets + custom input), MAX button on dev buy reserves 10 MON for creation fee, sell MAX button uses formatEther to avoid 1-wei rounding bug, global CSS hides number input spinners · **Phase 3c shipped** — USD MC on every token card (home trending + grid, discover grid) via shared `lib/format.ts` helpers, bonding bar default `progress = 0` (was misleading `65`), discover cards now show live price + 24h change matching homepage, trending card fixed (removed fixed `h-[343px]` height that was clipping MC/VOL/bonding bar via `overflow-hidden`, added token name + ticker, added bonding curve progress bar with purple gradient) · **Phase 3g shipped** — Profile page overhaul: token holdings (bought, not created) with live USD value + P&L, Portfolio Summary card (MON balance + total value + P&L), Tokens Created now shows USD MC + creator fees distributed per token, Activity tabs (All/Buys/Sells/Creates), max-width increased to 960px
 
 ---
 
@@ -31,21 +31,31 @@ Anyone can buy/sell on the bonding curve. Symmetric anti-sniping penalties prote
 ### 3. Graduate
 When the curve accumulates 100,000 MON, GraduationRouter migrates all liquidity to a LickPair (V2-style AMM). LP tokens are burned to `0xdead` — permanent liquidity, strongest trust signal.
 
-### 4. Fee Tiers
-Creators choose a tier at launch. The 1% creator fee is split per-tier through FeeRouter. Tier access is gated by reputation (Starter / Established / Verified):
+### 4. Fee Strategy (Phase 3 — custom for all users)
+Every creator sets their own fee split at launch via a Nad.fun-style toggle-card UI. The 1% creator fee is routed through FeeRouter to up to 4 destinations:
 
-| Tier | Creator | LP Support | Buyback & Burn | Min Reputation | Notes |
-|---|---|---|---|---|---|
-| Starter | 10% | 80% | 10% | Starter | Entry tier |
-| Creator Extra | 30% | 60% | 10% | Established | Builder tier |
-| Creator + LP Support | 20% | 70% | 10% | Established | Community-focused split |
-| Custom | custom | custom | custom | Verified | Fully customisable — any split summing to 100% |
+| Destination | Description |
+|---|---|
+| Buyback & Burn | Used to buy back and burn tokens, reducing supply |
+| LP Support | Feeds into liquidity pools to deepen token liquidity |
+| Creator | Sent directly to your wallet on every trade |
+| Gift | Split to any wallet — team, partner or community fund |
+
+All enabled shares must sum to exactly 100%. No tier gating — available to every wallet regardless of reputation. Gift split is optional (toggle ON to reveal address input).
 
 ### 5. Earn Reputation
 Every on-chain action feeds an off-chain reputation engine. Scores (0–100) computed from graduation rates, lock fulfillment, pre-buy honesty, profile age, verified tenure, and volume. Sigmoid formula: `100 / (1 + e^(-0.15 × (raw - 0.4)))`. Anchored daily on-chain via Merkle root in ProfileRegistry. 10 milestone badges auto-awarded.
 
 ### 6. View Profile
 Connected wallet → click Profile in nav → see live trading stats, reputation score, tier badge, achievements, tokens created, and recent activity — all from the Envio indexer.
+
+**Profile page sections (Phase 3g):**
+- **Profile Card** — avatar, display name, address, tier badge, reputation score, stats (Tokens / Graduated / Buy Vol / Sell Vol)
+- **Portfolio Summary** — Total Value (USD with MON fallback), MON balance, Holdings value, P&L with percentage
+- **Holdings** — tokens the wallet bought, with balance, current price, USD value, P&L per holding (green/red)
+- **Achievements** — badge grid (only if badges earned)
+- **Tokens Created** — USD MC + creator fees distributed per token (show all, "Show more" if > 10)
+- **Activity** — tabs (All / Buys / Sells / Creates) with counts
 
 ---
 
@@ -77,17 +87,17 @@ Connected wallet → click Profile in nav → see live trading stats, reputation
 | VestingController (Phase 1) | `0xAA5b7D3ab8387CdEE8767f4E622101da191C6AfC` |
 | LickFactory (DEX) | `0x6848A334f9f7C2Cd5a2b34580EcC05F1616bAE48` |
 
-### Phase 2 (FeeRouter tier system — applyPreset fix redeployed 2026-06-25, block 40486351)
+### Phase 3 (custom fee config — redeployed 2026-06-26, block 40685542)
 
 | Contract | Address |
 |---|---|
-| Factory (Phase 2) | `0x6355D4405c2BCd722c0499f4997A37C7f8B7879f` |
-| FeeRouter | `0x7b433B3F5C6D6Af67ec85ADbCdeC8b5a8AFAA6BA` |
-| GraduationRouter | `0x97b4229951eDb4067560bB37B39cbCb3C1351CeF` |
-| VaultLPSupport | `0x9d470C278234E2b895afccD0a1D1DF5A77Fb7edd` |
-| VaultBuybackBurn | `0xdF3eDa57950e54feA6432cfDCc1EcD6aBB452D48` |
-| PredictionMarket | `0x73e4dd64abf9909c06c9b9111f35ab4902ec37e2` |
-| VestingController (Phase 2) | `0xC97C71435c3Fe98a955e939D1B6f509327795C1D` |
+| Factory (Phase 3) | `0x7fDDc1ae25164664e8837679f7Fd7b5ef59860f3` |
+| FeeRouter | `0xfCFe5E41410575D7D37310A05ef12ed0F48f3A8e` |
+| GraduationRouter | `0x073aD4D827c614494f470195f77a4B753c0963f7` |
+| VaultLPSupport | `0x9Ca7D23D57b285C7b46A19e1CE2CcB355B0fF479` |
+| VaultBuybackBurn | `0xd1309F6A7c486B0e81979522d339AF5ea2a27c56` |
+| PredictionMarket | `0xb7aa4530c65EE93F34797A8eE988159E79C2abbE` |
+| VestingController (Phase 2, deprecated) | `0xC97C71435c3Fe98a955e939D1B6f509327795C1D` |
 
 RPC: https://testnet-rpc.monad.xyz
 Envio: https://indexer.dev.hyperindex.xyz/7dfa25f/v1/graphql
