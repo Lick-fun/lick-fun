@@ -49,6 +49,35 @@ export interface ProfileEntity {
   totalSellVolume: bigint;
 }
 
+export interface MarketIndexEntity {
+  id: string;
+  totalYesMON: bigint;
+  totalNoMON: bigint;
+  resolved: boolean;
+  outcome: boolean | null;
+  cancelled: boolean;
+  closeTime: bigint;
+  createdAt: bigint;
+  resolvedAt: bigint | null;
+}
+
+export interface BetIndexEntity {
+  id: string;
+  market_id: string;
+  bettor: string;
+  isYes: boolean;
+  amount: bigint;
+  lastBetAt: bigint;
+}
+
+export interface ClaimIndexEntity {
+  id: string;
+  market_id: string;
+  claimant: string;
+  amount: bigint;
+  claimedAt: bigint;
+}
+
 export interface EnvioProfileResponse {
   Profile_by_pk?: ProfileEntity | null;
   Token: TokenEntity[];
@@ -245,4 +274,119 @@ export const QUERY_CHART_TRADES = gql`
     }
   }
   ${TRADE_FRAGMENT}
+`;
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* Prediction Market Queries                                                       */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+const MARKET_FRAGMENT = gql`
+  fragment MarketFields on Market {
+    id
+    totalYesMON
+    totalNoMON
+    resolved
+    outcome
+    cancelled
+    closeTime
+    createdAt
+    resolvedAt
+  }
+`;
+
+const BET_FRAGMENT = gql`
+  fragment BetFields on Bet {
+    id
+    market_id
+    bettor
+    isYes
+    amount
+    lastBetAt
+  }
+`;
+
+const CLAIM_FRAGMENT = gql`
+  fragment ClaimFields on Claim {
+    id
+    market_id
+    claimant
+    amount
+    claimedAt
+  }
+`;
+
+/**
+ * Fetches all prediction markets from the indexer. Used for historical/resolved
+ * views and leaderboards. Live odds and user positions still come from on-chain
+ * multicalls in useAllMarkets/useMarket.
+ */
+export const QUERY_ALL_MARKETS = gql`
+  query GetAllMarkets($limit: Int, $offset: Int, $orderBy: [Market_order_by!], $where: Market_bool_exp) {
+    Market(limit: $limit, offset: $offset, order_by: $orderBy, where: $where) {
+      ...MarketFields
+    }
+  }
+  ${MARKET_FRAGMENT}
+`;
+
+/**
+ * Fetches a single prediction market by token address.
+ */
+export const QUERY_MARKET = gql`
+  query GetMarket($id: String!) {
+    Market_by_pk(id: $id) {
+      ...MarketFields
+    }
+  }
+  ${MARKET_FRAGMENT}
+`;
+
+/**
+ * Fetches all bets for a market, ordered by amount descending. Used for
+ * "top bettors" leaderboards.
+ */
+export const QUERY_BETS_BY_MARKET = gql`
+  query GetBetsByMarket($marketId: String!, $limit: Int!) {
+    Bet(
+      where: { market_id: { _eq: $marketId } }
+      order_by: { amount: desc }
+      limit: $limit
+    ) {
+      ...BetFields
+    }
+  }
+  ${BET_FRAGMENT}
+`;
+
+/**
+ * Fetches all bets placed by a specific wallet address. Used for "My Positions"
+ * views across all markets.
+ */
+export const QUERY_MY_BETS = gql`
+  query GetMyBets($bettor: String!, $limit: Int!) {
+    Bet(
+      where: { bettor: { _eq: $bettor } }
+      order_by: { lastBetAt: desc }
+      limit: $limit
+    ) {
+      ...BetFields
+    }
+  }
+  ${BET_FRAGMENT}
+`;
+
+/**
+ * Fetches all winnings claims for a market. Used for "recent winners" displays.
+ */
+export const QUERY_CLAIMS_BY_MARKET = gql`
+  query GetClaimsByMarket($marketId: String!, $limit: Int!) {
+    Claim(
+      where: { market_id: { _eq: $marketId } }
+      order_by: { claimedAt: desc }
+      limit: $limit
+    ) {
+      ...ClaimFields
+    }
+  }
+  ${CLAIM_FRAGMENT}
 `;

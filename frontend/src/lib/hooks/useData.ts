@@ -80,6 +80,9 @@ function decorateToken(t: TokenEntity) {
   };
 }
 
+// Decorated token type — includes price + progress fields added by decorateToken
+export type DecoratedToken = ReturnType<typeof decorateToken>;
+
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Live Envio GraphQL hooks                                                          */
 /* ──────────────────────────────────────────────────────────────────────────────── */
@@ -425,7 +428,7 @@ export interface MarketEntity {
   claimed: boolean;
   odds: { yesOdds: number; noOdds: number };
   totalPool: bigint;
-  token?: TokenEntity | null;
+  token?: DecoratedToken | null;
 }
 
 const PREDICTION_MARKET_DEPLOYED =
@@ -548,7 +551,8 @@ export function useAllMarkets(): {
     // Fallback to mock data when the contract isn't deployed
     if (!PREDICTION_MARKET_DEPLOYED) {
       return mockMarkets.map((m) => {
-        const token = mockTokens.find((t) => t.id === m.tokenId);
+        const rawToken = mockTokens.find((t) => t.id === m.tokenId);
+        const token = rawToken ? decorateToken(rawToken) : undefined;
         return {
           tokenId: m.tokenId,
           tokenName: m.tokenName,
@@ -707,7 +711,8 @@ export function useMarket(tokenId: string): {
       // Mock fallback
       const m = mockMarkets.find((m) => m.tokenId === id);
       if (!m) return null;
-      const token = mockTokens.find((t) => t.id === m.tokenId);
+      const rawToken = mockTokens.find((t) => t.id === m.tokenId);
+      const token = rawToken ? decorateToken(rawToken) : undefined;
       return {
         tokenId: m.tokenId,
         tokenName: m.tokenName,
@@ -766,7 +771,7 @@ export function useMarket(tokenId: string): {
       claimed,
       odds,
       totalPool: totalYesMON + totalNoMON,
-      token: tokenQuery.data,
+      token: tokenQuery.data ? decorateToken(tokenQuery.data) : undefined,
     };
   }, [data, id, tokenQuery.data]);
 

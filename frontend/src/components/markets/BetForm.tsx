@@ -31,6 +31,13 @@ interface BetFormProps {
   claimed: boolean;
   totalYesMON?: bigint;
   totalNoMON?: bigint;
+  // Optional token context (price/MC/progress) — populated when caller has
+  // access to the decorated TokenEntity. All optional so existing call sites
+  // continue to work unchanged.
+  tokenSymbol?: string;
+  tokenPrice?: number;
+  tokenMarketCap?: number;
+  tokenProgress?: number;
 }
 
 export function BetForm({
@@ -47,6 +54,10 @@ export function BetForm({
   claimed,
   totalYesMON = 0n,
   totalNoMON = 0n,
+  tokenSymbol,
+  tokenPrice,
+  tokenMarketCap,
+  tokenProgress,
 }: BetFormProps) {
   const { isConnected } = useAccount();
   const [side, setSide] = useState<"yes" | "no">("yes");
@@ -309,6 +320,97 @@ export function BetForm({
         Place Bet — {tokenName}
       </h4>
 
+      {/* Token context header — only renders when caller passes token data */}
+      {(tokenSymbol || tokenPrice !== undefined || tokenMarketCap !== undefined || tokenProgress !== undefined) && (
+        <div className="rounded-lg bg-secondary p-3 mb-4 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm font-semibold text-foreground truncate">
+                {tokenName}
+              </span>
+              {tokenSymbol && (
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-figma-card-alt text-figma-muted shrink-0">
+                  ${tokenSymbol}
+                </span>
+              )}
+            </div>
+            {tokenPrice !== undefined && (
+              <div className="text-right shrink-0">
+                <div className="text-sm font-mono text-foreground">
+                  {tokenPrice.toFixed(6)} MON
+                </div>
+                <div className="text-[10px] text-figma-muted">
+                  ${(tokenPrice * 0.4).toFixed(6)}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center justify-between text-[10px] text-figma-muted">
+            {tokenMarketCap !== undefined && (
+              <span>
+                MC: {tokenMarketCap >= 1000
+                  ? `${(tokenMarketCap / 1000).toFixed(2)}K`
+                  : tokenMarketCap.toFixed(2)} MON
+              </span>
+            )}
+            {tokenProgress !== undefined && (
+              <span className="font-mono">
+                {tokenProgress.toFixed(1)}% to graduation
+              </span>
+            )}
+          </div>
+          {tokenProgress !== undefined && (
+            <div className="w-full h-1.5 rounded-full bg-figma-card-alt overflow-hidden">
+              <div
+                className="h-full rounded-full bg-figma-green transition-all"
+                style={{ width: `${Math.min(100, Math.max(0, tokenProgress))}%` }}
+              />
+            </div>
+          )}
+          <p className="text-[10px] text-figma-muted leading-relaxed pt-1">
+            Bet whether ${tokenSymbol ?? tokenName} reaches the graduation threshold on the bonding curve.
+          </p>
+        </div>
+      )}
+
+      {/* YES/NO pool split bar — visualizes pool proportions */}
+      {(totalYesMON > 0n || totalNoMON > 0n) && (
+        <div className="mb-4">
+          <div className="flex justify-between text-[10px] text-figma-muted mb-1">
+            <span className="text-figma-green font-semibold">
+              YES {(Number(totalYesMON) / 1e18).toFixed(2)} MON
+            </span>
+            <span className="text-red-400 font-semibold">
+              NO {(Number(totalNoMON) / 1e18).toFixed(2)} MON
+            </span>
+          </div>
+          <div className="w-full h-2 rounded-full bg-red-500/20 overflow-hidden flex">
+            <div
+              className="h-full bg-figma-green/70 transition-all"
+              style={{
+                width: `${(() => {
+                  const yes = Number(totalYesMON);
+                  const no = Number(totalNoMON);
+                  const total = yes + no;
+                  return total > 0 ? (yes / total) * 100 : 50;
+                })()}%`,
+              }}
+            />
+            <div
+              className="h-full bg-red-500/70 transition-all"
+              style={{
+                width: `${(() => {
+                  const yes = Number(totalYesMON);
+                  const no = Number(totalNoMON);
+                  const total = yes + no;
+                  return total > 0 ? (no / total) * 100 : 50;
+                })()}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* YES/NO Toggle */}
       <div className="flex rounded-lg bg-secondary p-1 mb-4">
         <button
@@ -368,24 +470,26 @@ export function BetForm({
           <span className="font-mono">
             {(() => {
               if (amountNum <= 0) return "—";
-              // Parimutuel: winner gets proportional share of losing pool (net 2% fee)
+              // Parimutuel: winner gets proportional share of losing pool (net 2% fee).
+              // NOTE: original stake is NOT returned — payout is gain only.
               const amtWei = BigInt(Math.floor(amountNum * 1e18));
               if (side === "yes" && totalYesMON > 0n) {
                 const winnerPool = totalYesMON + amtWei;
                 const losingPool = totalNoMON;
                 const payout = (amtWei * losingPool * 98n) / (winnerPool * 100n);
-                const totalReturn = amtWei + payout;
-                return `~${(Number(totalReturn) / 1e18).toFixed(3)} MON`;
+                return `~${(Number(payout) / 1e18).toFixed(3)} MON`;
               } else if (side === "no" && totalNoMON > 0n) {
                 const winnerPool = totalNoMON + amtWei;
                 const losingPool = totalYesMON;
                 const payout = (amtWei * losingPool * 98n) / (winnerPool * 100n);
-                const totalReturn = amtWei + payout;
-                return `~${(Number(totalReturn) / 1e18).toFixed(3)} MON`;
+                return `~${(Number(payout) / 1e18).toFixed(3)} MON`;
               }
               return "—";
             })()}
           </span>
+        </div>
+        <div className="text-[10px] text-figma-muted mt-1.5 leading-relaxed">
+          Parimutuel — your stake is not returned. Payout = your share of the losing pool × 98%.
         </div>
         {userYesBet > 0n && (
           <div className="flex justify-between mt-1 text-amber-400">

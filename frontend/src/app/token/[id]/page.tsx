@@ -22,12 +22,20 @@ import { TokenImage } from "@/components/ui/TokenImage";
 import { useTokenIpfsMeta } from "@/lib/hooks/useTokenImage";
 import { ArrowLeft, GraduationCap, TrendingUp, Copy, Check, Globe, Send } from "lucide-react";
 import { BetForm } from "@/components/markets/BetForm";
+import { cn } from "@/lib/utils";
 
 export default function TokenDetailPage() {
   const { id } = useParams<{ id: string }>();
   const tokenId = (id as string) ?? "";
   const [showBetForm, setShowBetForm] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Live clock for prediction market countdown
+  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const intervalId = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   const { data: token, isLoading: tokenLoading, error: tokenError, refetch: refetchToken } = useToken(tokenId);
   const { data: trades = [], isLoading: tradesLoading } = useTokenTrades(tokenId);
@@ -421,7 +429,30 @@ export default function TokenDetailPage() {
                 onClick={() => setShowBetForm((v) => !v)}
                 className="w-full flex items-center justify-between mb-3 group"
               >
-                <span className="text-xs font-semibold text-figma-white">Prediction Market</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-figma-white">Prediction Market</span>
+                  {/* Status badge */}
+                  <span
+                    className={cn(
+                      "text-[9px] px-1.5 py-0.5 rounded font-semibold",
+                      market.cancelled
+                        ? "bg-figma-muted/20 text-figma-muted"
+                        : market.resolved
+                          ? market.outcome
+                            ? "bg-figma-green/20 text-figma-green-soft"
+                            : "bg-red-500/20 text-red-400"
+                          : "bg-figma-green/20 text-figma-green-soft"
+                    )}
+                  >
+                    {market.cancelled
+                      ? "Cancelled"
+                      : market.resolved
+                        ? market.outcome
+                          ? "Graduated"
+                          : "Didn't"
+                        : "Active"}
+                  </span>
+                </div>
                 <span className="text-[10px] text-figma-muted group-hover:text-figma-white transition-colors">
                   {showBetForm ? "▲ Hide" : "▼ Show"}
                 </span>
@@ -438,6 +469,15 @@ export default function TokenDetailPage() {
               </div>
               <div className="text-[10px] text-figma-muted mb-2">
                 Pool: {(Number(market.totalYesMON + market.totalNoMON) / 1e18).toFixed(2)} MON
+                {!market.resolved && !market.cancelled && Number(market.closeTime) > 0 && (
+                  <span className="ml-2">
+                    · {(() => {
+                      const secondsLeft = Number(market.closeTime) - nowSec;
+                      if (secondsLeft <= 0) return "Betting closed";
+                      return `Closes in ${Math.floor(secondsLeft / 3600)}h ${Math.floor((secondsLeft % 3600) / 60)}m`;
+                    })()}
+                  </span>
+                )}
                 {market.resolved && (
                   <span className="ml-2 text-figma-green-soft">
                     · {market.outcome ? "Graduated ✅" : "Didn't graduate ❌"}
@@ -461,6 +501,10 @@ export default function TokenDetailPage() {
                     claimed={market.claimed}
                     totalYesMON={market.totalYesMON}
                     totalNoMON={market.totalNoMON}
+                    tokenSymbol={tokenSymbol}
+                    tokenPrice={token?.price?.monPerToken}
+                    tokenMarketCap={token?.price?.marketCapMon}
+                    tokenProgress={token?.progress}
                   />
                 </div>
               )}

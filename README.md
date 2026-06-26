@@ -8,7 +8,7 @@
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 [![Tests](https://img.shields.io/badge/Tests-137%20Forge%20•%2058%20Vitest-green)](.)
 
-**Status:** 3 security audit passes · 137 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · PriceChart enhanced — volume histogram pane, OHLC crosshair header, chart type toggle (candle/bar/line), MCap/Price toggle, USD/MON quote toggle, log scale, fullscreen, extended timeframes (1W/1M) · Token detail page redesigned (nad.fun-inspired 2-column layout with IPFS metadata, social links, stats grid) · Phase 3 (USD MC display, founder token) next
+**Status:** 3 security audit passes · 137 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · PriceChart enhanced — volume histogram pane, OHLC crosshair header, chart type toggle (candle/bar/line), MCap/Price toggle, USD/MON quote toggle, log scale, fullscreen, extended timeframes (1W/1M) · Token detail page redesigned (nad.fun-inspired 2-column layout with IPFS metadata, social links, stats grid) · Prediction Markets page redesigned — token name/symbol/price/MC/progress on every card, stats bar, sort controls, YES/NO pool split bar, parimutuel payout fix, status badges · Phase 3 (USD MC display, founder token) next
 
 ---
 
@@ -209,6 +209,8 @@ ProfileRegistry            Wallet linking (0.1 MON bond), daily Merkle anchor
 | + | PriceChart fix — async init now applies bars immediately after series creation | done |
 | + | TradePanel redesign — full-width Buy/Sell toggle, quick-select presets, cleaner layout | done |
 | + | PriceChart enhancement — volume histogram, OHLC header, chart type toggle, MCap/Price, USD/MON, log scale, fullscreen, 1W/1M timeframes | done |
+| + | Prediction Markets page redesigned — token name/symbol/price/MC/progress on every card, stats bar (active/locked/positions), sort controls (Largest Pool/Closes Soonest/Newest), YES/NO pool split bar, parimutuel payout fix (no stake added back), status badges, token detail page widget with countdown | done |
+| + | Prediction Market GraphQL queries — QUERY_ALL_MARKETS, QUERY_MARKET, QUERY_BETS_BY_MARKET, QUERY_MY_BETS, QUERY_CLAIMS_BY_MARKET (uses existing Envio indexer) | done |
 | -> | Phase 3: USD market cap display | pending |
 | -> | Phase 3: Founder-first-token launch | pending |
 | -> | Phase 3: protocolFeeReceiver to multisig | pending |
