@@ -11,8 +11,8 @@ import { Loader2, AlertCircle, Wallet } from "lucide-react";
 interface TradePanelProps {
   tokenId: string;
   tokenSymbol: string;
-  realMon: bigint;
-  soldTokens: bigint;
+  realMon?: bigint;
+  soldTokens?: bigint;
   monPerToken: number;
   curveAddress?: string;
 }
@@ -20,8 +20,8 @@ interface TradePanelProps {
 export function TradePanel({
   tokenId,
   tokenSymbol,
-  realMon,
-  soldTokens,
+  realMon: _realMon,
+  soldTokens: _soldTokens,
   monPerToken,
   curveAddress,
 }: TradePanelProps) {
@@ -143,21 +143,20 @@ export function TradePanel({
     return <>{tab === "buy" ? "Buy" : "Sell"} {tokenSymbol}</>;
   }
 
-  return (
-    <div className="rounded-card border border-figma-card bg-figma-card p-5">
-      <h3 className="text-figma-md text-figma-white font-semibold mb-4">
-        Trade {tokenSymbol}
-      </h3>
+  /* Quick-select amounts (MON for buy, tokens for sell) */
+  const BUY_PRESETS = [50, 500, 2000, 5000];
 
-      {/* Buy/Sell Tabs */}
-      <div className="flex rounded-pill bg-figma-surface p-1 mb-4">
+  return (
+    <div className="rounded-xl border border-figma-card bg-figma-card overflow-hidden">
+      {/* Buy / Sell toggle — full-width, prominent */}
+      <div className="grid grid-cols-2">
         <button
           onClick={() => { setTab("buy"); setAmount(""); }}
           className={cn(
-            "flex-1 py-2 rounded-pill text-figma-sm font-medium transition-all",
+            "py-3 text-sm font-bold transition-all",
             tab === "buy"
-              ? "bg-figma-green/20 text-figma-green"
-              : "text-figma-muted hover:text-figma-white"
+              ? "bg-figma-green text-black"
+              : "bg-figma-surface text-figma-muted hover:text-figma-white"
           )}
         >
           Buy
@@ -165,41 +164,28 @@ export function TradePanel({
         <button
           onClick={() => { setTab("sell"); setAmount(""); }}
           className={cn(
-            "flex-1 py-2 rounded-pill text-figma-sm font-medium transition-all",
+            "py-3 text-sm font-bold transition-all",
             tab === "sell"
-              ? "bg-figma-red/20 text-figma-red-soft"
-              : "text-figma-muted hover:text-figma-white"
+              ? "bg-red-500 text-white"
+              : "bg-figma-surface text-figma-muted hover:text-figma-white"
           )}
         >
           Sell
         </button>
       </div>
 
-      {/* Disconnected state — show connect button instead of input */}
-      {!isConnected ? (
-        <div className="text-center py-6">
-          <p className="text-figma-sm text-figma-muted mb-4">
-            Connect your wallet to trade
-          </p>
-          <ConnectButton />
-        </div>
-      ) : !curveAddress ? (
-        /* No curve address yet (token not deployed) */
-        <div className="flex items-center gap-2 rounded-pill border border-figma-red/40 bg-figma-red/10 p-4">
-          <AlertCircle className="w-4 h-4 text-figma-red shrink-0" />
-          <p className="text-figma-sm text-figma-red">
-            Curve address unavailable for this token
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Wallet Balances */}
-          <div className="flex items-center justify-between mb-3 px-1">
-            <div className="flex items-center gap-1.5 text-figma-xs text-figma-muted">
-              <Wallet className="w-3.5 h-3.5" />
-              <span>
+      <div className="p-4">
+        {/* Balance */}
+        {isConnected && (
+          <div className="flex items-center justify-between mb-2 text-xs">
+            <div className="flex items-center gap-1 text-figma-muted">
+              <Wallet className="w-3 h-3" />
+              <span>Balance:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-figma-white font-mono">
                 {tab === "buy"
-                  ? `${monBalanceNum.toFixed(4)} MON`
+                  ? `${monBalanceNum.toFixed(2)} MON`
                   : `${tokenBalanceNum >= 1_000_000
                       ? `${(tokenBalanceNum / 1_000_000).toFixed(2)}M`
                       : tokenBalanceNum >= 1_000
@@ -209,96 +195,112 @@ export function TradePanel({
                 }
               </span>
             </div>
+          </div>
+        )}
+
+        {/* Amount input */}
+        <div className="relative mb-3">
+          <input
+            type="number"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={isLoading || !isConnected}
+            className="w-full px-4 py-3 rounded-lg border border-figma-surface bg-figma-bg text-figma-white text-base font-mono placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-60"
+          />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
             <button
               onClick={handleMax}
-              disabled={isLoading}
-              className="text-figma-xs text-figma-green hover:text-figma-green/80 font-semibold transition-colors disabled:opacity-50"
+              disabled={isLoading || !isConnected}
+              className="text-[10px] text-figma-green hover:text-figma-green/80 font-bold transition-colors disabled:opacity-50"
             >
               MAX
             </button>
+            <span className="text-xs text-figma-muted font-mono">
+              {tab === "buy" ? "MON" : tokenSymbol}
+            </span>
           </div>
+        </div>
 
-          {/* Input */}
-          <div className="mb-3">
-            <label className="text-figma-xs text-figma-muted mb-1 block">
-              {tab === "buy" ? "MON to spend" : "Tokens to sell"}
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                placeholder="0.0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                disabled={isLoading}
-                className="w-full px-4 py-3 rounded-pill border border-figma-surface bg-figma-bg text-figma-white text-figma-lg font-mono placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50"
-              />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-figma-sm text-figma-muted">
-                {tab === "buy" ? "MON" : tokenSymbol}
+        {/* Quick-select presets (buy only) */}
+        {tab === "buy" && (
+          <div className="grid grid-cols-4 gap-1.5 mb-3">
+            {BUY_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                onClick={() => setAmount(String(preset))}
+                disabled={isLoading || !isConnected}
+                className={cn(
+                  "py-1.5 rounded text-xs font-semibold border transition-all disabled:opacity-50",
+                  amount === String(preset)
+                    ? "border-figma-green bg-figma-green/10 text-figma-green"
+                    : "border-figma-surface bg-figma-surface text-figma-muted hover:text-figma-white hover:border-figma-surface/80"
+                )}
+              >
+                {preset >= 1000 ? `${preset / 1000}K` : preset}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Expected / preview */}
+        {amountNum > 0 && isConnected && (
+          <div className="rounded-lg bg-figma-surface px-3 py-2 mb-3 space-y-1 text-xs">
+            <div className="flex justify-between text-figma-muted">
+              <span>Expected</span>
+              <span className="font-mono text-figma-white">
+                {tab === "buy"
+                  ? `${estimatedTokens.toFixed(0)} ${tokenSymbol}`
+                  : `${estimatedMon.toFixed(4)} MON`}
               </span>
             </div>
+            <div className="flex justify-between text-figma-muted">
+              <span>Slippage</span>
+              <span className="text-figma-muted">Slippage {slippage}%</span>
+            </div>
           </div>
+        )}
 
-          {/* Output Preview */}
-          {amountNum > 0 && (
-            <div className="rounded-pill bg-figma-surface p-4 mb-4 space-y-2 text-figma-sm">
-              <div className="flex justify-between">
-                <span className="text-figma-muted">Current Price</span>
-                <span className="font-mono text-figma-white">
-                  {monPerToken.toFixed(8)} MON / {tokenSymbol}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-figma-muted">Fee ({feePercent}%)</span>
-                <span className="font-mono text-figma-red-soft">
-                  -{feeAmount.toFixed(4)} MON
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-figma-muted">Slippage Tolerance</span>
-                <span className="font-mono text-figma-muted">{slippage}%</span>
-              </div>
-              <div className="border-t border-figma-card-alt pt-2 flex justify-between font-semibold">
-                <span className="text-figma-white">You {tab === "buy" ? "receive" : "get"}</span>
-                <span className={tab === "buy" ? "text-figma-green" : "text-figma-red-soft"}>
-                  {tab === "buy"
-                    ? `~${estimatedTokens.toFixed(2)} ${tokenSymbol}`
-                    : `~${estimatedMon.toFixed(4)} MON`}
-                </span>
-              </div>
-            </div>
-          )}
+        {/* Sell step indicator */}
+        {tab === "sell" && sellStep !== "idle" && (
+          <div className="flex items-center gap-2 rounded-lg bg-figma-surface px-3 py-2 mb-3 text-xs text-figma-muted">
+            <span className={cn("w-1.5 h-1.5 rounded-full", sellStep === "approving" ? "bg-figma-green animate-pulse" : "bg-figma-surface")} />
+            <span className={sellStep === "approving" ? "text-figma-white" : "text-figma-muted"}>1. Approve</span>
+            <span className="mx-1">→</span>
+            <span className={cn("w-1.5 h-1.5 rounded-full", sellStep === "selling" ? "bg-red-500 animate-pulse" : "bg-figma-surface")} />
+            <span className={sellStep === "selling" ? "text-figma-white" : "text-figma-muted"}>2. Sell</span>
+          </div>
+        )}
 
-          {/* Sell step indicator */}
-          {tab === "sell" && sellStep !== "idle" && (
-            <div className="flex items-center gap-2 rounded-pill bg-figma-surface px-4 py-2 mb-3 text-figma-xs text-figma-muted">
-              <span className={cn("w-2 h-2 rounded-full", sellStep === "approving" ? "bg-figma-green animate-pulse" : "bg-figma-surface-alt")} />
-              <span className={sellStep === "approving" ? "text-figma-white" : "text-figma-muted"}>1. Approve</span>
-              <span className="mx-1">→</span>
-              <span className={cn("w-2 h-2 rounded-full", sellStep === "selling" ? "bg-figma-red animate-pulse" : "bg-figma-surface-alt")} />
-              <span className={sellStep === "selling" ? "text-figma-white" : "text-figma-muted"}>2. Sell</span>
-            </div>
-          )}
-
-          {/* Action Button */}
+        {/* Action button / connect wallet */}
+        {!isConnected ? (
+          <div className="flex justify-center">
+            <ConnectButton />
+          </div>
+        ) : !curveAddress ? (
+          <div className="flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 p-3">
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            <p className="text-xs text-red-400">Curve address unavailable</p>
+          </div>
+        ) : (
           <button
             disabled={!canTrade}
             onClick={handleTrade}
             className={cn(
-              "w-full py-3 rounded-pill font-semibold transition-all flex items-center justify-center gap-2",
+              "w-full py-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2",
               tab === "buy"
-                ? "bg-figma-green text-figma-bg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                : "bg-figma-red text-figma-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                ? "bg-figma-green text-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                : "bg-red-500 text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
             {buttonLabel()}
           </button>
+        )}
 
-          <p className="text-[10px] text-figma-muted mt-3 text-center">
-            Trades incur 1% protocol fee + 1% creator fee.
-            {tab === "sell" && " Selling requires 2 wallet confirmations (approve + sell)."}
-          </p>
-        </>
-      )}
+        <p className="text-[10px] text-figma-muted mt-2 text-center">
+          2% fee · {tab === "sell" ? "2 tx (approve + sell)" : "1 tx"}
+        </p>
+      </div>
     </div>
   );
 }

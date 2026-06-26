@@ -1,7 +1,7 @@
 "use client";
 
 import { useReadContract, useWriteContract } from "wagmi";
-import { parseEther, type Abi } from "viem";
+import { type Abi } from "viem";
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Contract Addresses (from env)                                                    */

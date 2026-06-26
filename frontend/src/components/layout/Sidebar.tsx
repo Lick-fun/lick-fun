@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
@@ -128,9 +129,11 @@ export function Sidebar() {
         href="/"
         className="flex items-center gap-3 px-6 h-16 border-b border-figma-surface"
       >
-        <img
+        <Image
           src="/logo-transparent.png"
           alt="Lick.fun"
+          width={36}
+          height={36}
           className="w-9 h-9 rounded-lg object-cover shrink-0"
         />
         <div>

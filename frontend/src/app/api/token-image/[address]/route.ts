@@ -6,7 +6,7 @@
  * Returns 404 if no metadata is registered for this address.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 

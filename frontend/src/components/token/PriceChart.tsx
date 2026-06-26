@@ -15,11 +15,11 @@ import type {
 
 /* ── Design token colours ─────────────────────────────────────────────────── */
 const C = {
-  bg: "#000000",
-  surface: "#0D0D0D",
+  bg: "#0a0a0a",
+  surface: "#111111",
   grid: "#1A1A1A",
   border: "#2A2A2A",
-  textMuted: "#7A7A7A",
+  textMuted: "#6B7280",
   green: "#2CC054",
   greenBright: "#70E000",
   red: "#EF4444",
@@ -53,25 +53,39 @@ export function PriceChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  // Keep latest bars in a ref so the async init can apply them after creating series
+  const barsRef = useRef<OHLCBar[]>(bars);
+
+  // Track current bars in ref for access inside async callbacks
+  useEffect(() => {
+    barsRef.current = bars;
+  }, [bars]);
 
   /* ── Create chart on mount ─────────────────────────────────────────────── */
   useEffect(() => {
     if (!containerRef.current) return;
 
+    let destroyed = false;
     let chart: IChartApi | null = null;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry && chartRef.current) {
+        chartRef.current.applyOptions({ width: entry.contentRect.width });
+      }
+    });
 
     (async () => {
       const { createChart, CandlestickSeries } = await import("lightweight-charts");
 
-      if (!containerRef.current) return;
+      if (destroyed || !containerRef.current) return;
 
       chart = createChart(containerRef.current, {
         width: containerRef.current.clientWidth,
-        height: 320,
+        height: 380,
         layout: {
           background: { color: C.bg },
           textColor: C.textMuted,
-          attributionLogo: true, // required by Apache-2.0 license
         },
         grid: {
           vertLines: { color: C.grid },
@@ -105,28 +119,34 @@ export function PriceChart({
 
       seriesRef.current = series;
 
-      // Fit content once after first render
-      chart.timeScale().fitContent();
+      // Apply any bars that loaded before the chart was ready
+      if (barsRef.current.length > 0) {
+        const data: CandlestickData<Time>[] = barsRef.current.map((b) => ({
+          time: b.time as Time,
+          open: b.open,
+          high: b.high,
+          low: b.low,
+          close: b.close,
+        }));
+        series.setData(data);
+        chart.timeScale().fitContent();
+      }
+
+      if (containerRef.current) resizeObserver.observe(containerRef.current);
     })();
 
-    // Resize observer
-    const resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry && chartRef.current) {
-        chartRef.current.applyOptions({ width: entry.contentRect.width });
-      }
-    });
-    resizeObserver.observe(containerRef.current);
-
     return () => {
+      destroyed = true;
       resizeObserver.disconnect();
-      chart?.remove();
-      chartRef.current = null;
+      if (chartRef.current) {
+        chartRef.current.remove();
+        chartRef.current = null;
+      }
       seriesRef.current = null;
     };
   }, []); // only on mount
 
-  /* ── Update data when bars or resolution changes ──────────────────────── */
+  /* ── Update data when bars change ─────────────────────────────────────── */
   useEffect(() => {
     if (!seriesRef.current || bars.length === 0) return;
 
@@ -171,11 +191,11 @@ export function PriceChart({
       </div>
 
       {/* Chart container */}
-      <div className="relative rounded-lg overflow-hidden border border-figma-card">
+      <div className="relative rounded-lg overflow-hidden">
         <div
           ref={containerRef}
           className="w-full"
-          style={{ height: "320px", background: C.bg }}
+          style={{ height: "380px", background: C.bg }}
         />
 
         {/* Loading overlay */}

@@ -21,7 +21,7 @@ import {
 } from "@/lib/wagmi/contracts";
 import {
   Loader2, CheckCircle2, AlertCircle, Rocket, ArrowRight,
-  Coins, Info, Upload, X, ImageIcon, Link2, Globe, TrendingUp, Wallet,
+  Coins, Info, Upload, X, ImageIcon, Link2, TrendingUp, Wallet,
 } from "lucide-react";
 
 const MAX_IMAGE_SIZE_MB = 10;
@@ -224,13 +224,8 @@ export default function CreateTokenPage() {
     }
   };
 
-  const uploadLabel = () => {
-    switch (uploadStatus) {
-      case "uploading": return "Creating token…";
-      case "done":     return "Image ready ✓";
-      default:         return null;
-    }
-  };
+  // uploadLabel is reserved for future use
+  void uploadStatus;
 
   /* ── Disconnected ── */
   if (!isConnected) {
@@ -771,7 +766,7 @@ export default function CreateTokenPage() {
         >
           {isLoading ? (
             (() => {
-              const hasDevBuy = devBuyMonFloat > 0;
+              const hasDevBuy = devBuyMonFloat > 0; // eslint-disable-line @typescript-eslint/no-unused-vars
               if (uploadStatus === "uploading") {
                 return <><Loader2 className="w-4 h-4 animate-spin" /> Uploading image…</>;
               }

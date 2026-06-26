@@ -2,7 +2,6 @@
 
 import { http } from "wagmi";
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import type { Chain } from "viem";
 import { defineChain } from "viem";
 
 // Monad chains (not built into wagmi/chains yet)

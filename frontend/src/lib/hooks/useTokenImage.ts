@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { ipfsToHttp } from "@/lib/ipfs";
 
 interface TokenImageData {
   tokenAddress: string;
@@ -8,6 +9,16 @@ interface TokenImageData {
   metadataUri: string;
   imageUrl: string;
   registeredAt: number;
+}
+
+export interface TokenIpfsMeta {
+  name?: string;
+  symbol?: string;
+  description?: string;
+  image?: string;
+  telegram?: string;
+  twitter?: string;
+  website?: string;
 }
 
 /**
@@ -29,6 +40,31 @@ export function useTokenImage(tokenAddress: string | null | undefined) {
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`token-image API error ${res.status}`);
       return res.json() as Promise<TokenImageData>;
+    },
+  });
+}
+
+/**
+ * Fetches the full IPFS metadata JSON (description, socials, etc.) for a token
+ * by first looking up the metadataUri from our token-image API, then fetching
+ * the JSON from the IPFS gateway.
+ */
+export function useTokenIpfsMeta(tokenAddress: string | null | undefined) {
+  const { data: imageData } = useTokenImage(tokenAddress);
+
+  return useQuery<TokenIpfsMeta | null>({
+    queryKey: ["token-ipfs-meta", tokenAddress?.toLowerCase()],
+    enabled: !!imageData?.metadataUri,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    retry: false,
+    queryFn: async () => {
+      if (!imageData?.metadataUri) return null;
+      const url = ipfsToHttp(imageData.metadataUri);
+      if (!url) return null;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      return res.json() as Promise<TokenIpfsMeta>;
     },
   });
 }

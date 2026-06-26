@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Search, Copy, Check, ExternalLink, TrendingUp, TrendingDown } from "lucide-react";
+import { Copy, Check, ExternalLink, TrendingUp, TrendingDown } from "lucide-react";
 import { useState } from "react";
 import { TokenImage } from "@/components/ui/TokenImage";
 import { TierBadge } from "@/components/reputation/TierBadge";

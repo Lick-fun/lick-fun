@@ -1,6 +1,5 @@
 import {
   Coins,
-  TrendingUp,
   Shield,
   Award,
   CheckCircle,

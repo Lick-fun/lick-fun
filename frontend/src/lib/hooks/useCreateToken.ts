@@ -285,7 +285,7 @@ export function useCreateToken(): UseCreateTokenResult {
         if (twitter) formData.append("twitter", twitter);
         if (website) formData.append("website", website);
 
-        console.log("[useCreateToken] Uploading image + metadata to IPFS...");
+        console.info("[useCreateToken] Uploading image + metadata to IPFS...");
         const res = await fetch("/api/upload-token", {
           method: "POST",
           body: formData,
@@ -303,7 +303,7 @@ export function useCreateToken(): UseCreateTokenResult {
           metadataUri: string;
         };
 
-        console.log("[useCreateToken] IPFS upload complete:", result);
+        console.info("[useCreateToken] IPFS upload complete:", result);
         setMetadataUri(result.metadataUri);
         setImageUri(result.imageUri);
         setUploadStatus("done");
@@ -337,7 +337,7 @@ export function useCreateToken(): UseCreateTokenResult {
       FEE_ROUTER_ADDRESS !== "0x0000000000000000000000000000000000000000";
     const usePreset = feeRouterConfigured && preset !== "DIAMOND";
 
-    console.log("[useCreateToken] Calling create on-chain:", {
+    console.info("[useCreateToken] Calling create on-chain:", {
       factory: FACTORY_ADDRESS,
       name,
       symbol,
