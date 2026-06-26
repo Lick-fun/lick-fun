@@ -199,6 +199,7 @@ export default function TokenDetailPage() {
                   setResolution={setResolution}
                   isLoading={barsLoading}
                   tokenSymbol={displaySymbol}
+                  tokenName={displayName}
                 />
               ) : (
                 <CurveChart trades={trades} graduated={token.graduated} realMon={token.realMon} />

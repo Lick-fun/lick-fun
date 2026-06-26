@@ -902,7 +902,7 @@ export function reputationColor(score: number): string {
 /* OHLC Price Bar types & hook (powers the TradingView Lightweight Charts chart)    */
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
-export type ChartResolution = "1" | "5" | "15" | "60" | "240" | "1D";
+export type ChartResolution = "1" | "5" | "15" | "60" | "240" | "1D" | "1W" | "1M";
 
 /** Resolution label → seconds per candle */
 const RESOLUTION_SECONDS: Record<ChartResolution, number> = {
@@ -912,6 +912,8 @@ const RESOLUTION_SECONDS: Record<ChartResolution, number> = {
   "60": 3_600,
   "240": 14_400,
   "1D": 86_400,
+  "1W": 604_800,
+  "1M": 2_592_000,
 };
 
 export interface OHLCBar {

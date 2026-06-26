@@ -8,7 +8,7 @@
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 [![Tests](https://img.shields.io/badge/Tests-137%20Forge%20•%2058%20Vitest-green)](.)
 
-**Status:** 3 security audit passes · 137 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · TradingView Lightweight Charts price chart live on token detail page · Token detail page redesigned (nad.fun-inspired 2-column layout with IPFS metadata, social links, stats grid) · Phase 3 (USD MC display, founder token) next
+**Status:** 3 security audit passes · 137 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · PriceChart enhanced — volume histogram pane, OHLC crosshair header, chart type toggle (candle/bar/line), MCap/Price toggle, USD/MON quote toggle, log scale, fullscreen, extended timeframes (1W/1M) · Token detail page redesigned (nad.fun-inspired 2-column layout with IPFS metadata, social links, stats grid) · Phase 3 (USD MC display, founder token) next
 
 ---
 
@@ -208,6 +208,7 @@ ProfileRegistry            Wallet linking (0.1 MON bond), daily Merkle anchor
 | + | Token detail page redesign — nad.fun 2-column layout (IPFS metadata, social links, stats grid, compact header, trades table) | done |
 | + | PriceChart fix — async init now applies bars immediately after series creation | done |
 | + | TradePanel redesign — full-width Buy/Sell toggle, quick-select presets, cleaner layout | done |
+| + | PriceChart enhancement — volume histogram, OHLC header, chart type toggle, MCap/Price, USD/MON, log scale, fullscreen, 1W/1M timeframes | done |
 | -> | Phase 3: USD market cap display | pending |
 | -> | Phase 3: Founder-first-token launch | pending |
 | -> | Phase 3: protocolFeeReceiver to multisig | pending |
