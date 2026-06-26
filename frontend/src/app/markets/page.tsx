@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useAllMarkets } from "@/lib/hooks/useData";
+import { useAllMarkets, useTokensMeta } from "@/lib/hooks/useData";
 import { BetForm } from "@/components/markets/BetForm";
 import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
 import {
@@ -19,6 +19,50 @@ export default function MarketsPage() {
   const { data: markets = [], isLoading, error } = useAllMarkets();
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("pool");
+
+  /* Resolve any empty token names/symbols by reading them from the contract
+     directly. The indexer may have stored empty strings if the name/symbol
+     read at launch time failed. */
+  const tokenStubs = useMemo(
+    () =>
+      markets.map((m) => ({
+        id: m.tokenId,
+        name: m.token?.name ?? m.tokenName ?? "",
+        symbol: m.token?.symbol ?? m.tokenSymbol ?? "",
+      })),
+    [markets]
+  );
+  const resolvedTokens = useTokensMeta(tokenStubs);
+  const resolvedById = useMemo(() => {
+    const map = new Map<string, { name: string; symbol: string }>();
+    for (const t of resolvedTokens) {
+      map.set(t.id.toLowerCase(), { name: t.name, symbol: t.symbol });
+    }
+    return map;
+  }, [resolvedTokens]);
+
+  /** Resolve a market's display name with on-chain fallback. */
+  function marketName(m: { tokenId: string; token?: { name?: string } | null; tokenName?: string }): string {
+    const resolved = resolvedById.get(m.tokenId.toLowerCase());
+    const name =
+      m.token?.name?.trim() ||
+      resolved?.name?.trim() ||
+      m.tokenName?.trim() ||
+      "";
+    if (name) return name;
+    return `${m.tokenId.slice(0, 6)}…${m.tokenId.slice(-4)}`;
+  }
+
+  /** Resolve a market's display symbol with on-chain fallback. */
+  function marketSymbol(m: { tokenId: string; token?: { symbol?: string } | null; tokenSymbol?: string }): string {
+    const resolved = resolvedById.get(m.tokenId.toLowerCase());
+    return (
+      m.token?.symbol?.trim() ||
+      resolved?.symbol?.trim() ||
+      m.tokenSymbol?.trim() ||
+      ""
+    );
+  }
 
   // Live clock so betting-window countdowns tick in real time
   const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
@@ -193,7 +237,7 @@ export default function MarketsPage() {
                   const tokenPrice = m.token?.price?.monPerToken;
                   const tokenMc = m.token?.price?.marketCapMon;
                   const tokenProgress = m.token?.progress;
-                  const symbol = m.token?.symbol ?? m.tokenSymbol;
+                  const symbol = marketSymbol(m);
                   return (
                     <button
                       key={m.tokenId}
@@ -214,7 +258,7 @@ export default function MarketsPage() {
                             )}
                           />
                           <span className="font-medium text-figma-sm text-figma-white truncate">
-                            {m.token?.name ?? m.tokenName}
+                            {marketName(m)}
                           </span>
                           {symbol && (
                             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-figma-card-alt text-figma-muted shrink-0">
@@ -304,7 +348,7 @@ export default function MarketsPage() {
             ) : (
               <div className="space-y-2">
                 {resolved.map((m) => {
-                  const symbol = m.token?.symbol ?? m.tokenSymbol;
+                  const symbol = marketSymbol(m);
                   return (
                     <div
                       key={m.tokenId}
@@ -313,7 +357,7 @@ export default function MarketsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-figma-sm text-figma-white font-medium truncate">
-                            {m.token?.name ?? m.tokenName}
+                            {marketName(m)}
                           </span>
                           {symbol && (
                             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-figma-card-alt text-figma-muted shrink-0">
@@ -369,7 +413,7 @@ export default function MarketsPage() {
                     }`}
                   >
                     <span className="text-figma-sm text-figma-white font-medium">
-                      {m.token?.name ?? m.tokenName}
+                      {marketName(m)}
                     </span>
                     <span className="text-figma-xs text-figma-muted">
                       Refundable
@@ -385,7 +429,7 @@ export default function MarketsPage() {
         <div className="lg:col-span-1 space-y-6">
           {selected ? (
             <BetForm
-              tokenName={selected.token?.name ?? selected.tokenName}
+              tokenName={marketName(selected)}
               tokenId={selected.tokenId}
               yesOdds={selected.odds.yesOdds}
               noOdds={selected.odds.noOdds}

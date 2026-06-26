@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Copy, Check, ExternalLink, TrendingUp, TrendingDown } from "lucide-react";
+import { Copy, Check, ExternalLink, TrendingUp, TrendingDown, Pencil } from "lucide-react";
 import { useState } from "react";
 import { TokenImage } from "@/components/ui/TokenImage";
 import { TierBadge } from "@/components/reputation/TierBadge";
@@ -9,6 +9,9 @@ import { ReputationScore } from "@/components/reputation/ReputationScore";
 import { BadgeGrid } from "@/components/reputation/BadgeGrid";
 import { useProfile, useTokensByCreator, useRecentTrades } from "@/lib/hooks/useData";
 import { useReputation } from "@/lib/hooks/useReputation";
+import { useProfileMeta } from "@/lib/hooks/useProfileMeta";
+import { useAccount } from "wagmi";
+import { EditProfileModal } from "@/components/profile/EditProfileModal";
 
 function formatMon(amount: bigint): string {
   const mon = Number(amount) / 1e18;
@@ -37,6 +40,12 @@ export default function ProfilePage() {
   const { address } = useParams<{ address: string }>();
   const addr = (address as string) ?? "";
   const [copied, setCopied] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const { address: connectedAddress } = useAccount();
+  const isOwner =
+    !!connectedAddress &&
+    connectedAddress.toLowerCase() === addr.toLowerCase();
 
   const handleCopy = () => {
     navigator.clipboard.writeText(addr);
@@ -48,6 +57,7 @@ export default function ProfilePage() {
   const { data: tokens = [], isLoading: tokensLoading } = useTokensByCreator(addr);
   const { data: recentTrades = [] } = useRecentTrades(50);
   const { data: reputation, isLoading: repLoading } = useReputation(addr);
+  const { data: profileMeta, refetch: refetchProfileMeta } = useProfileMeta(addr);
 
   // Filter trades where this address is the trader
   const userTrades = recentTrades.filter(
@@ -55,6 +65,11 @@ export default function ProfilePage() {
   ).slice(0, 5);
 
   const isLoading = profileLoading || tokensLoading || repLoading;
+
+  // Display name: custom name from off-chain store, or truncated address
+  const displayName = profileMeta?.displayName?.trim()
+    ? profileMeta.displayName
+    : `@${addr.slice(0, 8)}...`;
 
   return (
     <div className="relative bg-figma-bg min-h-screen px-5 pb-20">
@@ -71,23 +86,42 @@ export default function ProfilePage() {
         {/* Top row: Avatar + Welcome */}
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-[23px]">
-            {/* Avatar */}
-            <div className="w-[49px] h-[49px] rounded-full bg-figma-purple flex items-center justify-center text-white font-bold text-lg shrink-0">
-              {addr.slice(2, 4).toUpperCase()}
+            {/* Avatar — custom image if set, otherwise generated initials */}
+            <div className="w-[49px] h-[49px] rounded-full bg-figma-purple flex items-center justify-center text-white font-bold text-lg shrink-0 overflow-hidden">
+              {profileMeta?.avatarUrl ? (
+                <img
+                  src={profileMeta.avatarUrl}
+                  alt={displayName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                addr.slice(2, 4).toUpperCase()
+              )}
             </div>
             {/* Welcome + Username */}
             <div className="flex flex-col gap-[6px]">
               <span className="text-figma-white font-figma-regular text-figma-13">Welcome Back</span>
               <span className="text-figma-white font-figma-bold text-figma-16">
-                @{addr.slice(0, 8)}...
+                {displayName}
               </span>
             </div>
           </div>
 
-          {/* Tier Badge */}
-          {reputation && (
-            <TierBadge tier={reputation.tier} size="md" />
-          )}
+          {/* Right side: Edit button (owner only) + Tier Badge */}
+          <div className="flex items-center gap-3">
+            {isOwner && (
+              <button
+                onClick={() => setEditOpen(true)}
+                className="flex items-center gap-1.5 h-[32px] px-3 rounded-pill bg-figma-surface border border-figma-card-alt text-figma-white text-figma-xs font-medium hover:border-figma-green transition-colors"
+              >
+                <Pencil size={12} />
+                Edit Profile
+              </button>
+            )}
+            {reputation && (
+              <TierBadge tier={reputation.tier} size="md" />
+            )}
+          </div>
         </div>
 
         {/* Address + Copy */}
@@ -270,6 +304,17 @@ export default function ProfilePage() {
         <div className="text-figma-muted text-figma-13 mt-4 text-center">
           Loading profile data...
         </div>
+      )}
+
+      {/* Edit Profile Modal — only rendered for the profile owner */}
+      {editOpen && isOwner && (
+        <EditProfileModal
+          walletAddress={addr}
+          currentDisplayName={profileMeta?.displayName ?? ""}
+          currentAvatarUrl={profileMeta?.avatarUrl}
+          onClose={() => setEditOpen(false)}
+          onSuccess={() => refetchProfileMeta()}
+        />
       )}
     </div>
   );

@@ -6,21 +6,23 @@ import {
   ArrowRight,
   Zap,
   BarChart3,
-  Layers,
   Lock,
+  Users,
 } from "lucide-react";
+import Link from "next/link";
 
-export default function HowItWorksPage() {
+export default function AboutPage() {
   return (
     <div className="bg-figma-bg min-h-screen px-5 pb-20">
       {/* Page Header */}
       <div className="pt-8 mb-12 text-center max-w-3xl mx-auto">
         <h1 className="text-figma-3xl text-figma-white font-bold mb-3">
-          How Lick.fun Works
+          About Lick.fun
         </h1>
         <p className="text-figma-md text-figma-muted">
-          A social-first token launchpad on Monad. Earn reputation, launch tokens,
-          and let the community decide what graduates.
+          A social-first token launchpad on Monad. Discover new tokens, trade
+          on a fair curve, and watch the strongest projects graduate to a real
+          DEX pool.
         </p>
       </div>
 
@@ -35,54 +37,54 @@ export default function HowItWorksPage() {
           <h2 className="text-figma-2xl text-figma-white font-bold">What is Lick.fun?</h2>
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
-          Lick.fun is a meme lake on liquidity fun. It&apos;s the first social-first token
-          launchpad on Monad where creators earn reputation by launching successful
-          tokens. Tokens use a constant-product bonding curve — buy pressure raises
-          price, and when a token hits 100,000 MON raised, it graduates to a full DEX pool
-          with liquidity permanently burned to 0xdead.
+          Lick.fun is a place where anyone can launch a token and the community
+          decides what&apos;s worth keeping. Every new token starts on a bonding
+          curve — a simple rule that says: as more people buy, the price goes up.
+          When a token reaches 100,000 MON raised, it graduates to a real DEX
+          pool with its liquidity permanently locked away. No rug possible.
         </p>
         <div className="grid sm:grid-cols-3 gap-4">
           <div className="rounded-pill bg-figma-surface p-4 text-center">
             <div className="text-figma-lg text-figma-green font-bold mb-1">Launch</div>
             <div className="text-figma-sm text-figma-muted">
-              Create a token with a single click on the bonding curve
+              Anyone can create a token in seconds
             </div>
           </div>
           <div className="rounded-pill bg-figma-surface p-4 text-center">
             <div className="text-figma-lg text-figma-green font-bold mb-1">Trade</div>
             <div className="text-figma-sm text-figma-muted">
-              Buy and sell on the curve — price rises with demand
+              Buy and sell instantly — price rises with demand
             </div>
           </div>
           <div className="rounded-pill bg-figma-surface p-4 text-center">
             <div className="text-figma-lg text-figma-green font-bold mb-1">Graduate</div>
             <div className="text-figma-sm text-figma-muted">
-              Hit 100K MON → token migrates to a full DEX pool, LP burned
+              Hit 100K MON → token moves to a real DEX, LP locked forever
             </div>
           </div>
         </div>
       </section>
 
-      {/* Bonding Curve */}
+      {/* How Trading Works */}
       <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <BarChart3 className="w-7 h-7 text-figma-green" />
-          <h2 className="text-figma-2xl text-figma-white font-bold">Bonding Curve</h2>
+          <h2 className="text-figma-2xl text-figma-white font-bold">How Trading Works</h2>
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
-          Lick.fun uses a constant-product market maker (CPMM) for pricing:
+          Every token starts on a bonding curve — a pricing rule that makes the
+          price go up smoothly as more people buy. There&apos;s no order book, no
+          waiting for a match. You buy, you get tokens instantly. You sell, you
+          get MON instantly.
         </p>
-        <div className="rounded-pill bg-figma-surface p-4 mb-4 font-mono text-figma-sm text-figma-white text-center">
-          (80,000 + realMon) × (477,000,000 - soldTokens) = k
-        </div>
         <div className="space-y-3 text-figma-sm text-figma-muted">
           <div className="flex items-start gap-3">
             <div className="w-6 h-6 rounded-full bg-figma-green/10 flex items-center justify-center shrink-0 mt-0.5">
               <span className="text-figma-green text-figma-xs font-bold">1</span>
             </div>
             <span>
-              Virtual reserves start at 80,000 MON and 477,000,000 tokens to create
-              a smooth price curve.
+              <span className="text-figma-white font-medium">Early buyers get the best price.</span>{" "}
+              The first people to buy a new token pay the lowest price on the curve.
             </span>
           </div>
           <div className="flex items-start gap-3">
@@ -90,8 +92,9 @@ export default function HowItWorksPage() {
               <span className="text-figma-green text-figma-xs font-bold">2</span>
             </div>
             <span>
-              Buying pushes realMon up and soldTokens down, increasing the price
-              exponentially as tokens become scarce.
+              <span className="text-figma-white font-medium">Price rises with demand.</span>{" "}
+              As more people buy, the price climbs. The more popular a token gets,
+              the more expensive each new buy becomes.
             </span>
           </div>
           <div className="flex items-start gap-3">
@@ -99,8 +102,8 @@ export default function HowItWorksPage() {
               <span className="text-figma-green text-figma-xs font-bold">3</span>
             </div>
             <span>
-              Selling pushes realMon down and tokens back into the curve,
-              decreasing the price.
+              <span className="text-figma-white font-medium">Selling is always allowed.</span>{" "}
+              You can sell your tokens back to the curve at any time for MON.
             </span>
           </div>
           <div className="flex items-start gap-3">
@@ -108,103 +111,70 @@ export default function HowItWorksPage() {
               <CheckCircle className="w-4 h-4 text-figma-green-soft" />
             </div>
             <span>
-              When realMon hits 100,000 MON, the token graduates and LP tokens are
-              permanently burned to 0xdead — no rug possible.
+              <span className="text-figma-white font-medium">Graduation locks liquidity forever.</span>{" "}
+              When a token hits 100K MON, it moves to a real DEX pool and the
+              liquidity is permanently burned. No one — not even the creator —
+              can ever pull it out.
             </span>
           </div>
         </div>
       </section>
 
-      {/* Anti-Sniping */}
+      {/* Fair Launch Protection */}
       <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <Shield className="w-7 h-7 text-figma-green" />
-          <h2 className="text-figma-2xl text-figma-white font-bold">Anti-Sniping Penalty</h2>
+          <h2 className="text-figma-2xl text-figma-white font-bold">Fair Launch Protection</h2>
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
-          Snipers can&apos;t snipe the first 7 blocks — every buy and sell within
-          the decay window pays an extra penalty on top of the regular 2% fee. The
-          creator&apos;s first buy (pre-buy) is always exempt.
+          Bots that try to snipe new tokens in the first few seconds get hit with
+          a heavy penalty — up to 80% on the very first block, fading down to
+          nothing after the first few blocks. This gives real people a fair
+          chance to get in early instead of being front-run by automated snipers.
         </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-figma-sm">
-            <thead>
-              <tr className="border-b border-figma-surface">
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Block Offset</th>
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Penalty</th>
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Recipient</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 font-mono text-figma-white">Block 0</td>
-                <td className="py-3 px-4 font-mono text-figma-green">80%</td>
-                <td className="py-3 px-4 text-figma-muted">Protocol Treasury</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 font-mono text-figma-white">Block 1</td>
-                <td className="py-3 px-4 font-mono text-figma-green">40%</td>
-                <td className="py-3 px-4 text-figma-muted">Protocol Treasury</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 font-mono text-figma-white">Block 2</td>
-                <td className="py-3 px-4 font-mono text-figma-green">20%</td>
-                <td className="py-3 px-4 text-figma-muted">Protocol Treasury</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 font-mono text-figma-white">Block 3</td>
-                <td className="py-3 px-4 font-mono text-figma-green">15%</td>
-                <td className="py-3 px-4 text-figma-muted">Protocol Treasury</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 font-mono text-figma-white">Block 4</td>
-                <td className="py-3 px-4 font-mono text-figma-green">10%</td>
-                <td className="py-3 px-4 text-figma-muted">Protocol Treasury</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 font-mono text-figma-white">Block 5</td>
-                <td className="py-3 px-4 font-mono text-figma-green">10%</td>
-                <td className="py-3 px-4 text-figma-muted">Protocol Treasury</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 font-mono text-figma-white">Block 6</td>
-                <td className="py-3 px-4 font-mono text-figma-green">5%</td>
-                <td className="py-3 px-4 text-figma-muted">Protocol Treasury</td>
-              </tr>
-              <tr>
-                <td className="py-3 px-4 font-mono text-figma-white">Block 7+</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">0%</td>
-                <td className="py-3 px-4 text-figma-muted">—</td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="rounded-pill bg-figma-surface p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Zap className="w-5 h-5 text-figma-green" />
+              <span className="text-figma-md text-figma-white font-semibold">First few seconds</span>
+            </div>
+            <div className="text-figma-sm text-figma-muted">
+              Snipers pay up to 80% penalty. Real buyers are protected.
+            </div>
+          </div>
+          <div className="rounded-pill bg-figma-surface p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className="w-5 h-5 text-figma-green" />
+              <span className="text-figma-md text-figma-white font-semibold">After a few blocks</span>
+            </div>
+            <div className="text-figma-sm text-figma-muted">
+              Penalty drops to 0%. Normal trading with just the standard 2% fee.
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Reputation System */}
+      {/* Reputation & Trust */}
       <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <Award className="w-7 h-7 text-figma-green" />
-          <h2 className="text-figma-2xl text-figma-white font-bold">Reputation System</h2>
+          <h2 className="text-figma-2xl text-figma-white font-bold">Reputation & Trust</h2>
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
-          Every creator builds a reputation score (0–100) computed off-chain from
-          Envio data. The score factors in account age, graduation rate, lock
-          fulfillment, cumulative volume, pre-buy honesty, and verified tenure.
-          A single rug event floors the score (intentionally huge penalty).
-        </p>
-        <p className="text-figma-sm text-figma-muted leading-relaxed mb-6">
-          Final score is mapped through a sigmoid: <span className="font-mono text-figma-white">reputation = 100 / (1 + e^(-k × (raw - midpoint)))</span> with k = 0.15 and midpoint = 0.4.
-          Scores are anchored on-chain as a daily Merkle root committed to ProfileRegistry.
+          Every creator builds a reputation score from 0 to 100 based on their
+          track record — how many tokens they&apos;ve launched, how many graduated,
+          how honest their pre-buys were, and whether they&apos;ve ever rugged.
+          A single rug event tanks the score. Look for creators with high
+          reputation before you buy.
         </p>
 
         {/* Tiers */}
-        <h3 className="text-figma-md text-figma-white font-semibold mb-3">Tiers</h3>
+        <h3 className="text-figma-md text-figma-white font-semibold mb-3">Creator Tiers</h3>
         <div className="grid sm:grid-cols-3 gap-4 mb-6">
           <div className="rounded-pill border border-figma-card-alt bg-figma-surface p-4 text-center">
-            <div className="text-figma-lg text-figma-muted font-bold">Starter</div>
+            <div className="text-figma-lg text-figma-muted font-bold">New</div>
             <div className="text-figma-xs text-figma-muted">0–29</div>
-            <div className="text-figma-xs text-figma-muted mt-1">New creator</div>
+            <div className="text-figma-xs text-figma-muted mt-1">Just getting started</div>
           </div>
           <div className="rounded-pill border border-figma-card-alt bg-figma-surface p-4 text-center">
             <div className="text-figma-lg text-figma-muted font-bold">Established</div>
@@ -212,24 +182,27 @@ export default function HowItWorksPage() {
             <div className="text-figma-xs text-figma-muted mt-1">Proven track record</div>
           </div>
           <div className="rounded-pill border border-figma-green/30 bg-figma-green/5 p-4 text-center">
-            <div className="text-figma-lg text-figma-green font-bold">Verified</div>
+            <div className="text-figma-lg text-figma-green font-bold">Trusted</div>
             <div className="text-figma-xs text-figma-muted">70–100</div>
-            <div className="text-figma-xs text-figma-muted mt-1">Top-tier trusted</div>
+            <div className="text-figma-xs text-figma-muted mt-1">Top-tier, verified</div>
           </div>
         </div>
 
         {/* Badges */}
-        <h3 className="text-figma-md text-figma-white font-semibold mb-3">Badges (auto-awarded)</h3>
+        <h3 className="text-figma-md text-figma-white font-semibold mb-3">Achievement Badges</h3>
+        <p className="text-figma-sm text-figma-muted mb-3">
+          Creators earn badges automatically as they hit milestones:
+        </p>
         <div className="grid sm:grid-cols-2 gap-2 text-figma-sm">
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>🎓</span>
             <span>Triple Graduate</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">3 grads · diversity 30%+</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">3 successful launches</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>🏆</span>
             <span>Deca Graduate</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">10 grads · diversity 30%+</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">10 successful launches</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>⭐</span>
@@ -239,205 +212,137 @@ export default function HowItWorksPage() {
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>💎</span>
             <span>Diamond Hands</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">Never sold own grad</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">Never sold own launch</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>🛡️</span>
-            <span>Never Rug</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">30d+ · 0 rugs</span>
+            <span>Never Rugged</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">30+ days, zero rugs</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>✅</span>
-            <span>Pre-buy Honest</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">≥95% honesty</span>
+            <span>Honest Pre-buy</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">Bought what they launched</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>📊</span>
             <span>Volume Maker</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">100K+ MON grad vol</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">100K+ MON traded</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>👑</span>
-            <span>Verified Founder</span>
+            <span>Trusted Founder</span>
             <span className="text-figma-xs text-figma-muted ml-auto">Score 70+</span>
           </div>
           <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
             <span>🌟</span>
             <span>OG</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">365d+ · 3 grads · diversity 30%+</span>
+            <span className="text-figma-xs text-figma-muted ml-auto">1 year+ veteran</span>
           </div>
         </div>
       </section>
 
-      {/* Fee Structure */}
+      {/* Fees */}
       <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <Coins className="w-7 h-7 text-figma-green" />
-          <h2 className="text-figma-2xl text-figma-white font-bold">Fee Structure</h2>
+          <h2 className="text-figma-2xl text-figma-white font-bold">Fees</h2>
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
-          Every trade pays a 2% total fee, split equally between the protocol and
-          the creator. The protocol fee goes straight to the protocolFeeReceiver;
-          the creator fee goes direct to the creator (standard mode) or is
-          routed through the FeeRouter (preset mode — see tier table below).
+          Every trade pays a small 2% fee. Half goes to the token&apos;s creator
+          as a reward for launching, and half goes to the platform to keep
+          things running. That&apos;s it — no hidden charges, no surprise costs.
         </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-figma-sm">
-            <thead>
-              <tr className="border-b border-figma-surface">
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Fee</th>
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Rate</th>
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Recipient</th>
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Applied On</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 text-figma-white">Protocol Fee</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">1%</td>
-                <td className="py-3 px-4 text-figma-muted">Protocol Treasury</td>
-                <td className="py-3 px-4 text-figma-muted">Every buy & sell</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 text-figma-white">Creator Fee</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">1%</td>
-                <td className="py-3 px-4 text-figma-muted">Creator or FeeRouter</td>
-                <td className="py-3 px-4 text-figma-muted">Every buy & sell</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 text-figma-white">Anti-Sniping Penalty</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">0–80%</td>
-                <td className="py-3 px-4 text-figma-muted">Protocol Treasury</td>
-                <td className="py-3 px-4 text-figma-muted">First 7 blocks (excl. creator pre-buy)</td>
-              </tr>
-              <tr>
-                <td className="py-3 px-4 text-figma-white font-medium">Total Trade Fee</td>
-                <td className="py-3 px-4 font-mono font-bold text-figma-green">2%</td>
-                <td className="py-3 px-4 text-figma-muted" colSpan={2}>
-                  1% protocol + 1% creator
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="rounded-pill bg-figma-surface p-4 text-center">
+            <div className="text-figma-lg text-figma-green font-bold mb-1">1%</div>
+            <div className="text-figma-sm text-figma-muted">To the creator</div>
+          </div>
+          <div className="rounded-pill bg-figma-surface p-4 text-center">
+            <div className="text-figma-lg text-figma-green font-bold mb-1">1%</div>
+            <div className="text-figma-sm text-figma-muted">Platform fee</div>
+          </div>
         </div>
       </section>
 
-      {/* Fee Tiers (FeeRouter) */}
-      <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <Layers className="w-7 h-7 text-figma-green" />
-          <h2 className="text-figma-2xl text-figma-white font-bold">Fee Tiers (FeeRouter)</h2>
-        </div>
-        <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
-          When launching a token with <span className="font-mono text-figma-white">createTokenWithPreset()</span>, the 1% creator fee is split across
-          three destinations by tier. Starter/Creator Extra/Creator + LP Support are fixed
-          presets; Custom (Diamond) lets verified creators set any split they want.
-        </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-figma-sm">
-            <thead>
-              <tr className="border-b border-figma-surface">
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Tier</th>
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Creator</th>
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">LP Support</th>
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Buyback & Burn</th>
-                <th className="text-left py-3 px-4 text-figma-muted font-medium">Mode</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 text-figma-white">Starter</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">10%</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">80%</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">10%</td>
-                <td className="py-3 px-4 text-figma-muted">Fixed (entry)</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 text-figma-white">Creator Extra</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">30%</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">60%</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">10%</td>
-                <td className="py-3 px-4 text-figma-muted">Fixed (builder)</td>
-              </tr>
-              <tr className="border-b border-figma-surface">
-                <td className="py-3 px-4 text-figma-white">Creator + LP Support</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">20%</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">70%</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">10%</td>
-                <td className="py-3 px-4 text-figma-muted">Fixed (established)</td>
-              </tr>
-              <tr>
-                <td className="py-3 px-4 text-figma-white">Custom</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">custom</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">custom</td>
-                <td className="py-3 px-4 font-mono text-figma-muted">custom</td>
-                <td className="py-3 px-4 text-figma-muted">Custom via setCustomConfig()</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p className="text-figma-xs text-figma-muted mt-4">
-          Note: FeeRouter is failure-tolerant — if a vault push fails, the
-          amount lands in pendingWithdrawals and the creator can pull it
-          manually.
-        </p>
-      </section>
-
-      {/* LP Burn */}
+      {/* Why It's Safe */}
       <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <Lock className="w-7 h-7 text-figma-green" />
-          <h2 className="text-figma-2xl text-figma-white font-bold">LP Burn at Graduation</h2>
+          <h2 className="text-figma-2xl text-figma-white font-bold">Why It&apos;s Safe</h2>
         </div>
-        <p className="text-figma-md text-figma-muted leading-relaxed">
-          When a token hits the 100K MON threshold, the GraduationRouter migrates
-          liquidity to a full DEX pool and transfers the LP tokens to
-          <span className="font-mono text-figma-white"> 0x000000000000000000000000000000000000dEaD</span>.
-          They are burned — not locked, not vested. This makes rugs structurally
-          impossible: there is no LP to withdraw, and no admin key to do it with.
+        <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
+          Lick.fun is built so that rugs are structurally impossible:
         </p>
+        <div className="space-y-3 text-figma-sm text-figma-muted">
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-figma-green/10 flex items-center justify-center shrink-0 mt-0.5">
+              <CheckCircle className="w-4 h-4 text-figma-green" />
+            </div>
+            <span>
+              <span className="text-figma-white font-medium">Liquidity is burned, not locked.</span>{" "}
+              When a token graduates, the DEX pool&apos;s LP tokens are sent to a
+              dead address. They&apos;re gone forever — no one can withdraw them.
+            </span>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-figma-green/10 flex items-center justify-center shrink-0 mt-0.5">
+              <CheckCircle className="w-4 h-4 text-figma-green" />
+            </div>
+            <span>
+              <span className="text-figma-white font-medium">No admin keys.</span>{" "}
+              There are no special privileges that let anyone change the rules
+              or drain funds. The code is the rules.
+            </span>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-figma-green/10 flex items-center justify-center shrink-0 mt-0.5">
+              <CheckCircle className="w-4 h-4 text-figma-green" />
+            </div>
+            <span>
+              <span className="text-figma-white font-medium">Sniper protection.</span>{" "}
+              Bots that try to front-run launches get hit with heavy penalties,
+              giving real people a fair shot.
+            </span>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-6 h-6 rounded-full bg-figma-green/10 flex items-center justify-center shrink-0 mt-0.5">
+              <CheckCircle className="w-4 h-4 text-figma-green" />
+            </div>
+            <span>
+              <span className="text-figma-white font-medium">Reputation matters.</span>{" "}
+              Creators who rug get destroyed in the reputation system. Honest
+              creators rise to the top.
+            </span>
+          </div>
+        </div>
       </section>
 
-      {/* Creator Checklist */}
+      {/* Community */}
       <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
         <div className="flex items-center gap-3 mb-4">
-          <Zap className="w-7 h-7 text-figma-green" />
-          <h2 className="text-figma-2xl text-figma-white font-bold">Creator Checklist</h2>
+          <Users className="w-7 h-7 text-figma-green" />
+          <h2 className="text-figma-2xl text-figma-white font-bold">Community</h2>
         </div>
-        <div className="space-y-4">
-          {[
-            "Connect your wallet to Monad testnet or mainnet",
-            "Choose a token name, symbol, and total supply",
-            "Pick a launch mode — standard (creator-direct fee) or preset (FeeRouter tier)",
-            "If preset, pick a tier: Starter, Creator Extra, Creator + LP Support, or Custom",
-            "Pre-buy your own token (exempt from anti-snipe, proves skin in the game)",
-            "Your token deploys on the bonding curve — trading begins",
-            "Anti-sniping penalty applies for the first 7 blocks, then decays to 0%",
-            "Share your token link — the community starts buying",
-            "RealMon climbs toward 100K — if hit, token graduates",
-            "Graduation: liquidity migrates to a DEX pool and LP is burned to 0xdead",
-            "Your reputation score updates with each launch outcome (off-chain)",
-          ].map((step, i) => (
-            <div key={i} className="flex items-start gap-4">
-              <div className="w-8 h-8 rounded-full bg-figma-green/10 flex items-center justify-center shrink-0">
-                <span className="text-figma-green text-figma-sm font-bold">{i + 1}</span>
-              </div>
-              <span className="text-figma-sm text-figma-muted pt-1.5">{step}</span>
-            </div>
-          ))}
-        </div>
+        <p className="text-figma-md text-figma-muted leading-relaxed">
+          Lick.fun is built for the community. Every token&apos;s success is
+          decided by the people who buy it. The bonding curve means early
+          supporters are rewarded for believing in a project first, and the
+          reputation system means you can see who&apos;s trustworthy before you
+          commit your MON.
+        </p>
       </section>
 
       {/* CTA */}
       <section className="text-center mb-20">
-        <h2 className="text-figma-2xl text-figma-white font-bold mb-4">Ready to launch?</h2>
+        <h2 className="text-figma-2xl text-figma-white font-bold mb-4">Ready to explore?</h2>
         <p className="text-figma-md text-figma-muted mb-6">
-          Connect your wallet and become a creator on Lick.fun.
+          Browse trending tokens, check out the markets, or launch your own.
         </p>
-        <a href="/create" className="btn-lick inline-flex items-center gap-2 text-figma-md">
-          Get Started
+        <Link href="/" className="btn-lick inline-flex items-center gap-2 text-figma-md">
+          Explore Tokens
           <ArrowRight className="w-5 h-5" />
-        </a>
+        </Link>
       </section>
     </div>
   );

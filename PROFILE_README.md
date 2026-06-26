@@ -12,11 +12,11 @@ Tokens launch on a bonding curve, graduate to a built-in V2-style DEX at 100K MO
 
 ---
 
-## Current Stage: Phase 2 Complete, Phase 3 Next
+## Current Stage: Phase 3 Shipped
 
 | What's done | Status |
 |---|---|
-| 13 Solidity contracts (3 audit passes, 136 tests) | done |
+| 13 Solidity contracts (3 audit passes, 137 tests) | done |
 | Envio HyperSync indexer (live GraphQL, 7 event handlers) | done |
 | Off-chain reputation engine (9-factor sigmoid, 58 tests) | done |
 | FeeRouter tier system (Starter / Creator Extra / Creator + LP Support / Custom) — reputation-gated | done |
@@ -24,8 +24,14 @@ Tokens launch on a bonding curve, graduate to a built-in V2-style DEX at 100K MO
 | Factory onlyOwner gates + failure-tolerant fee routing | done |
 | Token creation + trading verified on Monad testnet | done |
 | Frontend (9 pages, wagmi, RainbowKit, Figma design tokens) | done |
-| USD market cap display | pending |
-| Founder-first-token launch | pending |
+| USD market cap display (CoinGecko feed) | done |
+| Founder-first-token launch (pinned banner via env var) | done |
+| Profile custom name + avatar (wallet-signed, IPFS) | done |
+| Ticker redesigned as full-width auto-scrolling marquee | done |
+| Charts default to MCap + USD view | done |
+| 24h % change bug fixed (was storing raw old price) | done |
+| Token names now display in ticker + markets (GraphQL join) | done |
+| About page rewritten in buyer-friendly language | done |
 | Mainnet launch | pending |
 
 ---

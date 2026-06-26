@@ -99,6 +99,21 @@
     background: linear-gradient(90deg, rgba(14, 14, 14, 1) 0%, rgba(14, 14, 14, 0) 100%);
   }
 
+  /* Marquee animation for the full-width ticker banner */
+  @keyframes ticker-marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .ticker-track {
+    display: flex;
+    width: max-content;
+    animation: ticker-marquee 60s linear infinite;
+    will-change: transform;
+  }
+  .ticker-track:hover {
+    animation-play-state: paused;
+  }
+
   /* Progress bar fill — animated token-card style */
   .progress-gradient-green {
     background: linear-gradient(90deg, var(--color-chart-green) 0%, var(--color-green) 100%);

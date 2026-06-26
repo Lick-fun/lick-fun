@@ -234,15 +234,27 @@ function priceFromTrade(trade: TradeEntity): number {
  * - Positive change = green
  * - Negative change = red
  * - No trade in last 24h = 0% (neutral badge hidden by caller)
+ *
+ * @param tokenIds  Array of token addresses to track
+ * @param currentPrices  Map of tokenId (lowercase) → current price in MON per token.
+ *                       Used to compute the actual percentage change.
  */
-export function useTokenPriceChanges(tokenIds: string[]) {
+export function useTokenPriceChanges(
+  tokenIds: string[],
+  currentPrices?: Map<string, number>
+) {
   const since = useMemo(() => {
     const now = BigInt(Math.floor(Date.now() / 1000));
     return now - DAY_SECONDS;
   }, []);
 
   return useQuery({
-    queryKey: ["token-price-changes", tokenIds, since.toString()],
+    queryKey: [
+      "token-price-changes",
+      tokenIds,
+      since.toString(),
+      currentPrices ? Array.from(currentPrices.entries()) : null,
+    ],
     queryFn: async () => {
       const client = getGraphQLClient();
       const map = new Map<string, number>();
@@ -265,7 +277,17 @@ export function useTokenPriceChanges(tokenIds: string[]) {
             const firstTrade = trades[0];
             const oldPrice = priceFromTrade(firstTrade);
             if (oldPrice === 0) return;
-            map.set(id.toLowerCase(), oldPrice);
+
+            // Compute actual percentage change vs current price.
+            // If no current price is provided, fall back to 0 (neutral).
+            const key = id.toLowerCase();
+            const currentPrice = currentPrices?.get(key);
+            if (currentPrice === undefined || currentPrice === 0) {
+              map.set(key, 0);
+              return;
+            }
+            const pct = ((currentPrice - oldPrice) / oldPrice) * 100;
+            map.set(key, pct);
           } catch (err) {
             // Fail open: missing data means no badge shown, no UI crash.
             console.warn(`useTokenPriceChanges error for ${id}:`, err);

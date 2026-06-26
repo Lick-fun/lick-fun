@@ -117,8 +117,8 @@ export function PriceChart({
   const barsRef = useRef<OHLCBar[]>(bars);
 
   const [chartType, setChartType] = useState<ChartType>("candle");
-  const [quoteMode, setQuoteMode] = useState<QuoteMode>("MON");
-  const [displayMode, setDisplayMode] = useState<DisplayMode>("price");
+  const [quoteMode, setQuoteMode] = useState<QuoteMode>("USD");
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("mcap");
   const [logScale, setLogScale] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [ohlcInfo, setOhlcInfo] = useState<OHLCInfo | null>(null);

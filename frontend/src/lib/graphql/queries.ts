@@ -38,6 +38,12 @@ export interface TradeEntity {
   blockNumber: number;
   blockTimestamp: bigint;
   penaltyBps: number;
+  /** Optional nested token fields (populated when TRADE_FRAGMENT joins Token) */
+  token?: {
+    id: string;
+    name: string;
+    symbol: string;
+  } | null;
 }
 
 export interface ProfileEntity {
@@ -129,6 +135,11 @@ const TRADE_FRAGMENT = gql`
   fragment TradeFields on Trade {
     id
     token_id
+    token {
+      id
+      name
+      symbol
+    }
     trader
     isBuy
     amountIn

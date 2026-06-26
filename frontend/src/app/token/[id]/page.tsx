@@ -20,6 +20,7 @@ const PriceChart = dynamic(
 import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
 import { TokenImage } from "@/components/ui/TokenImage";
 import { useTokenIpfsMeta } from "@/lib/hooks/useTokenImage";
+import { useMonUsdPrice } from "@/lib/hooks/useMonUsdPrice";
 import { ArrowLeft, GraduationCap, TrendingUp, Copy, Check, Globe, Send } from "lucide-react";
 import { BetForm } from "@/components/markets/BetForm";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,7 @@ export default function TokenDetailPage() {
   const { name: tokenName, symbol: tokenSymbol } = useTokenMeta(tokenId, token?.name ?? "", token?.symbol ?? "");
   const { bars, resolution, setResolution, isLoading: barsLoading } = useTokenPriceBars(tokenId);
   const { data: ipfsMeta } = useTokenIpfsMeta(tokenId);
+  const { data: monUsdPrice } = useMonUsdPrice();
 
   // Chart tab: "price" | "curve"
   const [chartTab, setChartTab] = useState<"price" | "curve">("price");
@@ -208,6 +210,7 @@ export default function TokenDetailPage() {
                   isLoading={barsLoading}
                   tokenSymbol={displaySymbol}
                   tokenName={displayName}
+                  monUsdPrice={monUsdPrice ?? undefined}
                 />
               ) : (
                 <CurveChart trades={trades} graduated={token.graduated} realMon={token.realMon} />

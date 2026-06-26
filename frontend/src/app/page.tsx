@@ -16,6 +16,7 @@ import {
   useTokenPriceChanges,
   formatPriceChange,
 } from "@/lib/hooks/useData";
+import { FounderTokenBanner } from "@/components/home/FounderTokenBanner";
 
 type SortOption = "lastTrade" | "largestMC" | "newestCreated" | "highestReputation";
 
@@ -82,13 +83,23 @@ export default function HomePage() {
      show real names instead of falling back to the contract address. */
   const tokensWithMeta = useTokensMeta(tokens);
 
-  /* Fetch 24h percentage-change reference prices for all displayed tokens */
+  /* Fetch 24h percentage-change reference prices for all displayed tokens.
+     We pass the current price map so the hook can compute the actual % change
+     (oldPrice → currentPrice) instead of just storing the raw old price. */
   const tokenIdsForPriceChanges = useMemo(() => {
     return tokensWithMeta.map((t) => t.id);
   }, [tokensWithMeta]);
 
+  const currentPricesMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of tokensWithMeta) {
+      m.set(t.id.toLowerCase(), t.price.monPerToken);
+    }
+    return m;
+  }, [tokensWithMeta]);
+
   const { data: priceChangeMap = new Map<string, number>() } =
-    useTokenPriceChanges(tokenIdsForPriceChanges);
+    useTokenPriceChanges(tokenIdsForPriceChanges, currentPricesMap);
 
   /* Recent trades can reference tokens outside the useAllTokens() result (which is
      capped at limit: 100). Build synthetic placeholders for those trade-only tokens
@@ -182,66 +193,81 @@ export default function HomePage() {
 
   return (
     <div className="relative bg-figma-bg min-h-screen px-5 pb-20">
-      {/* ── Buys & Sells Ticker ── */}
-      <div className="flex overflow-hidden relative items-start mt-[17px] h-[58px]">
-        <div className="flex gap-0 overflow-hidden ml-2 mt-[6px]">
-          {tradesLoading ? (
-            Array.from({ length: 5 }).map((_, i) => <TickerSkeletonCard key={i} />)
-          ) : recentTrades.length === 0 ? (
-            <div className="flex items-center h-[46px] ml-2">
-              <span className="text-figma-sm text-figma-muted font-medium">
-                No trades yet
-              </span>
-            </div>
-          ) : (
-            recentTrades.map((trade) => {
-              const tokenInfo = tokenMap.get(trade.token_id.toLowerCase());
-              const tokenLabel = getTokenDisplayName(tokenInfo?.name ?? "", trade.token_id);
-              const monAmt = formatAmountMon(trade.isBuy ? trade.amountIn : trade.amountOut);
-              const amountLabel = `${monAmt} MON of ${tokenLabel}`;
-              const traderDisplay = formatTraderAddress(trade.trader);
+      {/* ── Buys & Sells Ticker (full-width auto-scrolling banner) ── */}
+      <div className="relative overflow-hidden mt-[17px] h-[58px] -mx-5">
+        {tradesLoading ? (
+          <div className="flex gap-2 px-5 items-center h-full">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <TickerSkeletonCard key={i} />
+            ))}
+          </div>
+        ) : recentTrades.length === 0 ? (
+          <div className="flex items-center h-full px-5">
+            <span className="text-figma-sm text-figma-muted font-medium">
+              No trades yet
+            </span>
+          </div>
+        ) : (
+          <div className="ticker-track h-full items-center">
+            {/* Render the list twice so the marquee loops seamlessly */}
+            {[0, 1].map((dup) => (
+              <div key={dup} className="flex gap-2 pr-2 shrink-0">
+                {recentTrades.map((trade) => {
+                  // Prefer the token name joined from the indexer (TRADE_FRAGMENT now
+                  // includes `token { name symbol }`). Fall back to the resolved map
+                  // for tokens outside the useAllTokens() cap.
+                  const tokenInfo = tokenMap.get(trade.token_id.toLowerCase());
+                  const tokenName =
+                    trade.token?.name?.trim() ||
+                    tokenInfo?.name?.trim() ||
+                    "";
+                  const tokenLabel = getTokenDisplayName(tokenName, trade.token_id);
+                  const monAmt = formatAmountMon(
+                    trade.isBuy ? trade.amountIn : trade.amountOut
+                  );
+                  const amountLabel = `${monAmt} MON of ${tokenLabel}`;
+                  const traderDisplay = formatTraderAddress(trade.trader);
 
-              return (
-                <Link
-                  key={trade.id}
-                  href={`/token/${trade.token_id}`}
-                  className={`flex items-center gap-2 px-3 shrink-0 w-[211px] h-[46px] rounded-pill no-underline cursor-pointer ${
-                    trade.isBuy ? "pill-buy" : "pill-sell"
-                  }`}
-                >
-                  {/* Token avatar (small, circular) */}
-                  <TokenAvatar
-                    tokenAddress={trade.token_id}
-                    tokenName={tokenInfo?.name}
-                    size="sm"
-                  />
-                  {/* Info */}
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-figma-xs text-figma-white font-medium truncate">
-                      {traderDisplay}
-                    </span>
-                    <span className="text-figma-xs text-figma-white font-medium truncate">
-                      {amountLabel}
-                    </span>
-                  </div>
-                  {/* Badge */}
-                  <div
-                    className={`flex items-center justify-center px-1 ml-auto shrink-0 w-[56px] h-[16px] rounded-[2.6px] ${
-                      trade.isBuy ? "badge-buy" : "badge-sell"
-                    }`}
-                  >
-                    <span className="text-figma-xs text-figma-white font-semibold">
-                      {trade.isBuy ? "Bought" : "Sold"}
-                    </span>
-                  </div>
-                </Link>
-              );
-            })
-          )}
-        </div>
+                  return (
+                    <Link
+                      key={`${dup}-${trade.id}`}
+                      href={`/token/${trade.token_id}`}
+                      className={`flex items-center gap-2 px-3 shrink-0 w-[211px] h-[46px] rounded-pill no-underline cursor-pointer ${
+                        trade.isBuy ? "pill-buy" : "pill-sell"
+                      }`}
+                    >
+                      <TokenAvatar
+                        tokenAddress={trade.token_id}
+                        tokenName={tokenName}
+                        size="sm"
+                      />
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-figma-xs text-figma-white font-medium truncate">
+                          {traderDisplay}
+                        </span>
+                        <span className="text-figma-xs text-figma-white font-medium truncate">
+                          {amountLabel}
+                        </span>
+                      </div>
+                      <div
+                        className={`flex items-center justify-center px-1 ml-auto shrink-0 w-[56px] h-[16px] rounded-[2.6px] ${
+                          trade.isBuy ? "badge-buy" : "badge-sell"
+                        }`}
+                      >
+                        <span className="text-figma-xs text-figma-white font-semibold">
+                          {trade.isBuy ? "Bought" : "Sold"}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
         {/* Fade edges */}
-        <div className="absolute left-0 top-0 bottom-0 w-[34px] gradient-fade-right pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-0 w-[34px] gradient-fade-left pointer-events-none" />
+        <div className="absolute left-0 top-0 bottom-0 w-[34px] gradient-fade-right pointer-events-none z-10" />
+        <div className="absolute right-0 top-0 bottom-0 w-[34px] gradient-fade-left pointer-events-none z-10" />
       </div>
 
       {/* ── Trending Now Banner ── */}
@@ -279,21 +305,14 @@ export default function HomePage() {
                 href={`/token/${token.id}`}
                 className="no-underline"
               >
-                <div className="flex flex-col items-center justify-between cursor-pointer w-full h-[343px] bg-figma-purple rounded-panel px-[25px] pt-[16px] pb-[16px] relative overflow-hidden">
+                <div className="flex flex-col items-center gap-[20px] cursor-pointer w-full h-[343px] bg-figma-purple rounded-panel px-[25px] pt-[16px] pb-[16px] relative overflow-hidden">
                   {/* Gradient overlay */}
                   <div className="absolute inset-0 trending-card-overlay" />
 
-                  {/* Token name + ticker — at the top */}
-                  <div className="relative z-10 flex flex-col items-center gap-[4px] w-full">
-                    {/* Token name */}
-                    <span className="text-figma-xl text-figma-white font-bold text-center px-2 truncate w-full">
-                      {getTokenDisplayName(token.name, token.id)}
-                    </span>
-                    {/* Ticker badge */}
-                    <span className="text-figma-xs text-gray-400 font-medium px-[8px] py-[2px] rounded-[4px] bg-black/70">
-                      ${getTokenDisplaySymbol(token.symbol)}
-                    </span>
-                  </div>
+                  {/* Token name — now at the top */}
+                  <span className="relative z-10 text-figma-xl text-figma-white font-bold text-center px-2 truncate w-full">
+                    {getTokenDisplayName(token.name, token.id)}
+                  </span>
 
                   {/* Token avatar — uses IPFS image or gradient placeholder */}
                   <TokenAvatar
@@ -349,6 +368,9 @@ export default function HomePage() {
           })
         )}
       </div>
+
+      {/* ── Founder Token Banner (pinned, centred) ── */}
+      <FounderTokenBanner tokens={tokensWithMeta} />
 
       {/* ── Sort / Filter Bar ── */}
       <div className="flex items-center gap-3 mt-[20px]">
@@ -452,7 +474,7 @@ export default function HomePage() {
                     priceChangePct={pct}
                   />
                 )}
-              </Link>
+            </Link>
             );
           })
         )}
