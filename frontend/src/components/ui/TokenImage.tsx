@@ -156,21 +156,32 @@ export function TokenImage({
     directImageUrl ??
     (currentUrl || (data?.imageUrl ?? null));
 
-  // Track the raw IPFS URI for fallback gateway cycling
+  // Track the raw IPFS URI for fallback gateway cycling.
+  // Only use IPFS fallbacks for actual ipfs:// URIs — Storj HTTPS URLs have no fallback.
   const ipfsUri = data?.imageUri ?? null;
+  const isIpfsUri =
+    !!ipfsUri &&
+    (ipfsUri.startsWith("ipfs://") ||
+      ipfsUri.startsWith("Qm") ||
+      ipfsUri.startsWith("bafy"));
 
   const handleError = useCallback(() => {
-    if (!ipfsUri) return;
+    if (!isIpfsUri || !ipfsUri) {
+      // Storj / plain HTTPS URL failed — show placeholder immediately
+      setCurrentUrl(null);
+      setErrorCount(99);
+      return;
+    }
     const fallbacks = ipfsFallbackUrls(ipfsUri);
     if (errorCount < fallbacks.length) {
       setCurrentUrl(fallbacks[errorCount]);
       setErrorCount((c) => c + 1);
     } else {
-      // All gateways exhausted → signal to show placeholder
+      // All IPFS gateways exhausted → show placeholder
       setCurrentUrl(null);
       setErrorCount(fallbacks.length + 1);
     }
-  }, [ipfsUri, errorCount]);
+  }, [ipfsUri, isIpfsUri, errorCount]);
 
   // Loading skeleton
   if (isLoading && !directImageUrl) {
@@ -178,7 +189,7 @@ export function TokenImage({
   }
 
   // No image registered / all gateways failed → placeholder
-  const gatewaysFailed = errorCount > (ipfsFallbackUrls(ipfsUri).length);
+  const gatewaysFailed = errorCount > (isIpfsUri ? ipfsFallbackUrls(ipfsUri).length : 0);
   if (!resolvedImageUrl || gatewaysFailed) {
     return (
       <Placeholder

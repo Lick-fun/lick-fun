@@ -18,7 +18,13 @@ const IPFS_GATEWAY =
   process.env.NEXT_PUBLIC_PINATA_GATEWAY ?? "https://gateway.pinata.cloud/ipfs/";
 
 function ipfsToHttp(uri: string): string {
-  if (uri.startsWith("https://") || uri.startsWith("http://")) return uri;
+  if (uri.startsWith("https://") || uri.startsWith("http://")) {
+    // Storj share links need ?wrap=0 to serve raw files instead of the download portal
+    if (uri.includes("storjshare.io") && !uri.includes("wrap=0")) {
+      return `${uri}?wrap=0`;
+    }
+    return uri;
+  }
   if (uri.startsWith("ipfs://")) {
     return `${IPFS_GATEWAY}${uri.replace("ipfs://", "")}`;
   }

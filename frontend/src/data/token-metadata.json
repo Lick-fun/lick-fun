@@ -33,5 +33,10 @@
     "metadataUri": "ipfs://QmamiZ8qqUGQbV9Txzb7G3HAz4nr1xEY9Dr2TCwAWSN9dq",
     "imageUri": "ipfs://QmdyEsr6tmWmt2CYhaAFRokmC4baKUgUxgaHgPv1vQ6nVD",
     "registeredAt": 1782389266397
+  },
+  "0x896e7fba5ba700e4db8614a12b8d35381c9618cf": {
+    "metadataUri": "https://link.storjshare.io/s/jvqgktahde346s3s65orx4mmtk4a/lickfun/tokens/lickfun-1782454929241-metadata.json?wrap=0",
+    "imageUri": "https://link.storjshare.io/s/jvqgktahde346s3s65orx4mmtk4a/lickfun/tokens/lickfun-1782454929241.png?wrap=0",
+    "registeredAt": 1782454936693
   }
 }

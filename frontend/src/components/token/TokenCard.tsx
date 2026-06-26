@@ -34,7 +34,7 @@ export function TokenCard({
   volume,
   txCount,
   imageUrl,
-  progress = 65,
+  progress = 0,
   isAnimated = false,
   priceMon,
   priceChangePct,

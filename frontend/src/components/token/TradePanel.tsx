@@ -69,7 +69,9 @@ export function TradePanel({
       ? amountNum * monPerToken * 0.98
       : 0;
 
-  const slippage = 1;
+  const [slippage, setSlippage] = useState(10); // default 10%
+  const [slippageOpen, setSlippageOpen] = useState(false);
+  const [slippageCustom, setSlippageCustom] = useState("");
 
   const isLoading = isBuying || isSelling || sellStep !== "idle";
 
@@ -81,6 +83,7 @@ export function TradePanel({
 
   /* ── Formatted balance strings ── */
   const monBalanceNum = monBalance ? Number(formatEther(monBalance.value)) : 0;
+  // Display-only: safe to round for UI, never used in transactions.
   const tokenBalanceNum = Number(tokenBalance) / 1e18;
 
   function handleMax() {
@@ -89,22 +92,36 @@ export function TradePanel({
       const maxMon = Math.max(0, monBalanceNum - 0.01);
       setAmount(maxMon > 0 ? maxMon.toFixed(4) : "");
     } else {
-      setAmount(tokenBalanceNum > 0 ? tokenBalanceNum.toFixed(2) : "");
+      // Use formatEther to preserve full wei precision — never round-trip through float.
+      // Float rounding (e.g. 262779.949999... → "262779.95") can produce 1 wei MORE than
+      // the actual balance, causing transferFrom to revert in BondingCurve.sell().
+      setAmount(tokenBalance > 0n ? formatEther(tokenBalance) : "");
     }
   }
 
   async function handleTrade() {
     if (!curveAddress || amountNum <= 0) return;
     try {
+      // Apply slippage tolerance to minimum output
+      const slippageMultiplier = (100 - slippage) / 100;
       if (tab === "buy") {
+        // For buy: minTokensOut = estimatedTokens * (1 - slippage)
+        const minTokensOut = estimatedTokens > 0
+          ? parseEther((estimatedTokens * slippageMultiplier).toFixed(18))
+          : 0n;
         await buy(
           curveAddress as `0x${string}`,
           parseEther(amount),
-          0n /* minTokensOut */
+          minTokensOut
         );
       } else {
         /* Sell: approve first, then sell */
         const tokensInWei = parseEther(amount);
+
+        // For sell: minMonOut = estimatedMon * (1 - slippage)
+        const minMonOut = estimatedMon > 0
+          ? parseEther((estimatedMon * slippageMultiplier).toFixed(18))
+          : 0n;
 
         setSellStep("approving");
         await approveAsync({
@@ -118,7 +135,7 @@ export function TradePanel({
         await sell(
           curveAddress as `0x${string}`,
           tokensInWei,
-          0n /* minMonOut */
+          minMonOut
         );
 
         setSellStep("idle");
@@ -254,9 +271,61 @@ export function TradePanel({
                   : `${estimatedMon.toFixed(4)} MON`}
               </span>
             </div>
-            <div className="flex justify-between text-figma-muted">
+            <div className="flex justify-between items-center text-figma-muted">
               <span>Slippage</span>
-              <span className="text-figma-muted">Slippage {slippage}%</span>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setSlippageOpen(!slippageOpen)}
+                  className="text-figma-green hover:opacity-80 font-mono font-semibold transition-opacity"
+                >
+                  {slippage}%
+                </button>
+                {slippageOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-10 rounded-lg border border-figma-surface bg-figma-card p-2 shadow-lg min-w-[140px]">
+                    <div className="flex gap-1 mb-2">
+                      {[1, 5, 10].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => {
+                            setSlippage(preset);
+                            setSlippageOpen(false);
+                          }}
+                          className={cn(
+                            "flex-1 py-1 rounded text-xs font-semibold transition-all",
+                            slippage === preset
+                              ? "bg-figma-green text-black"
+                              : "bg-figma-surface text-figma-muted hover:text-figma-white"
+                          )}
+                        >
+                          {preset}%
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        placeholder="Custom"
+                        value={slippageCustom}
+                        onChange={(e) => setSlippageCustom(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const val = parseFloat(slippageCustom);
+                            if (Number.isFinite(val) && val > 0 && val <= 50) {
+                              setSlippage(val);
+                              setSlippageOpen(false);
+                              setSlippageCustom("");
+                            }
+                          }
+                        }}
+                        className="flex-1 px-2 py-1 rounded bg-figma-bg border border-figma-surface text-figma-white text-xs font-mono placeholder:text-figma-muted focus:outline-none focus:border-figma-green"
+                      />
+                      <span className="text-xs text-figma-muted">%</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

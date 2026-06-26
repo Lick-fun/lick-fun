@@ -180,9 +180,8 @@ contract BondingCurveTest is Test {
     /* TEST 8: Factory creates token with correct supply */
     function testFactoryCreatesTokenWithCorrectSupply() public view {
         assertEq(token.totalSupply(), 1_000_000_000 ether, "total supply should be 1B");
-        // Factory now sends 10% dev allocation to VestingController;
-        // curve receives 90% of supply.
-        assertEq(token.balanceOf(address(curve)), 900_000_000 ether, "curve should hold 90% of tokens");
+        // Phase 3: no auto dev allocation — curve receives 100% of supply.
+        assertEq(token.balanceOf(address(curve)), 1_000_000_000 ether, "curve should hold 100% of tokens");
     }
 
     /* ════════════════════════════════════════════════════════════════════════════

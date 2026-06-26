@@ -6,9 +6,9 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.27-blue)](https://soliditylang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
-[![Tests](https://img.shields.io/badge/Tests-137%20Forge%20•%2058%20Vitest-green)](.)
+[![Tests](https://img.shields.io/badge/Tests-136%20Forge%20•%2058%20Vitest-green)](.)
 
-**Status:** 3 security audit passes · 137 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · PriceChart enhanced — volume histogram pane, OHLC crosshair header, chart type toggle (candle/bar/line), MCap/Price toggle, USD/MON quote toggle, log scale, fullscreen, extended timeframes (1W/1M) · Token detail page redesigned (nad.fun-inspired 2-column layout with IPFS metadata, social links, stats grid) · Prediction Markets page redesigned — token name/symbol/price/MC/progress on every card, stats bar, sort controls, YES/NO pool split bar, parimutuel payout fix, status badges · **Phase 3 shipped** — USD market cap display (CoinGecko feed), founder token banner, profile custom name + avatar (wallet-signed), ticker redesigned as full-width auto-scrolling marquee, charts default to MCap + USD, 24h % change bug fixed, token names now display in ticker + markets via GraphQL join, About page rewritten in buyer-friendly language
+**Status:** 3 security audit passes · 136 Forge tests green · Live on Monad testnet (chain 10143) · Envio HyperSync indexer live · Phase 2 FeeRouter + reputation-gated tier system deployed (Starter / Creator Extra / Creator + LP Support / Custom) · Profile & reputation live on frontend · Token creation now requires image + social links · PriceChart enhanced — volume histogram pane, OHLC crosshair header, chart type toggle (candle/bar/line), MCap/Price toggle, USD/MON quote toggle, log scale, fullscreen, extended timeframes (1W/1M) · Token detail page redesigned (nad.fun-inspired 2-column layout with IPFS metadata, social links, stats grid) · Prediction Markets page redesigned — token name/symbol/price/MC/progress on every card, stats bar, sort controls, YES/NO pool split bar, parimutuel payout fix, status badges · **Phase 3 shipped** — USD market cap display (CoinGecko feed), founder token banner, profile custom name + avatar (wallet-signed), ticker redesigned as full-width auto-scrolling marquee, charts default to MCap + USD, 24h % change bug fixed, token names now display in ticker + markets via GraphQL join, About page rewritten in buyer-friendly language · **Phase 3b shipped** — removed 10% auto dev allocation (100% supply to curve, creators buy their own tokens via dev pre-buy), TradePanel slippage control (default 10%, clickable with 1%/5%/10% presets + custom input), MAX button on dev buy reserves 10 MON for creation fee, sell MAX button uses formatEther to avoid 1-wei rounding bug, global CSS hides number input spinners · **Phase 3c shipped** — USD MC on every token card (home trending + grid, discover grid) via shared `lib/format.ts` helpers, bonding bar default `progress = 0` (was misleading `65`), discover cards now show live price + 24h change matching homepage, trending card fixed (removed fixed `h-[343px]` height that was clipping MC/VOL/bonding bar via `overflow-hidden`, added token name + ticker, added bonding curve progress bar with purple gradient)
 
 ---
 
@@ -61,7 +61,7 @@ Connected wallet → click Profile in nav → see live trading stats, reputation
 | Bonding curve fee | 2% (1% protocol + 1% creator) |
 | Post-grad DEX fee | 0.25% LP-only |
 | LP at graduation | Burned to 0xdead (permanent) |
-| Dev allocation | 10% of supply, liquid from block 1 |
+| Dev allocation | None — 100% of supply to curve. Creators buy their own tokens via dev pre-buy (first buy exempt from anti-sniping) |
 
 ---
 

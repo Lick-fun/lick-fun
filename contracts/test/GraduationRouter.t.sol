@@ -60,9 +60,7 @@ contract GraduationRouterTest is Test {
         dexFactory.setGraduationRouter(address(router));
 
         // ── Create token ──
-        // Note: we do NOT set vestingController on launchFactory because
-        // initVesting() has onlyOwner and Factory is not the owner.
-        // The token is created without dev allocation vesting.
+        // Phase 3: Factory no longer wires VestingController — 100% supply goes to curve.
         (address tokenAddr, address curveAddr) = launchFactory.createToken(
             "Test Token",
             "TEST",

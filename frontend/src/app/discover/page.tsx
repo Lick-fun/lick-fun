@@ -2,7 +2,18 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useAllTokens } from "@/lib/hooks/useData";
+import {
+  useAllTokens,
+  useTokensMeta,
+  useTokenPriceChanges,
+} from "@/lib/hooks/useData";
+import { useMonUsdPrice } from "@/lib/hooks/useMonUsdPrice";
+import {
+  formatMarketCapUsd,
+  formatPriceMon,
+  formatVolume,
+  formatTxCount,
+} from "@/lib/format";
 import { TokenCard } from "@/components/token/TokenCard";
 import { TokenCardSkeleton } from "@/components/ui/Skeleton";
 import { Search, Plus, SlidersHorizontal } from "lucide-react";
@@ -32,38 +43,45 @@ function getTokenDisplaySymbol(symbol: string): string {
   return "???";
 }
 
-function formatMarketCap(mc: number): string {
-  if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(2)}M`;
-  if (mc >= 1_000) return `$${(mc / 1_000).toFixed(1)}K`;
-  return `$${mc.toFixed(0)}`;
-}
-
-function formatVolume(totalBuy: bigint, totalSell: bigint): string {
-  const total = Number(totalBuy + totalSell) / 1e18;
-  if (total >= 1_000_000) return `${(total / 1_000_000).toFixed(1)}M`;
-  if (total >= 1_000) return `${(total / 1_000).toFixed(1)}K`;
-  return total.toFixed(2);
-}
-
-function formatTxCount(buyCount: number, sellCount: number): string {
-  return (buyCount + sellCount).toString();
-}
-
 /**
  * Discover page — mirrors the working page.tsx pattern:
  *   - pl-sidebar offset via --sidebar-w token (no inline styles)
  *   - Real data from useAllTokens
  *   - TokenCardSkeleton placeholders
  *   - Empty state with CTA
+ *   - USD market cap (via useMonUsdPrice) with MON fallback
+ *   - Live price + 24h change on each card (parity with homepage)
  */
 export default function DiscoverPage() {
   const { data: tokens = [], isLoading } = useAllTokens();
+  const { data: monUsdPrice } = useMonUsdPrice();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const [filter, setFilter] = useState<FilterKey>("all");
 
+  /* Resolve any empty token names/symbols by reading them from the contract directly.
+     Same pattern as page.tsx so discover cards show real names. */
+  const tokensWithMeta = useTokensMeta(tokens);
+
+  /* Build the current-price map and fetch 24h percentage-change reference prices
+     so each card can show the same ▲/▼ change row as the homepage. */
+  const tokenIdsForPriceChanges = useMemo(() => {
+    return tokensWithMeta.map((t) => t.id);
+  }, [tokensWithMeta]);
+
+  const currentPricesMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of tokensWithMeta) {
+      m.set(t.id.toLowerCase(), t.price.monPerToken);
+    }
+    return m;
+  }, [tokensWithMeta]);
+
+  const { data: priceChangeMap = new Map<string, number>() } =
+    useTokenPriceChanges(tokenIdsForPriceChanges, currentPricesMap);
+
   const filtered = useMemo(() => {
-    return tokens
+    return tokensWithMeta
       .filter((t) => {
         if (filter === "graduated" && !t.graduated) return false;
         if (filter === "live" && t.graduated) return false;
@@ -85,7 +103,7 @@ export default function DiscoverPage() {
           default:         return 0;
         }
       });
-  }, [tokens, search, sort, filter]);
+  }, [tokensWithMeta, search, sort, filter]);
 
   return (
     <div className="bg-figma-bg min-h-screen px-5 pb-20 lg:pb-10">
@@ -189,25 +207,30 @@ export default function DiscoverPage() {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((token) => (
-            <Link
-              key={token.id}
-              href={`/token/${token.id}`}
-              className="no-underline"
-            >
-              <TokenCard
-                tokenAddress={token.id}
-                tokenName={getTokenDisplayName(token.name, token.id)}
-                symbol={getTokenDisplaySymbol(token.symbol)}
-                description=""
-                mc={formatMarketCap(token.price.marketCapMon)}
-                percentage={`${token.progress.toFixed(0)}%`}
-                volume={formatVolume(token.totalBuyVolume, token.totalSellVolume)}
-                txCount={formatTxCount(token.buyCount, token.sellCount)}
-                progress={token.progress}
-              />
-            </Link>
-          ))}
+          {filtered.map((token) => {
+            const pct = priceChangeMap.get(token.id.toLowerCase());
+            return (
+              <Link
+                key={token.id}
+                href={`/token/${token.id}`}
+                className="no-underline"
+              >
+                <TokenCard
+                  tokenAddress={token.id}
+                  tokenName={getTokenDisplayName(token.name, token.id)}
+                  symbol={getTokenDisplaySymbol(token.symbol)}
+                  description=""
+                  mc={formatMarketCapUsd(token.price.marketCapMon, monUsdPrice)}
+                  percentage={`${token.progress.toFixed(0)}%`}
+                  volume={formatVolume(token.totalBuyVolume, token.totalSellVolume)}
+                  txCount={formatTxCount(token.buyCount, token.sellCount)}
+                  progress={token.progress}
+                  priceMon={formatPriceMon(token.price.monPerToken)}
+                  priceChangePct={pct}
+                />
+              </Link>
+            );
+          })}
         </div>
       )}
 

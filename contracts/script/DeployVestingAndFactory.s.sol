@@ -2,7 +2,6 @@
 pragma solidity 0.8.27;
 
 import "forge-std/Script.sol";
-import "../src/VestingController.sol";
 import "../src/Factory.sol";
 import "../src/FeeRouter.sol";
 import "../src/GraduationRouter.sol";
@@ -12,10 +11,10 @@ import "../src/PredictionMarket.sol";
 
 /**
  * @title DeployVestingAndFactory
- * @notice Phase 2 deploy: deploys VaultLPSupport, VaultBuybackBurn, new FeeRouter,
- *         new Factory, new PredictionMarket (with factory param), and new GraduationRouter
- *         (LP burn — no VestingController dependency).
- *         Keeps old VestingController deploy for reference.
+ * @notice Phase 3 deploy: deploys VaultLPSupport, VaultBuybackBurn, new FeeRouter,
+ *         new Factory (no dev allocation — 100% supply to curve), new PredictionMarket,
+ *         and new GraduationRouter.
+ *         VestingController is no longer wired into Factory (creators buy their own tokens).
  */
 contract DeployVestingAndFactory is Script {
     // Existing live addresses (DO NOT redeploy)
@@ -32,10 +31,6 @@ contract DeployVestingAndFactory is Script {
         address deployer = vm.addr(deployerPrivateKey);
 
         vm.startBroadcast(deployerPrivateKey);
-
-        // ── Keep old VestingController for reference ──
-        VestingController vestingController = new VestingController();
-        console.log("VestingController deployed at:", address(vestingController));
 
         // ── Step A: Deploy vault stubs ──
         VaultLPSupport vaultLP = new VaultLPSupport();
@@ -60,7 +55,6 @@ contract DeployVestingAndFactory is Script {
         PredictionMarket predictionMarket = new PredictionMarket(deployer, address(factory));
         console.log("PredictionMarket deployed at:", address(predictionMarket));
 
-        factory.setVestingController(address(vestingController));
         factory.setPredictionMarket(address(predictionMarket));
         factory.setFeeRouter(address(feeRouter));
 
@@ -76,9 +70,8 @@ contract DeployVestingAndFactory is Script {
         factory.setGraduationRouter(address(graduationRouter));
 
         console.log("---");
-        console.log("All Phase 2 contracts deployed.");
+        console.log("All Phase 3 contracts deployed.");
         console.log("Factory configured with:");
-        console.log("  VestingController:", address(vestingController));
         console.log("  GraduationRouter:", address(graduationRouter));
         console.log("  PredictionMarket:", address(predictionMarket));
         console.log("  FeeRouter:", address(feeRouter));

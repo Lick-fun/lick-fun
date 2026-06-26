@@ -630,9 +630,10 @@ export default function CreateTokenPage() {
                     onClick={() => {
                       const max = Number(formatEther(monBalance.value));
                       if (Number.isFinite(max) && max > 0) {
-                        // Leave a small buffer for gas; cap at 100k limit.
-                        const capped = Math.min(max * 0.995, 100_000);
-                        setDevBuyAmount(capped.toFixed(4));
+                        // Reserve 10 MON for the token creation fee + small gas buffer.
+                        // Cap at 100k limit.
+                        const capped = Math.min(Math.max(max - 10, 0), 100_000);
+                        setDevBuyAmount(capped > 0 ? capped.toFixed(4) : "");
                       }
                     }}
                     disabled={isLoading || !monBalance}
@@ -715,7 +716,7 @@ export default function CreateTokenPage() {
           // Step → user-facing label
           const stepLabel: Record<string, string> = {
             "idle": "",
-            "uploading": "Uploading image to IPFS",
+            "uploading": "Uploading image",
             "creating": "Confirm token creation in wallet",
             "confirming-create": "Deploying token on-chain",
             "dev-buying": "Confirm dev buy in wallet",

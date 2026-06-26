@@ -1,10 +1,11 @@
 /**
- * IPFS utilities — resolve CIDs/URIs via the configured public gateway.
+ * URI resolution utilities — handles both legacy IPFS URIs and new Storj HTTPS URLs.
  *
- * Uploads now happen server-side in /api/upload-token so the Pinata JWT is
- * never exposed to the browser.
+ * New uploads go to Storj (see /api/upload-token) and return plain HTTPS URLs.
+ * Legacy tokens created before the Storj migration still use ipfs:// URIs and
+ * are resolved via the public Pinata gateway.
  *
- * Set NEXT_PUBLIC_PINATA_GATEWAY in .env.local (defaults to Pinata's gateway).
+ * Set NEXT_PUBLIC_PINATA_GATEWAY in .env.local for legacy IPFS display.
  */
 
 // Public gateway used only for *displaying* pinned content in the browser.

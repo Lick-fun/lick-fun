@@ -1,8 +1,8 @@
 /**
  * POST /api/upload-profile
  *
- * Server-side IPFS upload for profile avatars via Pinata.
- * The JWT is read from process.env.PINATA_JWT and never reaches the browser.
+ * Server-side upload for profile avatars to Storj (S3-compatible).
+ * Credentials are read from process.env.STORJ_* and never reach the browser.
  *
  * Request body: multipart/form-data
  *   - avatar: File (image)
@@ -13,70 +13,69 @@
  *
  * Response:
  *   { ok: true, avatarUri: string, metadataUri: string }
+ *
+ * Both URIs are plain HTTPS URLs pointing to the Storj bucket.
  */
 
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyMessage } from "viem";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
-const PINATA_JWT = process.env.PINATA_JWT ?? "";
-const PINATA_API_URL = "https://api.pinata.cloud/pinning";
+const STORJ_ACCESS_KEY_ID = process.env.STORJ_ACCESS_KEY_ID ?? "";
+const STORJ_SECRET_ACCESS_KEY = process.env.STORJ_SECRET_ACCESS_KEY ?? "";
+const STORJ_ENDPOINT = process.env.STORJ_ENDPOINT ?? "";
+const STORJ_BUCKET = process.env.STORJ_BUCKET ?? "";
+const STORAGE_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL ?? "";
 
-class IPFSUploadError extends Error {
+class StorageUploadError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "IPFSUploadError";
+    this.name = "StorageUploadError";
   }
 }
 
-function parsePinataHash(json: unknown): string {
-  const data = json as { IpfsHash?: string; ipfsHash?: string };
-  const cid = data.IpfsHash ?? data.ipfsHash;
-  if (!cid || typeof cid !== "string") {
-    throw new IPFSUploadError("Pinata returned no IPFS hash");
+function getS3Client(): S3Client {
+  if (!STORJ_ACCESS_KEY_ID || !STORJ_SECRET_ACCESS_KEY || !STORJ_ENDPOINT || !STORJ_BUCKET) {
+    throw new StorageUploadError("Storj credentials not configured");
   }
-  return `ipfs://${cid}`;
-}
-
-async function uploadToPinata(formData: FormData): Promise<string> {
-  const res = await fetch(`${PINATA_API_URL}/pinFileToIPFS`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${PINATA_JWT}`,
+  return new S3Client({
+    endpoint: STORJ_ENDPOINT,
+    region: "us1",
+    credentials: {
+      accessKeyId: STORJ_ACCESS_KEY_ID,
+      secretAccessKey: STORJ_SECRET_ACCESS_KEY,
     },
-    body: formData,
+    forcePathStyle: true,
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new IPFSUploadError(`Pinata file upload failed (${res.status}): ${text}`);
-  }
-
-  return parsePinataHash(await res.json());
 }
 
-async function uploadMetadataToPinata(metadata: Record<string, unknown>): Promise<string> {
-  const res = await fetch(`${PINATA_API_URL}/pinJSONToIPFS`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${PINATA_JWT}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      pinataContent: metadata,
-      pinataMetadata: { name: `${metadata.walletAddress}-profile.json` },
-    }),
-  });
+function getExtension(filename: string): string {
+  const ext = filename.split(".").pop();
+  return ext ? `.${ext.toLowerCase()}` : ".png";
+}
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new IPFSUploadError(`Pinata JSON upload failed (${res.status}): ${text}`);
-  }
-
-  return parsePinataHash(await res.json());
+async function uploadToStorj(
+  s3: S3Client,
+  key: string,
+  body: Buffer,
+  contentType: string
+): Promise<string> {
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: STORJ_BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    })
+  );
+  // ?wrap=0 tells Storj share links to serve the raw file instead of the download portal
+  return `${STORAGE_BASE_URL}/${key}?wrap=0`;
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const s3 = getS3Client();
+
     const formData = await req.formData();
     const avatar = formData.get("avatar");
     const walletAddress = formData.get("walletAddress");
@@ -111,18 +110,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Upload avatar to IPFS
-    const avatarForm = new FormData();
-    avatarForm.append("file", avatar);
-    const avatarUri = await uploadToPinata(avatarForm);
+    // Upload avatar to Storj
+    const avatarBuffer = Buffer.from(await avatar.arrayBuffer());
+    const avatarExt = getExtension(avatar.name);
+    const timestamp = Date.now();
+    const safeWallet = walletAddress.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const avatarKey = `profiles/${safeWallet}-${timestamp}${avatarExt}`;
+    const avatarUri = await uploadToStorj(s3, avatarKey, avatarBuffer, avatar.type || "image/png");
 
-    // Upload profile metadata JSON to IPFS
-    const metadataUri = await uploadMetadataToPinata({
-      walletAddress,
-      displayName,
-      avatarUri,
-      updatedAt: Date.now(),
-    });
+    // Upload profile metadata JSON to Storj
+    const metadataKey = `profiles/${safeWallet}-${timestamp}-metadata.json`;
+    const metadataUri = await uploadToStorj(
+      s3,
+      metadataKey,
+      Buffer.from(
+        JSON.stringify(
+          {
+            walletAddress,
+            displayName,
+            avatarUri,
+            updatedAt: timestamp,
+          },
+          null,
+          2
+        )
+      ),
+      "application/json"
+    );
 
     return NextResponse.json({
       ok: true,

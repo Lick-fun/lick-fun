@@ -1,8 +1,8 @@
 /**
  * POST /api/upload-token
  *
- * Server-side IPFS upload for token images + metadata via Pinata.
- * The JWT is read from process.env.PINATA_JWT and never reaches the browser.
+ * Server-side upload for token images + metadata to Storj (S3-compatible).
+ * Credentials are read from process.env.STORJ_* and never reach the browser.
  *
  * Request body: multipart/form-data
  *   - image: File
@@ -15,76 +15,72 @@
  *
  * Response:
  *   { ok: true, imageUri: string, metadataUri: string }
+ *
+ * Both URIs are plain HTTPS URLs pointing to the Storj bucket.
+ * The bucket must be public (or have a share link) for images to display.
  */
 
 import { type NextRequest, NextResponse } from "next/server";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
-const PINATA_JWT = process.env.PINATA_JWT ?? "";
-const PINATA_API_URL = "https://api.pinata.cloud/pinning";
+const STORJ_ACCESS_KEY_ID = process.env.STORJ_ACCESS_KEY_ID ?? "";
+const STORJ_SECRET_ACCESS_KEY = process.env.STORJ_SECRET_ACCESS_KEY ?? "";
+const STORJ_ENDPOINT = process.env.STORJ_ENDPOINT ?? "";
+const STORJ_BUCKET = process.env.STORJ_BUCKET ?? "";
+const STORAGE_BASE_URL = process.env.NEXT_PUBLIC_STORAGE_BASE_URL ?? "";
 
-class IPFSUploadError extends Error {
+class StorageUploadError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "IPFSUploadError";
+    this.name = "StorageUploadError";
   }
 }
 
-function parsePinataHash(json: unknown): string {
-  const data = json as { IpfsHash?: string; ipfsHash?: string };
-  const cid = data.IpfsHash ?? data.ipfsHash;
-  if (!cid || typeof cid !== "string") {
-    throw new IPFSUploadError("Pinata returned no IPFS hash");
+function getS3Client(): S3Client {
+  if (!STORJ_ACCESS_KEY_ID || !STORJ_SECRET_ACCESS_KEY || !STORJ_ENDPOINT || !STORJ_BUCKET) {
+    throw new StorageUploadError("Storj credentials not configured");
   }
-  return `ipfs://${cid}`;
-}
-
-async function uploadToPinata(formData: FormData): Promise<string> {
-  const res = await fetch(`${PINATA_API_URL}/pinFileToIPFS`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${PINATA_JWT}`,
+  return new S3Client({
+    endpoint: STORJ_ENDPOINT,
+    region: "us1",
+    credentials: {
+      accessKeyId: STORJ_ACCESS_KEY_ID,
+      secretAccessKey: STORJ_SECRET_ACCESS_KEY,
     },
-    body: formData,
+    forcePathStyle: true,
   });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new IPFSUploadError(`Pinata file upload failed (${res.status}): ${text}`);
-  }
-
-  return parsePinataHash(await res.json());
 }
 
-async function uploadMetadataToPinata(metadata: Record<string, unknown>): Promise<string> {
-  const res = await fetch(`${PINATA_API_URL}/pinJSONToIPFS`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${PINATA_JWT}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      pinataContent: metadata,
-      pinataMetadata: { name: metadata.name ? `${metadata.name}-metadata.json` : "metadata.json" },
-    }),
-  });
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+}
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new IPFSUploadError(`Pinata JSON upload failed (${res.status}): ${text}`);
-  }
+function getExtension(filename: string): string {
+  const ext = filename.split(".").pop();
+  return ext ? `.${ext.toLowerCase()}` : "";
+}
 
-  return parsePinataHash(await res.json());
+async function uploadToStorj(
+  s3: S3Client,
+  key: string,
+  body: Buffer,
+  contentType: string
+): Promise<string> {
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: STORJ_BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    })
+  );
+  // ?wrap=0 tells Storj share links to serve the raw file instead of the download portal
+  return `${STORAGE_BASE_URL}/${key}?wrap=0`;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    if (!PINATA_JWT) {
-      console.error("[upload-token] PINATA_JWT is not configured");
-      return NextResponse.json(
-        { error: "Server IPFS configuration missing" },
-        { status: 500 }
-      );
-    }
+    const s3 = getS3Client();
 
     const formData = await req.formData();
     const image = formData.get("image");
@@ -105,15 +101,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing token symbol" }, { status: 400 });
     }
 
-    // 1. Upload image to Pinata
-    const imageFormData = new FormData();
-    imageFormData.append("file", image);
-    imageFormData.append(
-      "pinataMetadata",
-      JSON.stringify({ name: `${name.replace(/\s+/g, "_")}-image${getExtension(image.name)}` })
-    );
-
-    const imageUri = await uploadToPinata(imageFormData);
+    // 1. Upload image
+    const imageBuffer = Buffer.from(await image.arrayBuffer());
+    const imageExt = getExtension(image.name) || ".png";
+    const timestamp = Date.now();
+    const safeName = sanitizeFilename(name.trim());
+    const imageKey = `tokens/${safeName}-${timestamp}${imageExt}`;
+    const imageUri = await uploadToStorj(s3, imageKey, imageBuffer, image.type || "image/png");
 
     // 2. Build metadata JSON
     const metadata: Record<string, unknown> = {
@@ -135,7 +129,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Upload metadata JSON
-    const metadataUri = await uploadMetadataToPinata(metadata);
+    const metadataKey = `tokens/${safeName}-${timestamp}-metadata.json`;
+    const metadataUri = await uploadToStorj(
+      s3,
+      metadataKey,
+      Buffer.from(JSON.stringify(metadata, null, 2)),
+      "application/json"
+    );
 
     return NextResponse.json({ ok: true, imageUri, metadataUri });
   } catch (err) {
@@ -144,11 +144,6 @@ export async function POST(req: NextRequest) {
       err instanceof Error ? err.message : "Internal server error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
-
-function getExtension(filename: string): string {
-  const ext = filename.split(".").pop();
-  return ext ? `.${ext}` : "";
 }
 
 export async function GET() {

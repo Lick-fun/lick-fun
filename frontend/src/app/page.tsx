@@ -16,6 +16,13 @@ import {
   useTokenPriceChanges,
   formatPriceChange,
 } from "@/lib/hooks/useData";
+import { useMonUsdPrice } from "@/lib/hooks/useMonUsdPrice";
+import {
+  formatMarketCapUsd,
+  formatPriceMon,
+  formatVolume,
+  formatTxCount,
+} from "@/lib/format";
 import { FounderTokenBanner } from "@/components/home/FounderTokenBanner";
 
 type SortOption = "lastTrade" | "largestMC" | "newestCreated" | "highestReputation";
@@ -23,23 +30,6 @@ type SortOption = "lastTrade" | "largestMC" | "newestCreated" | "highestReputati
 const TOKENS_PER_PAGE = 60; // 10 rows × 6 cols
 
 /* ─── Display helpers ─────────────────────────────────────────────────────────── */
-
-function formatMarketCap(mc: number): string {
-  if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(2)}M`;
-  if (mc >= 1_000) return `$${(mc / 1_000).toFixed(1)}K`;
-  return `$${mc.toFixed(0)}`;
-}
-
-function formatVolume(totalBuy: bigint, totalSell: bigint): string {
-  const total = Number(totalBuy + totalSell) / 1e18;
-  if (total >= 1_000_000) return `${(total / 1_000_000).toFixed(1)}M`;
-  if (total >= 1_000) return `${(total / 1_000).toFixed(1)}K`;
-  return total.toFixed(2);
-}
-
-function formatTxCount(buyCount: number, sellCount: number): string {
-  return (buyCount + sellCount).toString();
-}
 
 function formatTraderAddress(addr: string): string {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -50,14 +40,6 @@ function formatAmountMon(wei: bigint): string {
   if (num >= 1_000) return `${(num / 1_000).toFixed(2)}K`;
   if (num >= 1) return num.toFixed(3);
   return num.toFixed(6);
-}
-
-function formatPriceMon(monPerToken: number): string {
-  if (monPerToken === 0) return "0 MON";
-  if (monPerToken >= 1) return `${monPerToken.toFixed(4)} MON`;
-  if (monPerToken >= 0.001) return `${monPerToken.toFixed(6)} MON`;
-  if (monPerToken >= 0.000_001) return `${monPerToken.toFixed(9)} MON`;
-  return `${monPerToken.toFixed(12)} MON`;
 }
 
 function getTokenDisplayName(name: string, id: string): string {
@@ -75,6 +57,7 @@ function getTokenDisplaySymbol(symbol: string): string {
 export default function HomePage() {
   const { data: tokens = [], isLoading } = useAllTokens();
   const { data: recentTrades = [], isLoading: tradesLoading } = useRecentTrades(10);
+  const { data: monUsdPrice } = useMonUsdPrice();
   const [activeSort, setActiveSort] = useState<SortOption>("largestMC");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -305,16 +288,21 @@ export default function HomePage() {
                 href={`/token/${token.id}`}
                 className="no-underline"
               >
-                <div className="flex flex-col items-center gap-[20px] cursor-pointer w-full h-[343px] bg-figma-purple rounded-panel px-[25px] pt-[16px] pb-[16px] relative overflow-hidden">
+                <div className="flex flex-col items-center gap-[12px] cursor-pointer w-full bg-figma-purple rounded-panel px-[20px] pt-[14px] pb-[14px] relative overflow-hidden">
                   {/* Gradient overlay */}
                   <div className="absolute inset-0 trending-card-overlay" />
 
-                  {/* Token name — now at the top */}
-                  <span className="relative z-10 text-figma-xl text-figma-white font-bold text-center px-2 truncate w-full">
-                    {getTokenDisplayName(token.name, token.id)}
-                  </span>
+                  {/* Token name + ticker */}
+                  <div className="relative z-10 flex flex-col items-center gap-[2px] w-full">
+                    <span className="text-figma-xl text-figma-white font-bold text-center truncate w-full">
+                      {getTokenDisplayName(token.name, token.id)}
+                    </span>
+                    <span className="text-figma-sm text-figma-muted font-bold text-center">
+                      (${getTokenDisplaySymbol(token.symbol)})
+                    </span>
+                  </div>
 
-                  {/* Token avatar — uses IPFS image or gradient placeholder */}
+                  {/* Token avatar */}
                   <TokenAvatar
                     tokenAddress={token.id}
                     tokenName={getTokenDisplayName(token.name, token.id)}
@@ -350,7 +338,7 @@ export default function HomePage() {
                   {/* MC Row */}
                   <div className="relative z-10 flex items-center justify-between w-full">
                     <span className="text-figma-lg text-figma-white font-bold">
-                      MC: {formatMarketCap(token.price.marketCapMon)}
+                      MC: {formatMarketCapUsd(token.price.marketCapMon, monUsdPrice)}
                     </span>
                     <svg width="54" height="23" viewBox="0 0 54 23" fill="none">
                       <path
@@ -361,6 +349,28 @@ export default function HomePage() {
                         strokeLinejoin="round"
                       />
                     </svg>
+                  </div>
+
+                  {/* Bonding curve progress bar */}
+                  <div className="relative z-10 w-full flex flex-col gap-[3px]">
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-figma-xs text-figma-muted font-bold">Bonding</span>
+                      <span className="text-figma-xs text-figma-white font-bold">{token.progress.toFixed(0)}%</span>
+                    </div>
+                    <div
+                      className="w-full overflow-hidden"
+                      style={{ height: "9px", borderRadius: "24px", background: "#1B1B1B" }}
+                    >
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${token.progress}%`,
+                          background: "linear-gradient(90deg, #6E44D2 0%, #9B6FFF 100%)",
+                          borderRadius: "24px",
+                          transition: "width 0.3s ease",
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </Link>
@@ -451,7 +461,7 @@ export default function HomePage() {
                     tokenName={getTokenDisplayName(token.name, token.id)}
                     symbol={getTokenDisplaySymbol(token.symbol)}
                     description=""
-                    mc={formatMarketCap(token.price.marketCapMon)}
+                    mc={formatMarketCapUsd(token.price.marketCapMon, monUsdPrice)}
                     percentage={`${token.progress.toFixed(0)}%`}
                     volume={formatVolume(token.totalBuyVolume, token.totalSellVolume)}
                     txCount={formatTxCount(token.buyCount, token.sellCount)}
@@ -465,7 +475,7 @@ export default function HomePage() {
                     tokenName={getTokenDisplayName(token.name, token.id)}
                     symbol={getTokenDisplaySymbol(token.symbol)}
                     description=""
-                    mc={formatMarketCap(token.price.marketCapMon)}
+                    mc={formatMarketCapUsd(token.price.marketCapMon, monUsdPrice)}
                     percentage={`${token.progress.toFixed(0)}%`}
                     volume={formatVolume(token.totalBuyVolume, token.totalSellVolume)}
                     txCount={formatTxCount(token.buyCount, token.sellCount)}

@@ -5,7 +5,6 @@ import "./LickToken.sol";
 import "./BondingCurve.sol";
 import "./FeeRouter.sol";
 import "./PredictionMarket.sol";
-import "./VestingController.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -13,19 +12,15 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * @notice Deploys LickToken + BondingCurve pairs for the Lick.fun launchpad
  * @dev Supports optional FeeRouter integration for fee splitting presets.
  *      Backward-compatible: existing createToken continues to work unchanged.
+ *      100% of token supply goes to the BondingCurve — no auto dev allocation.
+ *      Creators buy their own tokens via BondingCurve.buy() (dev pre-buy).
  */
 contract Factory {
-    // ─── Constants ───────────────────────────────────────────────────────────
-    /// @notice Dev allocation in basis points (10% = 1000 bps).
-    uint256 public constant DEV_ALLOC_BPS = 1000;
-    uint256 public constant BPS_DENOM = 10_000;
-
     // ─── State ───────────────────────────────────────────────────────────────
     address public immutable owner;
     address public immutable protocolTreasury;
     address payable public feeRouter;
     address payable public predictionMarket;
-    address public vestingController;
     address public graduationRouter;
 
     struct TokenInfo {
@@ -42,7 +37,6 @@ contract Factory {
     event TokenCreated(address indexed token, address indexed curve, address indexed creator);
     event FeeRouterSet(address indexed feeRouter);
     event PredictionMarketSet(address indexed predictionMarket);
-    event VestingControllerSet(address indexed vestingController);
     event GraduationRouterSet(address indexed graduationRouter);
 
     // ─── Errors ──────────────────────────────────────────────────────────────
@@ -81,17 +75,6 @@ contract Factory {
         if (_predictionMarket == address(0)) revert ZeroAddress();
         predictionMarket = payable(_predictionMarket);
         emit PredictionMarketSet(_predictionMarket);
-    }
-
-    /**
-     * @notice Sets the VestingController address. Can only be called once.
-     * @param _vestingController The VestingController contract address
-     */
-    function setVestingController(address _vestingController) external onlyOwner {
-        if (vestingController != address(0)) revert AlreadySet();
-        if (_vestingController == address(0)) revert ZeroAddress();
-        vestingController = _vestingController;
-        emit VestingControllerSet(_vestingController);
     }
 
     /**
@@ -137,22 +120,9 @@ contract Factory {
         );
         curveAddr = address(curve);
 
-        // Handle dev allocation: mint portion to VestingController (C4 fix)
-        uint256 totalSupply = tok.totalSupply();
-        uint256 devAlloc = (totalSupply * DEV_ALLOC_BPS) / BPS_DENOM;
-        uint256 curveAlloc = totalSupply - devAlloc;
-        if (devAlloc > 0 && vestingController != address(0)) {
-            tok.transfer(vestingController, devAlloc);
-            VestingController(vestingController).initVesting(
-                tokenAddr,
-                creatorAddress,
-                devAlloc,
-                VestingController.Tier.LIGHT,
-                st
-            );
-        }
-        // Transfer curve allocation to curve
-        tok.transfer(curveAddr, curveAlloc);
+        // Transfer 100% of supply to the curve — no auto dev allocation.
+        // Creator buys their own tokens via BondingCurve.buy() (dev pre-buy).
+        tok.transfer(curveAddr, tok.totalSupply());
 
         // Create prediction market if predictionMarket is configured (C1 fix)
         if (predictionMarket != address(0)) {
@@ -206,21 +176,8 @@ contract Factory {
         );
         curveAddr = address(curve);
 
-        // Handle dev allocation (C4 fix)
-        uint256 totalSupply = tok.totalSupply();
-        uint256 devAlloc = (totalSupply * DEV_ALLOC_BPS) / BPS_DENOM;
-        uint256 curveAlloc = totalSupply - devAlloc;
-        if (devAlloc > 0 && vestingController != address(0)) {
-            tok.transfer(vestingController, devAlloc);
-            VestingController(vestingController).initVesting(
-                tokenAddr,
-                creatorAddress,
-                devAlloc,
-                VestingController.Tier.LIGHT,
-                st
-            );
-        }
-        tok.transfer(curveAddr, curveAlloc);
+        // Transfer 100% of supply to the curve — no auto dev allocation.
+        tok.transfer(curveAddr, tok.totalSupply());
 
         // Set feeRouter on BondingCurve so creator fees route through FeeRouter (H1 fix)
         curve.setFeeRouter(feeRouter);

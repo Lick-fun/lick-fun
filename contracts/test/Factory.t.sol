@@ -33,12 +33,6 @@ contract FactoryOwnerTest is Test {
         factory.setPredictionMarket(address(0x1));
     }
 
-    function test_onlyOwner_setVestingController() public {
-        vm.prank(attacker);
-        vm.expectRevert(Factory.NotOwner.selector);
-        factory.setVestingController(address(0x1));
-    }
-
     function test_alreadySet_reverts_AlreadySet() public {
         vm.startPrank(owner);
         factory.setFeeRouter(address(0x1));
