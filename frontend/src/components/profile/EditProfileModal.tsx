@@ -2,11 +2,14 @@
 
 import { useState, useRef } from "react";
 import { useAccount, useSignMessage } from "wagmi";
-import { X, Upload, Loader2 } from "lucide-react";
+import { X, Upload, Loader2, Globe, Send } from "lucide-react";
 
 interface EditProfileModalProps {
   currentDisplayName?: string;
   currentAvatarUrl?: string;
+  currentXUrl?: string;
+  currentWebsiteUrl?: string;
+  currentTelegramUrl?: string;
   walletAddress: string;
   onClose: () => void;
   onSuccess: () => void;
@@ -15,6 +18,9 @@ interface EditProfileModalProps {
 export function EditProfileModal({
   currentDisplayName = "",
   currentAvatarUrl,
+  currentXUrl = "",
+  currentWebsiteUrl = "",
+  currentTelegramUrl = "",
   walletAddress,
   onClose,
   onSuccess,
@@ -30,6 +36,9 @@ export function EditProfileModal({
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     currentAvatarUrl ?? null
   );
+  const [xUrl, setXUrl] = useState(currentXUrl);
+  const [websiteUrl, setWebsiteUrl] = useState(currentWebsiteUrl);
+  const [telegramUrl, setTelegramUrl] = useState(currentTelegramUrl);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +62,16 @@ export function EditProfileModal({
   // Whether the user has actually changed anything
   const nameChanged = displayName.trim() !== (currentDisplayName ?? "").trim();
   const avatarChanged = avatarFile !== null;
-  const hasChanges = nameChanged || avatarChanged;
+  const xUrlChanged = xUrl.trim() !== (currentXUrl ?? "").trim();
+  const websiteUrlChanged = websiteUrl.trim() !== (currentWebsiteUrl ?? "").trim();
+  const telegramUrlChanged =
+    telegramUrl.trim() !== (currentTelegramUrl ?? "").trim();
+  const hasChanges =
+    nameChanged ||
+    avatarChanged ||
+    xUrlChanged ||
+    websiteUrlChanged ||
+    telegramUrlChanged;
 
   async function handleSubmit() {
     if (!isConnected || !connectedAddress) {
@@ -106,6 +124,18 @@ export function EditProfileModal({
         payload.displayName = displayName.trim();
       }
 
+      if (xUrlChanged) {
+        payload.xUrl = xUrl.trim();
+      }
+
+      if (websiteUrlChanged) {
+        payload.websiteUrl = websiteUrl.trim();
+      }
+
+      if (telegramUrlChanged) {
+        payload.telegramUrl = telegramUrl.trim();
+      }
+
       // Register the profile metadata (merges with existing)
       const registerRes = await fetch("/api/register-profile", {
         method: "POST",
@@ -145,7 +175,7 @@ export function EditProfileModal({
           Edit Profile
         </h2>
         <p className="text-figma-sm text-figma-muted mb-6">
-          Update your display name, avatar, or both — changes are saved independently.
+          Update your display name, avatar, and social links — changes are saved independently.
         </p>
 
         {/* Avatar upload */}
@@ -199,6 +229,53 @@ export function EditProfileModal({
           <span className="text-figma-xs text-figma-muted mt-1 block">
             {displayName.length}/32
           </span>
+        </div>
+
+        {/* Social Links */}
+        <div className="mb-4">
+          <label className="block text-figma-sm text-figma-muted mb-2">
+            Social Links
+          </label>
+          <div className="flex flex-col gap-2">
+            {/* X (Twitter) */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-pill bg-figma-surface border border-figma-card-alt focus-within:border-figma-green transition-colors">
+              <span className="text-figma-white font-bold text-figma-sm w-4 text-center shrink-0">
+                𝕏
+              </span>
+              <input
+                type="url"
+                value={xUrl}
+                onChange={(e) => setXUrl(e.target.value)}
+                placeholder="https://x.com/yourhandle"
+                className="flex-1 bg-transparent text-figma-white text-figma-sm outline-none placeholder:text-figma-muted"
+                disabled={loading}
+              />
+            </div>
+            {/* Website */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-pill bg-figma-surface border border-figma-card-alt focus-within:border-figma-green transition-colors">
+              <Globe size={14} className="text-figma-muted shrink-0" />
+              <input
+                type="url"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="https://yourwebsite.com"
+                className="flex-1 bg-transparent text-figma-white text-figma-sm outline-none placeholder:text-figma-muted"
+                disabled={loading}
+              />
+            </div>
+            {/* Telegram */}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-pill bg-figma-surface border border-figma-card-alt focus-within:border-figma-green transition-colors">
+              <Send size={14} className="text-figma-muted shrink-0" />
+              <input
+                type="url"
+                value={telegramUrl}
+                onChange={(e) => setTelegramUrl(e.target.value)}
+                placeholder="https://t.me/yourhandle"
+                className="flex-1 bg-transparent text-figma-white text-figma-sm outline-none placeholder:text-figma-muted"
+                disabled={loading}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Error */}

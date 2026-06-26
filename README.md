@@ -49,13 +49,18 @@ Every on-chain action feeds an off-chain reputation engine. Scores (0–100) com
 ### 6. View Profile
 Connected wallet → click Profile in nav → see live trading stats, reputation score, tier badge, achievements, tokens created, and recent activity — all from the Envio indexer.
 
-**Profile page sections (Phase 3g):**
-- **Profile Card** — avatar, display name, address, tier badge, reputation score, stats (Tokens / Graduated / Buy Vol / Sell Vol)
+**Profile page sections (Phase 3g+):**
+- **Profile Card** — avatar, display name, address, tier badge, reputation score, stats (Tokens / Graduated / Buy Vol / Sell Vol), social links row (X / website / Telegram — shown only when set)
 - **Portfolio Summary** — Total Value (USD with MON fallback), MON balance, Holdings value, P&L with percentage
 - **Holdings** — tokens the wallet bought, with balance, current price, USD value, P&L per holding (green/red)
 - **Achievements** — badge grid (only if badges earned)
 - **Tokens Created** — USD MC + creator fees distributed per token (show all, "Show more" if > 10)
 - **Activity** — tabs (All / Buys / Sells / Creates) with counts
+
+**Profile editing (owner only):**
+- Display name (32 char max)
+- Avatar image (upload → Storj S3, EIP-191 signed)
+- Social links — X/Twitter (`https://x.com/…`), website, Telegram (`https://t.me/…`) — each independently saved, validated as https:// URLs server-side, only non-empty links shown on profile card
 
 ---
 

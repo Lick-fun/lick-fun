@@ -7,6 +7,9 @@ export interface ProfileMeta {
   displayName: string;
   avatarUri: string;
   avatarUrl: string;
+  xUrl: string;
+  websiteUrl: string;
+  telegramUrl: string;
   updatedAt: number;
 }
 
@@ -22,7 +25,9 @@ export function useProfileMeta(address: string | undefined) {
     queryFn: async () => {
       if (!address) return null;
       try {
-        const res = await fetch(`/api/profile-image/${address.toLowerCase()}`);
+        const res = await fetch(`/api/profile-image/${address.toLowerCase()}`, {
+          cache: "no-store",
+        });
         if (res.status === 404) return null;
         if (!res.ok) return null;
         return (await res.json()) as ProfileMeta;
@@ -30,6 +35,6 @@ export function useProfileMeta(address: string | undefined) {
         return null;
       }
     },
-    staleTime: 30_000,
+    staleTime: 0,
   });
 }

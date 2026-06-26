@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Copy, Check, ExternalLink, Pencil } from "lucide-react";
+import { Copy, Check, ExternalLink, Pencil, Globe, Send } from "lucide-react";
 import { useState } from "react";
 import { TierBadge } from "@/components/reputation/TierBadge";
 import { ReputationScore } from "@/components/reputation/ReputationScore";
@@ -137,6 +137,50 @@ export default function ProfilePage() {
             </a>
           </div>
 
+          {/* Social Links — only render if any are set */}
+          {(profileMeta?.xUrl ||
+            profileMeta?.websiteUrl ||
+            profileMeta?.telegramUrl) && (
+            <div className="flex items-center gap-[10px] w-full">
+              {profileMeta?.xUrl && (
+                <a
+                  href={profileMeta.xUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="X (Twitter)"
+                  aria-label="X (Twitter)"
+                  className="flex items-center justify-center w-[28px] h-[28px] rounded-full bg-figma-surface border border-figma-card-alt text-figma-white hover:border-figma-green hover:text-figma-green transition-colors"
+                >
+                  <span className="font-bold text-figma-sm leading-none">𝕏</span>
+                </a>
+              )}
+              {profileMeta?.websiteUrl && (
+                <a
+                  href={profileMeta.websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Website"
+                  aria-label="Website"
+                  className="flex items-center justify-center w-[28px] h-[28px] rounded-full bg-figma-surface border border-figma-card-alt text-figma-muted hover:border-figma-green hover:text-figma-green transition-colors"
+                >
+                  <Globe size={14} />
+                </a>
+              )}
+              {profileMeta?.telegramUrl && (
+                <a
+                  href={profileMeta.telegramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Telegram"
+                  aria-label="Telegram"
+                  className="flex items-center justify-center w-[28px] h-[28px] rounded-full bg-figma-surface border border-figma-card-alt text-figma-muted hover:border-figma-green hover:text-figma-green transition-colors"
+                >
+                  <Send size={14} />
+                </a>
+              )}
+            </div>
+          )}
+
           {/* Reputation Score */}
           {reputation && (
             <div className="w-full pt-2">
@@ -250,6 +294,9 @@ export default function ProfilePage() {
             walletAddress={addr}
             currentDisplayName={profileMeta?.displayName ?? ""}
             currentAvatarUrl={profileMeta?.avatarUrl}
+            currentXUrl={profileMeta?.xUrl ?? ""}
+            currentWebsiteUrl={profileMeta?.websiteUrl ?? ""}
+            currentTelegramUrl={profileMeta?.telegramUrl ?? ""}
             onClose={() => setEditOpen(false)}
             onSuccess={() => refetchProfileMeta()}
           />

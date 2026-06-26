@@ -1,7 +1,8 @@
 /**
  * GET /api/profile-image/[address]
  *
- * Returns { displayName, avatarUri, avatarUrl } for a given wallet address.
+ * Returns profile metadata for a given wallet address, including display name,
+ * avatar URL, and social links (X, website, Telegram).
  * avatarUrl is the gateway-converted HTTPS URL ready to use in <img>.
  * Returns 404 if no profile metadata is registered for this address.
  */
@@ -18,6 +19,7 @@ const IPFS_GATEWAY =
   process.env.NEXT_PUBLIC_PINATA_GATEWAY ?? "https://gateway.pinata.cloud/ipfs/";
 
 function ipfsToHttp(uri: string): string {
+  if (!uri) return "";
   if (uri.startsWith("https://") || uri.startsWith("http://")) return uri;
   if (uri.startsWith("ipfs://")) {
     return `${IPFS_GATEWAY}${uri.replace("ipfs://", "")}`;
@@ -27,7 +29,14 @@ function ipfsToHttp(uri: string): string {
 
 type ProfileStore = Record<
   string,
-  { displayName: string; avatarUri: string; updatedAt: number }
+  {
+    displayName: string;
+    avatarUri: string;
+    xUrl: string;
+    websiteUrl: string;
+    telegramUrl: string;
+    updatedAt: number;
+  }
 >;
 
 async function readStore(): Promise<ProfileStore> {
@@ -57,6 +66,9 @@ export async function GET(
     displayName: entry.displayName,
     avatarUri: entry.avatarUri,
     avatarUrl: ipfsToHttp(entry.avatarUri),
+    xUrl: entry.xUrl ?? "",
+    websiteUrl: entry.websiteUrl ?? "",
+    telegramUrl: entry.telegramUrl ?? "",
     updatedAt: entry.updatedAt,
   });
 }
