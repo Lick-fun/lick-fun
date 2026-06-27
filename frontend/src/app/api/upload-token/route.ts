@@ -22,6 +22,7 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { verifyMessage } from "viem";
 
 const STORJ_ACCESS_KEY_ID = process.env.STORJ_ACCESS_KEY_ID ?? "";
 const STORJ_SECRET_ACCESS_KEY = process.env.STORJ_SECRET_ACCESS_KEY ?? "";
@@ -90,6 +91,34 @@ export async function POST(req: NextRequest) {
     const telegram = formData.get("telegram");
     const twitter = formData.get("twitter");
     const website = formData.get("website");
+
+    // ── Wallet auth (P0-1) ───────────────────────────────────────────────────
+    // Require EIP-191 proof of wallet ownership to prevent bucket spam.
+    const walletAddress = formData.get("walletAddress");
+    const signature = formData.get("signature");
+    const message = formData.get("message");
+
+    if (
+      typeof walletAddress !== "string" ||
+      typeof signature !== "string" ||
+      typeof message !== "string" ||
+      !walletAddress || !signature || !message
+    ) {
+      return NextResponse.json(
+        { error: "walletAddress, signature, and message are required" },
+        { status: 401 }
+      );
+    }
+
+    const isValid = await verifyMessage({
+      address: walletAddress as `0x${string}`,
+      message,
+      signature: signature as `0x${string}`,
+    }).catch(() => false);
+
+    if (!isValid) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
 
     if (!image || !(image instanceof File)) {
       return NextResponse.json({ error: "Missing image file" }, { status: 400 });

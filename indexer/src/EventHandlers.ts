@@ -398,3 +398,25 @@ indexer.onEvent({ contract: "PredictionMarket", event: "WinningsClaimed" }, asyn
     claimedAt: blockTimestamp,
   });
 });
+
+/* ════════════════════ GRADUATIONROUTER: LiquidityMigrated ═════════════════════════ */
+
+/**
+ * Fired by GraduationRouter.migrateLiquidity() after a successful curve → DEX migration.
+ * Stores the deployed LickPair address on the Token entity so the frontend/indexer
+ * can look up DEX pair data for graduated tokens.
+ */
+indexer.onEvent({ contract: "GraduationRouter", event: "LiquidityMigrated" }, async ({ event, context }) => {
+  const tokenId = event.params.token.toLowerCase();
+  const pairAddress = event.params.pair.toLowerCase();
+
+  const token = await context.Token.get(tokenId);
+  if (!token) return;
+
+  context.Token.set({
+    ...token,
+    pairAddress,
+  });
+
+  context.log.info(`LiquidityMigrated: token ${tokenId} → pair ${pairAddress}`);
+});

@@ -61,8 +61,8 @@ if (!projectId) {
 export const wagmiConfig = getDefaultConfig({
   appName: "Lick.fun",
   projectId,
-  // Primary chain is active, secondary is always available for wallet UX
-  chains: [activeChain, activeChain === monadChain ? monadTestnetChain : monadChain],
+  // Only the active chain — testnet removed from mainnet builds (P3-7)
+  chains: [activeChain],
   ssr: true,
   transports: {
     [monadTestnetChain.id]: http(

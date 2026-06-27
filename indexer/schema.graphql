@@ -14,6 +14,7 @@ type Token {
   realMon: BigInt!            # current real MON in curve (updated on each trade)
   soldTokens: BigInt!         # tokens sold to buyers (updated on each trade)
   graduated: Boolean!         # true once realMon >= 100,000 MON
+  pairAddress: String         # DEX pair address (set when LiquidityMigrated fires; null until graduation)
   createdAt: BigInt!          # block.timestamp of CurveCreate
   graduatedAt: BigInt         # block.timestamp of CurveGraduate (null until grad)
   buyCount: Int!              # total number of buy trades

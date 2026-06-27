@@ -10,6 +10,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { verifyMessage } from "viem";
 
 const DATA_FILE = path.join(process.cwd(), "src", "data", "token-metadata.json");
 
@@ -39,10 +40,13 @@ async function writeStore(store: MetadataStore): Promise<void> {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { tokenAddress, metadataUri, imageUri } = body as {
+    const { tokenAddress, metadataUri, imageUri, walletAddress, signature, message } = body as {
       tokenAddress?: string;
       metadataUri?: string;
       imageUri?: string;
+      walletAddress?: string;
+      signature?: string;
+      message?: string;
     };
 
     if (!tokenAddress || !metadataUri || !imageUri) {
@@ -50,6 +54,26 @@ export async function POST(req: NextRequest) {
         { error: "tokenAddress, metadataUri, and imageUri are required" },
         { status: 400 }
       );
+    }
+
+    // ── Wallet auth (P0-2) ───────────────────────────────────────────────────
+    // Require EIP-191 proof of wallet ownership so only the token creator
+    // can register/overwrite metadata for their token.
+    if (!walletAddress || !signature || !message) {
+      return NextResponse.json(
+        { error: "walletAddress, signature, and message are required" },
+        { status: 401 }
+      );
+    }
+
+    const isValid = await verifyMessage({
+      address: walletAddress as `0x${string}`,
+      message,
+      signature: signature as `0x${string}`,
+    }).catch(() => false);
+
+    if (!isValid) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     const normalised = tokenAddress.toLowerCase();

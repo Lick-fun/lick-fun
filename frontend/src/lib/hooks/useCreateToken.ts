@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useWriteContract, useAccount, useWaitForTransactionReceipt } from "wagmi";
+import { useWriteContract, useAccount, useWaitForTransactionReceipt, useSignMessage } from "wagmi";
 import { decodeEventLog, parseEther } from "viem";
 import {
   FactoryABI,
@@ -63,6 +63,7 @@ class IPFSUploadError extends Error {
 
 export function useCreateToken(): UseCreateTokenResult {
   const { address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
   const [tokenAddress, setTokenAddress] = useState<`0x${string}` | null>(null);
   const [curveAddress, setCurveAddress] = useState<`0x${string}` | null>(null);
   const [error, setError] = useState<Error | null>(null);
@@ -161,17 +162,26 @@ export function useCreateToken(): UseCreateTokenResult {
 
     // Register metadata with our API so the image shows everywhere
     if (metadataUri && imageUri) {
-      fetch("/api/register-metadata", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tokenAddress: parsedToken,
-          metadataUri,
-          imageUri,
-        }),
-      }).catch((err) => {
-        console.warn("[useCreateToken] Failed to register metadata:", err);
-      });
+      // Sign a message to authenticate the metadata registration (P0-2)
+      const metaMessage = `Lick.fun: register metadata for ${parsedToken} by ${address} at ${Date.now()}`;
+      signMessageAsync({ message: metaMessage })
+        .then((metaSig) =>
+          fetch("/api/register-metadata", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tokenAddress: parsedToken,
+              metadataUri,
+              imageUri,
+              walletAddress: address,
+              signature: metaSig,
+              message: metaMessage,
+            }),
+          })
+        )
+        .catch((err) => {
+          console.warn("[useCreateToken] Failed to register metadata:", err);
+        });
     }
 
     const devBuyStr = pendingDevBuyMon;
@@ -265,6 +275,10 @@ export function useCreateToken(): UseCreateTokenResult {
       setUploadStatus("uploading");
       setStep("uploading");
       try {
+        // Sign a message to authenticate the upload (P0-1)
+        const uploadMessage = `Lick.fun: upload token image for ${address} at ${Date.now()}`;
+        const uploadSig = await signMessageAsync({ message: uploadMessage });
+
         const formData = new FormData();
         formData.append("image", imageFile);
         formData.append("name", name);
@@ -273,6 +287,9 @@ export function useCreateToken(): UseCreateTokenResult {
         if (telegram) formData.append("telegram", telegram);
         if (twitter) formData.append("twitter", twitter);
         if (website) formData.append("website", website);
+        formData.append("walletAddress", address ?? "");
+        formData.append("signature", uploadSig);
+        formData.append("message", uploadMessage);
 
         console.info("[useCreateToken] Uploading image + metadata to IPFS...");
         const res = await fetch("/api/upload-token", {
@@ -350,7 +367,6 @@ export function useCreateToken(): UseCreateTokenResult {
             BigInt(customFeeConfig.giftBps),
             giftAddr,
           ],
-          gas: 4_000_000n, // testnet workaround: actual cost ~3.6M; mainnet can auto-estimate
         });
       } else {
         await writeContractAsync({
@@ -358,7 +374,6 @@ export function useCreateToken(): UseCreateTokenResult {
           abi: FactoryABI,
           functionName: "createToken",
           args: [name, symbol, address, 0n],
-          gas: 4_000_000n, // testnet workaround: actual cost ~3.6M; mainnet can auto-estimate
         });
       }
     } catch (err) {

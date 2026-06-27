@@ -17,7 +17,7 @@ const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const PREDICTION_MARKET_DEPLOYED = PREDICTION_MARKET_ADDRESS !== ZERO_ADDRESS;
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
-/* Factory ABI (deployed testnet version)                                           */
+/* Factory ABI (mainnet version)                                           */
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
 export const FactoryABI = [
