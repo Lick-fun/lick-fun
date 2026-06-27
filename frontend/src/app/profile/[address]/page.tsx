@@ -128,7 +128,7 @@ export default function ProfilePage() {
               {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
             <a
-              href={`https://testnet.monadexplorer.com/address/${addr}`}
+              href={`https://monadexplorer.com/address/${addr}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-figma-muted hover:text-figma-white transition-colors"

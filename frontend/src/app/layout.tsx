@@ -16,11 +16,37 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lick.fun — A meme lake on liquidity fun",
+  title: "Lick.fun — Launch tokens. Earn reputation.",
   description:
-    "Social-first token launchpad on Monad. Launch tokens with earned reputation.",
+    "Social-first token launchpad on Monad. Launch meme tokens, trade on a bonding curve, and build on-chain reputation. No hype — your behavior is your content.",
   icons: {
     icon: "/logo-transparent.png",
+  },
+  openGraph: {
+    title: "Lick.fun — Launch tokens. Earn reputation.",
+    description:
+      "Social-first token launchpad on Monad. Launch meme tokens, trade on a bonding curve, and build on-chain reputation.",
+    url: "https://lickfun.xyz",
+    siteName: "Lick.fun",
+    images: [
+      {
+        url: "https://lickfun.xyz/logo-transparent.png",
+        width: 512,
+        height: 512,
+        alt: "Lick.fun logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Lick.fun — Launch tokens. Earn reputation.",
+    description:
+      "Social-first token launchpad on Monad. Launch meme tokens, trade on a bonding curve, and build on-chain reputation.",
+    images: ["https://lickfun.xyz/logo-transparent.png"],
+    site: "@_Lickfun",
+    creator: "@_Lickfun",
   },
 };
 

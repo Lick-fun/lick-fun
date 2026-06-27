@@ -719,7 +719,12 @@ export default function CreateTokenPage() {
           <div className="flex items-start gap-3 rounded-card border border-figma-red/40 bg-figma-red/10 p-4">
             <AlertCircle className="w-4 h-4 text-figma-red mt-0.5 shrink-0" />
             <p className="text-figma-sm text-figma-red break-all">
-              {error.message.length > 200 ? error.message.slice(0, 200) + "…" : error.message}
+              {/* Friendly message for wallet signature / tx rejections */}
+              {/rejected|denied|user (cancelled|canceled|refused)/i.test(error.message)
+                ? "You cancelled the request in your wallet — please try again."
+                : error.message.length > 200
+                ? error.message.slice(0, 200) + "…"
+                : error.message}
             </p>
           </div>
         )}
