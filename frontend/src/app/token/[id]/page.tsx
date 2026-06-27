@@ -501,7 +501,7 @@ export default function TokenDetailPage() {
                     <span>TG</span>
                   </a>
                 )}
-                {ipfsMeta.twitter && (
+                {ipfsMeta?.twitter && (
                   <a
                     href={ipfsMeta.twitter}
                     target="_blank"
@@ -514,7 +514,7 @@ export default function TokenDetailPage() {
                     <span>X</span>
                   </a>
                 )}
-                {ipfsMeta.website && (
+                {ipfsMeta?.website && (
                   <a
                     href={ipfsMeta.website}
                     target="_blank"
