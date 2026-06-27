@@ -1,2 +1,0 @@
-# This nixpacks.toml is at the repo root but Railway should use the one in frontend/
-# See frontend/nixpacks.toml for the actual build config
