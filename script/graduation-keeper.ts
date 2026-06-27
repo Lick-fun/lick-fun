@@ -28,8 +28,10 @@ import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { defineChain } from "viem";
 import * as dotenv from "dotenv";
-import { resolve } from "path";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: resolve(__dirname, ".env") });
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -146,28 +148,36 @@ async function migrate(token: `0x${string}`): Promise<void> {
 
 // ─── Poll loop ────────────────────────────────────────────────────────────────
 
+// Monad public RPC limits eth_getLogs to 99 blocks per request.
+const LOG_CHUNK = 99n;
+
 async function poll(): Promise<void> {
   try {
     const latestBlock = await publicClient.getBlockNumber();
     if (latestBlock <= lastBlock) return;
 
-    // Scan for CurveGraduate events across all BondingCurve contracts
-    // (no address filter — BondingCurves are deployed per-token)
-    const logs = await publicClient.getLogs({
-      event: CURVE_GRADUATE_ABI[0],
-      fromBlock: lastBlock + 1n,
-      toBlock: latestBlock,
-    });
+    // Chunk the range into 99-block windows to satisfy the RPC limit.
+    let from = lastBlock + 1n;
+    while (from <= latestBlock) {
+      const to = from + LOG_CHUNK - 1n < latestBlock ? from + LOG_CHUNK - 1n : latestBlock;
 
-    if (logs.length > 0) {
-      console.log(`[keeper] Found ${logs.length} graduation event(s) in blocks ${lastBlock + 1n}–${latestBlock}`);
-    }
+      const logs = await publicClient.getLogs({
+        event: CURVE_GRADUATE_ABI[0],
+        fromBlock: from,
+        toBlock: to,
+      });
 
-    for (const log of logs) {
-      const token = log.args.token as `0x${string}`;
-      console.log(`[keeper] CurveGraduate: token=${token} in block ${log.blockNumber}`);
-      // Fire-and-forget each migration (they serialize internally via attempted set)
-      migrate(token).catch((e) => console.error("[keeper] migrate error:", e));
+      if (logs.length > 0) {
+        console.log(`[keeper] Found ${logs.length} graduation event(s) in blocks ${from}–${to}`);
+      }
+
+      for (const log of logs) {
+        const token = log.args.token as `0x${string}`;
+        console.log(`[keeper] CurveGraduate: token=${token} in block ${log.blockNumber}`);
+        migrate(token).catch((e) => console.error("[keeper] migrate error:", e));
+      }
+
+      from = to + 1n;
     }
 
     lastBlock = latestBlock;
