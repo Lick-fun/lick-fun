@@ -12,7 +12,7 @@ import {
 } from "@/lib/hooks/useData";
 import { useTokenPair } from "@/lib/wagmi/contracts";
 import { TradePanel } from "@/components/token/TradePanel";
-import { CurveChart } from "@/components/token/CurveChart";
+
 // PriceChart uses lightweight-charts which accesses window — must be client-only
 const PriceChart = dynamic(
   () => import("@/components/token/PriceChart").then((m) => m.PriceChart),
@@ -64,9 +64,6 @@ export default function TokenDetailPage() {
     token?.realMon,
     monUsdPrice
   );
-
-  // Chart tab: "price" | "curve"
-  const [chartTab, setChartTab] = useState<"price" | "curve">("price");
 
   // Activity tab: "trades" | "holders"
   const [activityTab, setActivityTab] = useState<"trades" | "holders">("trades");
@@ -248,46 +245,16 @@ export default function TokenDetailPage() {
 
           {/* Chart card */}
           <div className="rounded-xl border border-figma-card bg-figma-card p-0 overflow-hidden">
-            {/* Chart tabs */}
-            <div className="flex items-center gap-1 px-4 pt-3 pb-0">
-              <button
-                onClick={() => setChartTab("price")}
-                className={[
-                  "px-3 py-1.5 rounded-t text-xs font-semibold transition-colors border-b-2",
-                  chartTab === "price"
-                    ? "text-figma-white border-figma-green"
-                    : "text-figma-muted border-transparent hover:text-figma-white",
-                ].join(" ")}
-              >
-                Price Chart
-              </button>
-              <button
-                onClick={() => setChartTab("curve")}
-                className={[
-                  "px-3 py-1.5 rounded-t text-xs font-semibold transition-colors border-b-2",
-                  chartTab === "curve"
-                    ? "text-figma-white border-figma-green"
-                    : "text-figma-muted border-transparent hover:text-figma-white",
-                ].join(" ")}
-              >
-                Bonding Curve
-              </button>
-            </div>
-
             <div className="p-4 pt-3">
-              {chartTab === "price" ? (
-                <PriceChart
-                  bars={bars}
-                  resolution={resolution}
-                  setResolution={setResolution}
-                  isLoading={barsLoading}
-                  tokenSymbol={displaySymbol}
-                  tokenName={displayName}
-                  monUsdPrice={monUsdPrice ?? undefined}
-                />
-              ) : (
-                <CurveChart trades={trades} graduated={token.graduated} realMon={token.realMon} />
-              )}
+              <PriceChart
+                bars={bars}
+                resolution={resolution}
+                setResolution={setResolution}
+                isLoading={barsLoading}
+                tokenSymbol={displaySymbol}
+                tokenName={displayName}
+                monUsdPrice={monUsdPrice ?? undefined}
+              />
             </div>
           </div>
 
