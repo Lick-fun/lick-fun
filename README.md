@@ -239,6 +239,11 @@ ProfileRegistry            Wallet linking (0.1 MON bond, checked refund, anchor 
 
 164 Forge tests · 58 vitest tests · All green · 164 includes 15 audit regression + fuzz tests (`test/AuditFixes.t.sol`)
 
+### API security
+- `upload-token` + `register-metadata` require EIP-191 wallet signature (prevents bucket spam + metadata overwrite)
+- Rate limiting middleware on all 6 `/api/*` routes (10 req/min uploads, 20 req/min writes, 60 req/min default)
+- `upload-profile` + `register-profile` already required EIP-191 from launch
+
 ---
 
 ## Build Pipeline
@@ -260,8 +265,11 @@ ProfileRegistry            Wallet linking (0.1 MON bond, checked refund, anchor 
 | + | **Mainnet deploy** (chain 143, block 83961211, Safe multisig treasury) | ✅ **LIVE** |
 | + | Envio indexer → mainnet (chain 143, block 83961211, endpoint c6a3f92) | ✅ done |
 | + | Founder token LICK created · fees verified to Safe · banner live | ✅ done |
-| -> | Frontend file upload validation (5MB limit, type allowlist) | pending |
-| -> | Rate limiting on API routes | pending |
+| + | P0 security: upload-token + register-metadata EIP-191 auth | ✅ done |
+| + | Rate limiting middleware on all API routes | ✅ done |
+| + | LiquidityMigrated indexer handler (pairAddress on Token) | ✅ done |
+| + | OG + Twitter card meta tags · mainnet explorer links · friendly errors | ✅ done |
+| + | Graduation keeper live (auto-migrates graduated curves, 6s poll) | ✅ done |
 | -> | ProfileRegistry + VestingController mainnet deploy (Phase 4) | pending |
 
 164 Forge tests · 58 vitest tests · 14 contracts · 9 pages · All green
