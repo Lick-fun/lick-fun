@@ -112,7 +112,7 @@ export function FeeConfigSelector({
   const sumValid = totalBps === BPS_DENOM;
   const giftAddressValid =
     !enabled.gift || (config.giftBps === 0) || isAddress(config.giftRecipient);
-  const isValid = sumValid && giftAddressValid;
+  const _isValid = sumValid && giftAddressValid;
 
   const emit = useCallback(
     (next: CustomFeeConfig, nextEnabled: Record<RowKey, boolean>) => {

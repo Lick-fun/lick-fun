@@ -16,7 +16,7 @@ interface FounderTokenBannerProps {
   priceChangePct?: number;
 }
 
-function formatMarketCap(mc: number): string {
+function _formatMarketCap(mc: number): string {
   if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(2)}M`;
   if (mc >= 1_000) return `$${(mc / 1_000).toFixed(1)}K`;
   return `$${mc.toFixed(0)}`;

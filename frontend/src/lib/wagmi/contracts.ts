@@ -817,7 +817,7 @@ export function useTokenPair(tokenAddress: `0x${string}`) {
  */
 export function usePairReserves(
   pairAddress: `0x${string}` | undefined,
-  tokenAddress: `0x${string}`
+  _tokenAddress: `0x${string}`
 ) {
   const { data: reservesRaw } = useReadContract({
     address: pairAddress,

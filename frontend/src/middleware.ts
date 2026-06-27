@@ -12,7 +12,7 @@
  * For the current single-instance Next.js self-hosted setup this is sufficient.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 

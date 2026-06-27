@@ -227,6 +227,8 @@ export function useCreateToken(): UseCreateTokenResult {
     imageUri,
     writeBuyAsync,
     pendingDevBuyMon,
+    address,
+    signMessageAsync,
   ]);
 
   const createToken = async ({
