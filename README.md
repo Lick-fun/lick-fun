@@ -82,7 +82,9 @@ Connected wallet → click Profile in nav → see live trading stats, reputation
 
 ## Mainnet Deployment (Monad chain 143)
 
-**Deployed: 2026-06-27 · Block: 83961211 · Treasury: Safe multisig**
+**Deployed: 2026-06-27 · Block: 83961211 · Treasury: Safe multisig · Status: 🟢 LIVE**
+
+**Founder token (LICK):** `0x0236787a1baaeed46a123fa264a2355eed11d151` — fees verified flowing to Safe treasury ✅
 
 | Contract | Address |
 |---|---|
@@ -256,12 +258,11 @@ ProfileRegistry            Wallet linking (0.1 MON bond, checked refund, anchor 
 | + | Phase 3c/d: USD MC on all cards, social links on profiles | ✅ done |
 | + | **Mainnet security audit** — 29 findings, all fixed, 164 tests green | ✅ done |
 | + | **Mainnet deploy** (chain 143, block 83961211, Safe multisig treasury) | ✅ **LIVE** |
-| + | Envio indexer → mainnet (push to deploy) | 🔄 next |
-| -> | Verify Envio endpoint + update NEXT_PUBLIC_ENVIO_GRAPHQL_URL | pending |
-| -> | End-to-end mainnet smoke test (create token → buy → graduate path) | pending |
+| + | Envio indexer → mainnet (chain 143, block 83961211, endpoint c6a3f92) | ✅ done |
+| + | Founder token LICK created · fees verified to Safe · banner live | ✅ done |
 | -> | Frontend file upload validation (5MB limit, type allowlist) | pending |
 | -> | Rate limiting on API routes | pending |
-| -> | ProfileRegistry + VestingController mainnet deploy (if needed for Phase 4) | pending |
+| -> | ProfileRegistry + VestingController mainnet deploy (Phase 4) | pending |
 
 164 Forge tests · 58 vitest tests · 14 contracts · 9 pages · All green
 
