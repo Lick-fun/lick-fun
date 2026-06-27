@@ -1,5 +1,5 @@
 /**
- * Lick.fun — Envio HyperIndex Event Handlers (v3 API)
+ * Lickfun.xyz — Envio HyperIndex Event Handlers (v3 API)
  * Stage 3: Indexes Factory + BondingCurve events on Monad testnet (chain 10143)
  *
  * Event flow:
@@ -298,6 +298,44 @@ indexer.onEvent({ contract: "FeeRouter", event: "FeeRouted" }, async ({ event, c
     lpShare: event.params.lpShare,
     buybackShare: event.params.buybackShare,
     blockTimestamp: BigInt(event.block.timestamp),
+  });
+});
+
+/* ═══════════════════════ VAULT: BuybackBurn Executed ═══════════════════════════════ */
+
+/**
+ * Fired by VaultBuybackBurn.execute() after a successful buyback-and-burn.
+ * Creates a VaultExecution entity for display in the Fee Overview modal.
+ */
+indexer.onEvent({ contract: "VaultBuybackBurn", event: "Executed" }, async ({ event, context }) => {
+  await context.VaultExecution.set({
+    id: `${event.transaction.hash}-${event.logIndex}`,
+    vault: event.srcAddress.toLowerCase(),
+    vaultType: "buyback",
+    token: event.params.token.toLowerCase(),
+    monSpent: event.params.monSpent,
+    tokensResult: event.params.tokensBurned,
+    blockTimestamp: BigInt(event.block.timestamp),
+    blockNumber: BigInt(event.block.number),
+  });
+});
+
+/* ════════════════════════ VAULT: LPSupport Executed ════════════════════════════════ */
+
+/**
+ * Fired by VaultLPSupport.execute() after a successful LP deepening.
+ * Creates a VaultExecution entity for display in the Fee Overview modal.
+ */
+indexer.onEvent({ contract: "VaultLPSupport", event: "Executed" }, async ({ event, context }) => {
+  await context.VaultExecution.set({
+    id: `${event.transaction.hash}-${event.logIndex}`,
+    vault: event.srcAddress.toLowerCase(),
+    vaultType: "lp",
+    token: event.params.token.toLowerCase(),
+    monSpent: event.params.monAdded,
+    tokensResult: event.params.lpBurned,
+    blockTimestamp: BigInt(event.block.timestamp),
+    blockNumber: BigInt(event.block.number),
   });
 });
 

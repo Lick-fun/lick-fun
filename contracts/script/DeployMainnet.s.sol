@@ -60,10 +60,16 @@ contract DeployMainnet is Script {
 
         // ── Step A: Deploy recoverable vaults (audit C-01) ────────────────────
         // Owner = treasury multisig so routed fees are never permanently locked.
-        VaultLPSupport vaultLP = new VaultLPSupport(treasury);
+        // lickRouter is deployed later at Step G — use address(0) as placeholder,
+        // then call setLickRouter() after LickRouter is deployed.
+        // We pass a temporary address here; setLickRouter() is called post-deploy.
+        address lickRouterPlaceholder = address(0x1); // updated after LickRouter deploy
+        address gradRouterPlaceholder = address(0x2); // updated after GraduationRouter deploy
+        address factoryPlaceholder = address(0x3);    // updated after Factory deploy
+        VaultLPSupport vaultLP = new VaultLPSupport(treasury, lickRouterPlaceholder, WMON_MAINNET, gradRouterPlaceholder);
         console.log("VaultLPSupport:       ", address(vaultLP));
 
-        VaultBuybackBurn vaultBB = new VaultBuybackBurn(treasury);
+        VaultBuybackBurn vaultBB = new VaultBuybackBurn(treasury, lickRouterPlaceholder, factoryPlaceholder, gradRouterPlaceholder);
         console.log("VaultBuybackBurn:     ", address(vaultBB));
 
         // ── Step B: Deploy LickFactory (DEX pair registry) ───────────────────

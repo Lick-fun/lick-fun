@@ -3,6 +3,11 @@ pragma solidity 0.8.27;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+/// @notice Minimal interface for vaults that track per-token fee accumulation.
+interface IFeeVault {
+    function receiveForToken(address token) external payable;
+}
+
 /**
  * @title FeeRouter
  * @notice Routes the 1% creator fee from BondingCurve trades to Fee Vaults
@@ -282,21 +287,44 @@ contract FeeRouter is ReentrancyGuard {
             }
         }
 
-        // Route LP support share (failure-tolerant)
+        // Route LP support share.
+        // If vault is a contract with receiveForToken(), call it so balances are tracked per-token.
+        // For EOA vaults (e.g. tests) fall back to a plain ETH send.
+        // audit M-03: if receiveForToken() on a contract vault fails, route to pendingWithdrawals
+        // (pull payment) rather than raw-sending into the vault — a raw send would create an
+        // untracked balance that the active vault's execute() can never spend (re-locks fees).
         if (lpShare > 0) {
-            (bool ok, ) = lpSupportVault.call{value: lpShare}("");
-            if (!ok) {
-                pendingWithdrawals[lpSupportVault] += lpShare;
-                emit FeePending(lpSupportVault, lpShare);
+            if (_isContract(lpSupportVault)) {
+                try IFeeVault(lpSupportVault).receiveForToken{value: lpShare}(token) {
+                    // success — per-token balance tracked in vault
+                } catch {
+                    pendingWithdrawals[lpSupportVault] += lpShare;
+                    emit FeePending(lpSupportVault, lpShare);
+                }
+            } else {
+                (bool ok, ) = lpSupportVault.call{value: lpShare}("");
+                if (!ok) {
+                    pendingWithdrawals[lpSupportVault] += lpShare;
+                    emit FeePending(lpSupportVault, lpShare);
+                }
             }
         }
 
-        // Route buyback & burn share (failure-tolerant)
+        // Route buyback & burn share — same logic as LP support above (audit M-03).
         if (buybackShare > 0) {
-            (bool ok, ) = buybackBurnVault.call{value: buybackShare}("");
-            if (!ok) {
-                pendingWithdrawals[buybackBurnVault] += buybackShare;
-                emit FeePending(buybackBurnVault, buybackShare);
+            if (_isContract(buybackBurnVault)) {
+                try IFeeVault(buybackBurnVault).receiveForToken{value: buybackShare}(token) {
+                    // success — per-token balance tracked in vault
+                } catch {
+                    pendingWithdrawals[buybackBurnVault] += buybackShare;
+                    emit FeePending(buybackBurnVault, buybackShare);
+                }
+            } else {
+                (bool ok, ) = buybackBurnVault.call{value: buybackShare}("");
+                if (!ok) {
+                    pendingWithdrawals[buybackBurnVault] += buybackShare;
+                    emit FeePending(buybackBurnVault, buybackShare);
+                }
             }
         }
 
@@ -310,6 +338,13 @@ contract FeeRouter is ReentrancyGuard {
         }
 
         emit FeeRouted(token, amount, creatorShare, lpShare, buybackShare, giftShare);
+    }
+
+    /// @dev Returns true if `addr` has contract code deployed at it.
+    function _isContract(address addr) internal view returns (bool) {
+        uint256 size;
+        assembly { size := extcodesize(addr) }
+        return size > 0;
     }
 
     /// @notice Withdraw accrued fees that failed to be pushed (pull-payment fallback).

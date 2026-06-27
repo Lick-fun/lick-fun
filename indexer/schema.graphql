@@ -124,3 +124,17 @@ type FeeEvent @entity {
   buybackShare: BigInt!
   blockTimestamp: BigInt!
 }
+
+# Phase 4 — Vault execution events.
+# Fired by VaultBuybackBurn or VaultLPSupport when execute() succeeds.
+# Keyed by txHash-logIndex for uniqueness.
+type VaultExecution @entity {
+  id: ID!
+  vault: String!         # vault contract address ("buyback" | "lp")
+  vaultType: String!     # "buyback" or "lp"
+  token: String!         # LickToken address
+  monSpent: BigInt!      # MON used in execution
+  tokensResult: BigInt!  # tokensBurned (buyback) or lpBurned (lp)
+  blockTimestamp: BigInt!
+  blockNumber: BigInt!
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "type": "event",
+    "name": "Deposited",
+    "inputs": [
+      { "name": "token", "type": "address", "indexed": true },
+      { "name": "sender", "type": "address", "indexed": true },
+      { "name": "amount", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "Executed",
+    "inputs": [
+      { "name": "token", "type": "address", "indexed": true },
+      { "name": "monSpent", "type": "uint256", "indexed": false },
+      { "name": "tokensBurned", "type": "uint256", "indexed": false }
+    ]
+  },
+  {
+    "type": "function",
+    "name": "pendingBurn",
+    "inputs": [{ "name": "token", "type": "address" }],
+    "outputs": [{ "name": "", "type": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "execute",
+    "inputs": [
+      { "name": "token", "type": "address" },
+      { "name": "curve", "type": "address" },
+      { "name": "graduated", "type": "bool" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
+]

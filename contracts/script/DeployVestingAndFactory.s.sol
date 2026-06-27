@@ -33,10 +33,10 @@ contract DeployVestingAndFactory is Script {
         vm.startBroadcast(deployerPrivateKey);
 
         // ── Step A: Deploy recoverable vaults (owner = deployer on testnet) ──
-        VaultLPSupport vaultLP = new VaultLPSupport(deployer);
+        VaultLPSupport vaultLP = new VaultLPSupport(deployer, address(0x1), address(0x2), address(0x3));
         console.log("VaultLPSupport deployed at:", address(vaultLP));
 
-        VaultBuybackBurn vaultBB = new VaultBuybackBurn(deployer);
+        VaultBuybackBurn vaultBB = new VaultBuybackBurn(deployer, address(0x1), address(0x4), address(0x3));
         console.log("VaultBuybackBurn deployed at:", address(vaultBB));
 
         // ── Step B: Deploy new FeeRouter ──

@@ -22,15 +22,18 @@ import { LoadingSpinner, ErrorState } from "@/components/ui/LoadingSpinner";
 import { TokenImage } from "@/components/ui/TokenImage";
 import { useTokenIpfsMeta } from "@/lib/hooks/useTokenImage";
 import { useMonUsdPrice } from "@/lib/hooks/useMonUsdPrice";
-import { ArrowLeft, GraduationCap, TrendingUp, Copy, Check, Globe, Send } from "lucide-react";
+import { ArrowLeft, GraduationCap, TrendingUp, Copy, Check, Globe, Send, Droplets, Flame, User, Gift } from "lucide-react";
 import { BetForm } from "@/components/markets/BetForm";
 import { cn } from "@/lib/utils";
+import { useFeeConfig } from "@/lib/hooks/useFeeConfig";
+import { FeeOverviewModal } from "@/components/token/FeeOverviewModal";
 
 export default function TokenDetailPage() {
   const { id } = useParams<{ id: string }>();
   const tokenId = (id as string) ?? "";
   const [showBetForm, setShowBetForm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showFeeOverview, setShowFeeOverview] = useState(false);
 
   // Live clock for prediction market countdown
   const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
@@ -49,6 +52,7 @@ export default function TokenDetailPage() {
   const { bars, resolution, setResolution, isLoading: barsLoading } = useTokenPriceBars(tokenId);
   const { data: ipfsMeta } = useTokenIpfsMeta(tokenId);
   const { data: monUsdPrice } = useMonUsdPrice();
+  const { config: feeConfig } = useFeeConfig(tokenId);
   // DEX pair: checks GraduationRouter.tokenToPair — polls every 5s
   const { pairAddress } = useTokenPair(tokenId as `0x${string}`);
 
@@ -171,6 +175,40 @@ export default function TokenDetailPage() {
                       <span className="text-figma-green font-semibold">Rep {reputation.score}</span>
                     </>
                   )}
+                </div>
+
+                {/* Fee structure badges + Fee Overview button */}
+                <div className="flex items-center gap-2 flex-wrap mt-2">
+                  {feeConfig && feeConfig.lpSupportBps > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-semibold">
+                      <Droplets className="w-2.5 h-2.5" />
+                      LP Support {(feeConfig.lpSupportBps / 100).toFixed(0)}%
+                    </span>
+                  )}
+                  {feeConfig && feeConfig.creatorShareBps > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-figma-purple/10 border border-figma-purple/20 text-figma-purple-soft text-[10px] font-semibold">
+                      <User className="w-2.5 h-2.5" />
+                      Creator {(feeConfig.creatorShareBps / 100).toFixed(0)}%
+                    </span>
+                  )}
+                  {feeConfig && feeConfig.buybackBurnBps > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-semibold">
+                      <Flame className="w-2.5 h-2.5" />
+                      Buyback &amp; Burn {(feeConfig.buybackBurnBps / 100).toFixed(0)}%
+                    </span>
+                  )}
+                  {feeConfig && feeConfig.giftBps > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-figma-purple-soft/10 border border-figma-purple-soft/20 text-figma-purple-soft text-[10px] font-semibold">
+                      <Gift className="w-2.5 h-2.5" />
+                      Gift {(feeConfig.giftBps / 100).toFixed(0)}%
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setShowFeeOverview(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-figma-surface bg-figma-surface/50 hover:bg-figma-surface text-figma-muted hover:text-figma-white text-[10px] font-semibold transition-all"
+                  >
+                    📊 Fee Overview
+                  </button>
                 </div>
               </div>
             </div>
@@ -520,6 +558,16 @@ export default function TokenDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Fee Overview Modal */}
+      {showFeeOverview && (
+        <FeeOverviewModal
+          tokenId={tokenId}
+          tokenSymbol={displaySymbol}
+          monUsdPrice={monUsdPrice}
+          onClose={() => setShowFeeOverview(false)}
+        />
+      )}
     </div>
   );
 }

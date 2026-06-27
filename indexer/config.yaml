@@ -40,6 +40,16 @@ contracts:
     events:
       - event: "LiquidityMigrated(address indexed token, address indexed pair, uint256 tokenLiquidity, uint256 monLiquidity)"
 
+  - name: VaultBuybackBurn
+    abi_file_path: "./abis/VaultBuybackBurn.json"
+    events:
+      - event: "Executed(address indexed token, uint256 monSpent, uint256 tokensBurned)"
+
+  - name: VaultLPSupport
+    abi_file_path: "./abis/VaultLPSupport.json"
+    events:
+      - event: "Executed(address indexed token, uint256 monAdded, uint256 lpBurned)"
+
 # ─── Chains ────────────────────────────────────────────────────────────────────
 # MAINNET (chain 143) — deployed 2026-06-27, block 83961211
 # To revert to testnet: comment out this block and uncomment the testnet block below.
@@ -61,6 +71,10 @@ chains:
         address: "0xe9200097cA7d7a48D87ce249B671c36ccB406776"
       - name: GraduationRouter
         address: "0xb2Dc164Ac4eCDDA7Ea2D4115bC122463c65460b2"
+      - name: VaultBuybackBurn
+        address: "0x45B1Ee1E9E8E9FF8CE6bBbd55B430Cab4b25e06d"
+      - name: VaultLPSupport
+        address: "0xF1Aac85a5F964564e472BF1E0628c536b01809e0"
 
 # ─── TESTNET (chain 10143) — uncomment to revert ─────────────────────────────
 # chains:

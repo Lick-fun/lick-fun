@@ -29,8 +29,8 @@ contract FactoryFeeRouterTest is Test {
 
     function setUp() public {
         // Deploy vaults
-        vaultLP = new VaultLPSupport(address(this));
-        vaultBB = new VaultBuybackBurn(address(this));
+        vaultLP = new VaultLPSupport(address(this), address(0x1111), address(0x2222), address(0x4444));
+        vaultBB = new VaultBuybackBurn(address(this), address(0x1111), address(0x3333), address(0x4444));
 
         // Deploy FeeRouter (test contract is owner)
         feeRouter = new FeeRouter(

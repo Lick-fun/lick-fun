@@ -18,4 +18,11 @@ contract LickToken is ERC20 {
         // the balance to the BondingCurve that governs this token.
         _mint(msg.sender, TOTAL_SUPPLY);
     }
+
+    /// @notice Burn tokens from the caller's balance.
+    /// @dev    Called by VaultBuybackBurn after buying back tokens from the DEX.
+    /// @param amount Number of tokens (in wei) to burn.
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
 }

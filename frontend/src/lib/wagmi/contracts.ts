@@ -118,6 +118,21 @@ export const FeeRouterABI = [
     outputs: [],
     stateMutability: "nonpayable",
   },
+  {
+    type: "function",
+    name: "tokenFeeConfigs",
+    inputs: [{ name: "token", type: "address", internalType: "address" }],
+    outputs: [
+      { name: "creatorShareBps", type: "uint256", internalType: "uint256" },
+      { name: "lpSupportBps", type: "uint256", internalType: "uint256" },
+      { name: "buybackBurnBps", type: "uint256", internalType: "uint256" },
+      { name: "giftBps", type: "uint256", internalType: "uint256" },
+      { name: "giftRecipient", type: "address", internalType: "address" },
+      { name: "creator", type: "address", internalType: "address" },
+      { name: "initialized", type: "bool", internalType: "bool" },
+    ],
+    stateMutability: "view",
+  },
 ] as const satisfies Abi;
 
 export const FEE_ROUTER_ADDRESS = (process.env.NEXT_PUBLIC_FEE_ROUTER_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;

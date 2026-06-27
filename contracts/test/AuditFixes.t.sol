@@ -105,8 +105,13 @@ contract AuditFixesTest is Test {
 
     // ─────────────────────────── C-01: vault recoverability ───────────────────────────
 
+    address constant DUMMY_ROUTER_A = address(0x1111);
+    address constant DUMMY_WMON_A   = address(0x2222);
+    address constant DUMMY_FACTORY_A = address(0x3333);
+    address constant DUMMY_GRAD_A    = address(0x4444);
+
     function test_C01_vaultLP_recoverable() public {
-        VaultLPSupport v = new VaultLPSupport(treasury);
+        VaultLPSupport v = new VaultLPSupport(treasury, DUMMY_ROUTER_A, DUMMY_WMON_A, DUMMY_GRAD_A);
         vm.deal(address(this), 5 ether);
         (bool ok,) = address(v).call{value: 3 ether}("");
         assertTrue(ok);
@@ -124,7 +129,7 @@ contract AuditFixesTest is Test {
     }
 
     function test_C01_vaultBB_recoverable() public {
-        VaultBuybackBurn v = new VaultBuybackBurn(treasury);
+        VaultBuybackBurn v = new VaultBuybackBurn(treasury, DUMMY_ROUTER_A, DUMMY_FACTORY_A, DUMMY_GRAD_A);
         vm.deal(address(this), 2 ether);
         (bool ok,) = address(v).call{value: 2 ether}("");
         assertTrue(ok);
@@ -135,7 +140,7 @@ contract AuditFixesTest is Test {
 
     function test_C01_vault_rejects_zero_owner() public {
         vm.expectRevert(VaultLPSupport.ZeroAddress.selector);
-        new VaultLPSupport(address(0));
+        new VaultLPSupport(address(0), DUMMY_ROUTER_A, DUMMY_WMON_A, DUMMY_GRAD_A);
     }
 
     // ─────────────────────────── C-02: initVesting access control ───────────────────────────
@@ -183,8 +188,8 @@ contract AuditFixesTest is Test {
     // ─────────────────────────── M-04: FeeRouter config gating ───────────────────────────
 
     function test_M04_applyPreset_onlyFactoryOrOwner() public {
-        VaultLPSupport vlp = new VaultLPSupport(treasury);
-        VaultBuybackBurn vbb = new VaultBuybackBurn(treasury);
+        VaultLPSupport vlp = new VaultLPSupport(treasury, DUMMY_ROUTER_A, DUMMY_WMON_A, DUMMY_GRAD_A);
+        VaultBuybackBurn vbb = new VaultBuybackBurn(treasury, DUMMY_ROUTER_A, DUMMY_FACTORY_A, DUMMY_GRAD_A);
         FeeRouter fr = new FeeRouter(address(0x111), address(vlp), address(vbb)); // owner = this
         address token = makeAddr("frToken");
 
@@ -201,8 +206,8 @@ contract AuditFixesTest is Test {
     }
 
     function test_M04_setFactory_once() public {
-        VaultLPSupport vlp = new VaultLPSupport(treasury);
-        VaultBuybackBurn vbb = new VaultBuybackBurn(treasury);
+        VaultLPSupport vlp = new VaultLPSupport(treasury, DUMMY_ROUTER_A, DUMMY_WMON_A, DUMMY_GRAD_A);
+        VaultBuybackBurn vbb = new VaultBuybackBurn(treasury, DUMMY_ROUTER_A, DUMMY_FACTORY_A, DUMMY_GRAD_A);
         FeeRouter fr = new FeeRouter(address(0x111), address(vlp), address(vbb));
         fr.setFactory(address(0xF));
         vm.expectRevert(FeeRouter.AlreadySet.selector);

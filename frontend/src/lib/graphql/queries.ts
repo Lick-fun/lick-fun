@@ -94,6 +94,17 @@ export interface FeeEventEntity {
   blockTimestamp: bigint;
 }
 
+export interface VaultExecutionEntity {
+  id: string;
+  vault: string;
+  vaultType: string; // "buyback" | "lp"
+  token: string;
+  monSpent: bigint;
+  tokensResult: bigint;
+  blockTimestamp: bigint;
+  blockNumber: bigint;
+}
+
 export interface EnvioProfileResponse {
   Profile_by_pk?: ProfileEntity | null;
   Token: TokenEntity[];
@@ -481,4 +492,29 @@ export const QUERY_FEE_EVENTS_BY_TOKEN = gql`
     }
   }
   ${FEE_EVENT_FRAGMENT}
+`;
+
+/**
+ * Fetches all VaultExecution events for a single token — the actual automated
+ * buyback-and-burn and LP-deepening executions. Used to show real execution
+ * history ("Executed N times", "Total burned", "Last executed") in the Fee
+ * Overview modal.
+ */
+export const QUERY_VAULT_EXECUTIONS_BY_TOKEN = gql`
+  query GetVaultExecutionsByToken($tokenId: String!, $limit: Int!) {
+    VaultExecution(
+      where: { token: { _eq: $tokenId } }
+      order_by: { blockTimestamp: desc }
+      limit: $limit
+    ) {
+      id
+      vault
+      vaultType
+      token
+      monSpent
+      tokensResult
+      blockTimestamp
+      blockNumber
+    }
+  }
 `;
