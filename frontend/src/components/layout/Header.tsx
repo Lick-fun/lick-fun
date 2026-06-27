@@ -35,12 +35,12 @@ export function Header() {
       <Link href="/" className="flex items-center gap-2 shrink-0">
         <Image
           src="/logo-transparent.png"
-          alt="Lick.fun"
+          alt="Lickfun.xyz"
           width={32}
           height={32}
           className="w-8 h-8 rounded-lg object-cover shrink-0"
         />
-        <span className="font-bold text-gradient-lick text-lg">Lick.fun</span>
+        <span className="font-bold text-gradient-lick text-lg">Lickfun.xyz</span>
       </Link>
 
       {/* Desktop nav links */}

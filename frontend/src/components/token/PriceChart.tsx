@@ -586,7 +586,7 @@ export function PriceChart({
           {displayMode === "mcap" ? "MCap" : "Price"} / {quoteSymbol}
           {logScale && <span className="ml-2 text-figma-green">LOG</span>}
         </span>
-        <span className="opacity-40">lick.fun</span>
+        <span className="opacity-40">lickfun.xyz</span>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
   "name": "lick-fun",
   "version": "0.1.0",
   "private": true,
-  "description": "Lick.fun - Web3 project with frontend, indexer, and contracts",
+  "description": "Lickfun.xyz - Web3 project with frontend, indexer, and contracts",
   "scripts": {
     "dev": "pnpm --filter lick-fun-frontend dev",
     "dev:frontend": "pnpm --filter lick-fun-frontend dev",

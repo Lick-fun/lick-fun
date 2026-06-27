@@ -10,7 +10,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 /**
  * Figma-sourced provider stack.
  *
- * RainbowKit accent color matches the Lick.fun Figma brand green
+ * RainbowKit accent color matches the Lickfun.xyz Figma brand green
  * (#70E000 — `var(--color-green)`) rather than the legacy orange.
  *
  * The RainbowKit stylesheet is imported here — `next.config.ts` already

@@ -1,5 +1,5 @@
 /**
- * Lick.fun Reputation Engine — Profile Tiers
+ * Lickfun.xyz Reputation Engine — Profile Tiers
  *
  * Tiers are derived deterministically from reputation score:
  *   Starter:     0–30

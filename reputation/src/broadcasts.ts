@@ -1,5 +1,5 @@
 /**
- * Lick.fun Engagement Layer — System Broadcasts
+ * Lickfun.xyz Engagement Layer — System Broadcasts
  * Stage 5: Pure functions that generate structured broadcast messages
  * from indexed events. The frontend (Stage 7) renders these.
  *

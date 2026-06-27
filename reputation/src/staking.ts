@@ -1,5 +1,5 @@
 /**
- * Lick.fun Engagement Layer — Reputation Staking Types
+ * Lickfun.xyz Engagement Layer — Reputation Staking Types
  * Stage 5: Pure TypeScript types + validation functions for the staking interface.
  *
  * "If creator behaves, both gain. If creator rugs, both lose."

@@ -59,7 +59,7 @@ if (!projectId) {
 }
 
 export const wagmiConfig = getDefaultConfig({
-  appName: "Lick.fun",
+  appName: "Lickfun.xyz",
   projectId,
   // Only the active chain — testnet removed from mainnet builds (P3-7)
   chains: [activeChain],

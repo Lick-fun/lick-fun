@@ -225,7 +225,7 @@ export default function CreateTokenPage() {
             Create Token
           </h1>
           <p className="text-figma-sm text-figma-muted">
-            Launch your token on the Lick.fun bonding curve.
+            Launch your token on the Lickfun.xyz bonding curve.
           </p>
         </div>
         <div className="rounded-card border border-figma-card bg-figma-card p-10 flex flex-col items-center gap-5 text-center">
@@ -255,7 +255,7 @@ export default function CreateTokenPage() {
             Create Token
           </h1>
           <p className="text-figma-sm text-figma-muted">
-            Launch your token on the Lick.fun bonding curve.
+            Launch your token on the Lickfun.xyz bonding curve.
           </p>
         </div>
         <div className="rounded-card border border-figma-green/30 bg-figma-green/5 p-10 flex flex-col items-center gap-5 text-center">
@@ -312,7 +312,7 @@ export default function CreateTokenPage() {
           Create Token
         </h1>
         <p className="text-figma-sm text-figma-muted">
-          Launch your token on the Lick.fun bonding curve.
+          Launch your token on the Lickfun.xyz bonding curve.
         </p>
       </div>
 

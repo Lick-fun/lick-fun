@@ -163,7 +163,7 @@ export function useCreateToken(): UseCreateTokenResult {
     // Register metadata with our API so the image shows everywhere
     if (metadataUri && imageUri) {
       // Sign a message to authenticate the metadata registration (P0-2)
-      const metaMessage = `Lick.fun: register metadata for ${parsedToken} by ${address} at ${Date.now()}`;
+      const metaMessage = `Lickfun.xyz: register metadata for ${parsedToken} by ${address} at ${Date.now()}`;
       signMessageAsync({ message: metaMessage })
         .then((metaSig) =>
           fetch("/api/register-metadata", {
@@ -278,7 +278,7 @@ export function useCreateToken(): UseCreateTokenResult {
       setStep("uploading");
       try {
         // Sign a message to authenticate the upload (P0-1)
-        const uploadMessage = `Lick.fun: upload token image for ${address} at ${Date.now()}`;
+        const uploadMessage = `Lickfun.xyz: upload token image for ${address} at ${Date.now()}`;
         const uploadSig = await signMessageAsync({ message: uploadMessage });
 
         const formData = new FormData();

@@ -1,5 +1,5 @@
 /**
- * Lick.fun Engagement Layer — AMA Window Types
+ * Lickfun.xyz Engagement Layer — AMA Window Types
  * Stage 5: Pure TypeScript types + validation for optional time-boxed AMA windows.
  *
  * No persistence — the frontend manages AMA state.

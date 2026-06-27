@@ -1,5 +1,5 @@
 /**
- * Lick.fun Reputation Engine — Daily Root-Hash Anchor
+ * Lickfun.xyz Reputation Engine — Daily Root-Hash Anchor
  *
  * Computes a Merkle root of all (profileAddress → reputationScore + tier + activeBadges)
  * pairs and prepares calldata for the Anchor contract (Stage 6).
@@ -212,7 +212,7 @@ export function logAnchor(scores: ProfileScore[]): MerkleAnchor {
   const anchor = computeAnchor(scores);
 
   console.log("═══════════════════════════════════════════════════════");
-  console.log("  Lick.fun — Daily Reputation Anchor");
+  console.log("  Lickfun.xyz — Daily Reputation Anchor");
   console.log("═══════════════════════════════════════════════════════");
   console.log(`  Timestamp:     ${new Date(anchor.timestamp * 1000).toISOString()}`);
   console.log(`  Profile Count: ${anchor.profileCount}`);

@@ -16,24 +16,24 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lick.fun — Launch tokens. Earn reputation.",
+  title: "Lickfun.xyz — Launch tokens. Earn reputation.",
   description:
     "Social-first token launchpad on Monad. Launch meme tokens, trade on a bonding curve, and build on-chain reputation. No hype — your behavior is your content.",
   icons: {
     icon: "/logo-transparent.png",
   },
   openGraph: {
-    title: "Lick.fun — Launch tokens. Earn reputation.",
+    title: "Lickfun.xyz — Launch tokens. Earn reputation.",
     description:
       "Social-first token launchpad on Monad. Launch meme tokens, trade on a bonding curve, and build on-chain reputation.",
     url: "https://lickfun.xyz",
-    siteName: "Lick.fun",
+    siteName: "Lickfun.xyz",
     images: [
       {
         url: "https://lickfun.xyz/logo-transparent.png",
         width: 512,
         height: 512,
-        alt: "Lick.fun logo",
+        alt: "Lickfun.xyz logo",
       },
     ],
     locale: "en_US",
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "Lick.fun — Launch tokens. Earn reputation.",
+    title: "Lickfun.xyz — Launch tokens. Earn reputation.",
     description:
       "Social-first token launchpad on Monad. Launch meme tokens, trade on a bonding curve, and build on-chain reputation.",
     images: ["https://lickfun.xyz/logo-transparent.png"],

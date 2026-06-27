@@ -1,10 +1,10 @@
 # LP Locker Validation Guide
 
-## Step-by-step: Validating UNCX / Team Finance LP Lockers with Lick.fun
+## Step-by-step: Validating UNCX / Team Finance LP Lockers with Lickfun.xyz
 
 ### Prerequisites
 
-- A Lick.fun token that has graduated (curve reached 100k MON threshold)
+- A Lickfun.xyz token that has graduated (curve reached 100k MON threshold)
 - The DEX pair address from the graduation event
 - LP tokens (ERC-20 V2-style) in your wallet
 - Access to UNCX LP Locker UI (https://app.uncx.network/lock-lp) or Team Finance (https://app.team.finance/lock-lp)
@@ -12,7 +12,7 @@
 ### Step 1: Deploy a Test Token through Factory
 
 ```solidity
-// Using cast or via the Lick.fun frontend
+// Using cast or via the Lickfun.xyz frontend
 // Call Factory.createToken("TestLick", "TLICK", 0)
 // Note the token address and curve address from the TokenCreated event
 ```
@@ -177,6 +177,6 @@ contract LickLPLockerAdapter {
 
 ### Notes
 
-- Lick.fun uses **Uniswap V2-style fungible ERC-20 LP tokens** (standard transferable), so compatibility with existing lockers should be straightforward.
+- Lickfun.xyz uses **Uniswap V2-style fungible ERC-20 LP tokens** (standard transferable), so compatibility with existing lockers should be straightforward.
 - If the graduation DEX factory uses a different `init_code_hash` than standard Uniswap V2, contact the locker provider to register the hash.
 - For Monad testnet, verify UNCX/Team Finance has a deployment on the chain. If not, deploy a minimal locker contract using Battle-tested patterns from OpenZeppelin or equivalent.

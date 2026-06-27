@@ -131,13 +131,13 @@ export function Sidebar() {
       >
         <Image
           src="/logo-transparent.png"
-          alt="Lick.fun"
+          alt="Lickfun.xyz"
           width={36}
           height={36}
           className="w-9 h-9 rounded-lg object-cover shrink-0"
         />
         <div>
-          <h1 className="text-lg font-bold text-gradient-lick">Lick.fun</h1>
+          <h1 className="text-lg font-bold text-gradient-lick">Lickfun.xyz</h1>
           <p className="text-figma-xs text-figma-muted leading-none">
             a meme lake on liquidity fun
           </p>
@@ -213,7 +213,7 @@ export function Sidebar() {
         </div>
 
         <p className="text-figma-xs text-figma-muted">
-          © 2026 Lick.fun. All rights reserved
+          © 2026 Lickfun.xyz. All rights reserved
         </p>
       </div>
     </aside>

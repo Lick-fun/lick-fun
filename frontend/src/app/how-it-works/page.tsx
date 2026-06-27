@@ -17,7 +17,7 @@ export default function AboutPage() {
       {/* Page Header */}
       <div className="pt-8 mb-12 text-center max-w-3xl mx-auto">
         <h1 className="text-figma-3xl text-figma-white font-bold mb-3">
-          About Lick.fun
+          About Lickfun.xyz
         </h1>
         <p className="text-figma-md text-figma-muted">
           A social-first token launchpad on Monad. Discover new tokens, trade
@@ -26,18 +26,18 @@ export default function AboutPage() {
         </p>
       </div>
 
-      {/* What is Lick.fun */}
+      {/* What is Lickfun.xyz */}
       <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
         <div className="flex items-center gap-3 mb-4">
           <img
             src="/logo-transparent.png"
-            alt="Lick.fun"
+            alt="Lickfun.xyz"
             className="w-10 h-10 rounded-card object-cover shrink-0"
           />
-          <h2 className="text-figma-2xl text-figma-white font-bold">What is Lick.fun?</h2>
+          <h2 className="text-figma-2xl text-figma-white font-bold">What is Lickfun.xyz?</h2>
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
-          Lick.fun is a place where anyone can launch a token and the community
+          Lickfun.xyz is a place where anyone can launch a token and the community
           decides what&apos;s worth keeping. Every new token starts on a bonding
           curve — a simple rule that says: as more people buy, the price goes up.
           When a token reaches 100,000 MON raised, it graduates to a real DEX
@@ -272,7 +272,7 @@ export default function AboutPage() {
           <h2 className="text-figma-2xl text-figma-white font-bold">Why It&apos;s Safe</h2>
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
-          Lick.fun is built so that rugs are structurally impossible:
+          Lickfun.xyz is built so that rugs are structurally impossible:
         </p>
         <div className="space-y-3 text-figma-sm text-figma-muted">
           <div className="flex items-start gap-3">
@@ -325,7 +325,7 @@ export default function AboutPage() {
           <h2 className="text-figma-2xl text-figma-white font-bold">Community</h2>
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed">
-          Lick.fun is built for the community. Every token&apos;s success is
+          Lickfun.xyz is built for the community. Every token&apos;s success is
           decided by the people who buy it. The bonding curve means early
           supporters are rewarded for believing in a project first, and the
           reputation system means you can see who&apos;s trustworthy before you

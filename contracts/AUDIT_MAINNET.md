@@ -1,4 +1,4 @@
-# Lick.fun — Smart Contract Security Audit (Monad Mainnet, chain 143)
+# Lickfun.xyz — Smart Contract Security Audit (Monad Mainnet, chain 143)
 
 **Audit type:** Comprehensive adversarial review (audit-only — no code modified)
 **Scope:** All 14 contracts in `contracts/src/` + `contracts/script/DeployMainnet.s.sol`
@@ -13,7 +13,7 @@
 
 ## 1. Executive Summary
 
-Lick.fun is a social token launchpad: `Factory` → `LickToken` + `BondingCurve` (CPMM) → graduation at 100k MON → `GraduationRouter` migrates to a `LickPair` (V2 AMM) → users trade via `LickRouter`. Side systems: `PredictionMarket` (parimutuel), `FeeRouter` (creator-fee splitting), `ProfileRegistry` (reputation anchor), `VestingController`, two stub vaults, and a `GraduationPool` subsidy pool.
+Lickfun.xyz is a social token launchpad: `Factory` → `LickToken` + `BondingCurve` (CPMM) → graduation at 100k MON → `GraduationRouter` migrates to a `LickPair` (V2 AMM) → users trade via `LickRouter`. Side systems: `PredictionMarket` (parimutuel), `FeeRouter` (creator-fee splitting), `ProfileRegistry` (reputation anchor), `VestingController`, two stub vaults, and a `GraduationPool` subsidy pool.
 
 **Overall posture:** The *core trading and migration path* is well-engineered. The custom reentrancy guard, CEI ordering, the `address(1)` migration sentinel, `SafeERC20` in the routers, checked native sends, and the parimutuel solvency design are all correct. The bonding-curve math, fee math, and the AMM K-invariant are sound. **However, several deployment-level and peripheral-contract issues would cause permanent fund loss or misbehavior on mainnet** — chiefly the stub vaults that irrecoverably swallow all routed protocol fees, the deploy script conflating two fee sinks into one black-hole address, a first-mint AMM manipulation vector on the migration path, and an access-control gap in `VestingController`.
 

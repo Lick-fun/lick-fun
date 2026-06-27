@@ -1,5 +1,5 @@
 /**
- * Lick.fun Reputation Engine — Browser entry point
+ * Lickfun.xyz Reputation Engine — Browser entry point
  *
  * Re-exports the pure scoring engine for use in the frontend.
  * The anchor (Merkle root) and off-chain query layer live in

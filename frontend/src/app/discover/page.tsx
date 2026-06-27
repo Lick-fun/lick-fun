@@ -113,7 +113,7 @@ export default function DiscoverPage() {
           Discover Tokens
         </h1>
         <p className="text-figma-sm text-figma-muted">
-          Explore tokens launching on the Lick.fun bonding curve.
+          Explore tokens launching on the Lickfun.xyz bonding curve.
         </p>
       </div>
 

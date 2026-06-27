@@ -1,5 +1,5 @@
 /**
- * Lick.fun Reputation Engine — GraphQL Query Layer
+ * Lickfun.xyz Reputation Engine — GraphQL Query Layer
  *
  * Reads Profile, Token, and Trade data from the Envio HyperIndex
  * GraphQL endpoint. Used by the scoring engine to gather inputs.

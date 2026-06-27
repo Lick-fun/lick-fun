@@ -1,4 +1,4 @@
-# Lick.fun — Graduation Keeper
+# Lickfun.xyz — Graduation Keeper
 
 A lightweight Node.js service that automatically calls `migrateLiquidity()` on the `GraduationRouter` whenever a bonding curve graduates (reaches 100,000 MON).
 

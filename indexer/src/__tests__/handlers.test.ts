@@ -1,5 +1,5 @@
 /**
- * Lick.fun Indexer — Handler Unit + Integration Tests
+ * Lickfun.xyz Indexer — Handler Unit + Integration Tests
  *
  * Uses Node.js built-in test runner (node:test + node:assert).
  * No extra dependencies required.

@@ -2,7 +2,7 @@
   "name": "lick-fun-reputation",
   "version": "0.1.0",
   "private": true,
-  "description": "Lick.fun Reputation Engine — off-chain scoring, badges, tiers, and daily Merkle root anchor",
+  "description": "Lickfun.xyz Reputation Engine — off-chain scoring, badges, tiers, and daily Merkle root anchor",
   "type": "module",
   "scripts": {
     "build": "tsc",

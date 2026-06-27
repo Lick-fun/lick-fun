@@ -1,5 +1,5 @@
 /**
- * Lick.fun Indexer — Pure utility functions
+ * Lickfun.xyz Indexer — Pure utility functions
  * Exported for use in EventHandlers.ts and unit tests.
  */
 

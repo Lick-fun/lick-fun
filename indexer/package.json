@@ -2,7 +2,7 @@
   "name": "lick-fun-indexer",
   "version": "0.1.0",
   "type": "module",
-  "description": "Envio HyperIndex indexer for Lick.fun — indexes bonding curve events on Monad",
+  "description": "Envio HyperIndex indexer for Lickfun.xyz — indexes bonding curve events on Monad",
   "license": "UNLICENSED",
   "scripts": {
     "build": "tsc --noEmit",

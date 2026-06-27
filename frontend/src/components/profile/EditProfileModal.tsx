@@ -88,7 +88,7 @@ export function EditProfileModal({
 
     try {
       // Build the message to sign — proves wallet ownership
-      const message = `Update Lick.fun profile\nWallet: ${signerAddress}\nTimestamp: ${Date.now()}`;
+      const message = `Update Lickfun.xyz profile\nWallet: ${signerAddress}\nTimestamp: ${Date.now()}`;
       const signature = await signMessageAsync({ message });
 
       // Payload — only include fields that actually changed

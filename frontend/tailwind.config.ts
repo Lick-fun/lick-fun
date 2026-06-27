@@ -2,8 +2,8 @@ import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 
 /**
- * Lick.fun design tokens — extracted from Figma.
- * Every value below was pulled from the Figma MCP for the Lick.fun design
+ * Lickfun.xyz design tokens — extracted from Figma.
+ * Every value below was pulled from the Figma MCP for the Lickfun.xyz design
  * (file key CU3oZmvNUl8b722gjtQvNa — "Memecoin Launchpad Community").
  * Components should reference these semantic tokens, never hardcoded hex.
  */

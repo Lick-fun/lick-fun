@@ -1,5 +1,5 @@
 /**
- * Lick.fun Reputation Engine — Test Suite
+ * Lickfun.xyz Reputation Engine — Test Suite
  *
  * All 10 required tests from Stage 4 spec.
  * Vitest with pure functions — no network calls, no contracts.
