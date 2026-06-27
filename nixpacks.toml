@@ -1,11 +1,2 @@
-[phases.setup]
-nixPkgs = ["nodejs_20"]
-
-[phases.install]
-cmds = ["cd frontend && npm install"]
-
-[phases.build]
-cmds = ["cd frontend && npm run build"]
-
-[start]
-cmd = "cd frontend && npm run start"
+# This nixpacks.toml is at the repo root but Railway should use the one in frontend/
+# See frontend/nixpacks.toml for the actual build config
