@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { X, Droplets, Flame, User, Gift, Clock } from "lucide-react";
+import { X, Droplets, Flame, User, Gift } from "lucide-react";
 import { useFeeConfig, useFeeEvents, useVaultExecutions } from "@/lib/hooks/useFeeConfig";
 import { formatAddress } from "@/lib/hooks/useData";
 
@@ -106,7 +106,6 @@ interface FeeSlotProps {
   icon: React.ReactNode;
   label: string;
   subtitle: string;
-  color: string; // dot color class
   percentage: number;
   totalMon: string;
   totalUsd?: string;
@@ -128,7 +127,6 @@ function FeeSlot({
   icon,
   label,
   subtitle,
-  color,
   percentage,
   totalMon,
   totalUsd,
@@ -229,11 +227,9 @@ function FeeSlot({
 /* ─── Main Modal ────────────────────────────────────────────────────────────── */
 
 export function FeeOverviewModal({ tokenId, tokenSymbol, monUsdPrice, onClose }: FeeOverviewModalProps) {
-  const { config, isLoading: configLoading } = useFeeConfig(tokenId);
-  const { data: feeData, isLoading: feeLoading } = useFeeEvents(tokenId);
+  const { config } = useFeeConfig(tokenId);
+  const { data: feeData } = useFeeEvents(tokenId);
   const { data: vaultExec } = useVaultExecutions(tokenId);
-
-  const isLoading = configLoading || feeLoading;
 
   // Default config (standard: LP 70%, Creator 20%, Burn 10%)
   const lpPct = config ? bpsToPercent(config.lpSupportBps) : 70;
@@ -356,7 +352,6 @@ export function FeeOverviewModal({ tokenId, tokenSymbol, monUsdPrice, onClose }:
                 icon={<Droplets className="w-4 h-4 text-blue-400" />}
                 label="LP Support"
                 subtitle="Auto-adds liquidity at 50 MON."
-                color="text-blue-400"
                 percentage={lpPct}
                 totalMon={feeData ? formatMon(feeData.lpShare) : "—"}
                 totalUsd={feeData && monUsdPrice ? formatUsd(feeData.lpShare, monUsdPrice) : undefined}
@@ -373,7 +368,6 @@ export function FeeOverviewModal({ tokenId, tokenSymbol, monUsdPrice, onClose }:
                 icon={<User className="w-4 h-4 text-figma-purple-soft" />}
                 label="Creator"
                 subtitle="Sent directly to creator each trade."
-                color="text-figma-purple-soft"
                 percentage={creatorPct}
                 totalMon={feeData ? formatMon(feeData.creatorShare) : "—"}
                 totalUsd={feeData && monUsdPrice ? formatUsd(feeData.creatorShare, monUsdPrice) : undefined}
@@ -388,7 +382,6 @@ export function FeeOverviewModal({ tokenId, tokenSymbol, monUsdPrice, onClose }:
                 icon={<Flame className="w-4 h-4 text-orange-400" />}
                 label="Buyback & Burn"
                 subtitle="Auto-buys & burns at 50 MON."
-                color="text-orange-400"
                 percentage={burnPct}
                 totalMon={feeData ? formatMon(feeData.buybackShare) : "—"}
                 totalUsd={feeData && monUsdPrice ? formatUsd(feeData.buybackShare, monUsdPrice) : undefined}
@@ -405,7 +398,6 @@ export function FeeOverviewModal({ tokenId, tokenSymbol, monUsdPrice, onClose }:
                 icon={<Gift className="w-4 h-4 text-figma-purple-soft" />}
                 label="Gift"
                 subtitle="Sent directly to gift recipient each trade."
-                color="text-figma-purple-soft"
                 percentage={giftPct}
                 totalMon={feeData ? formatMon(feeData.lpShare) : "—"}
                 claimAddress={formatAddress(config.giftRecipient)}
