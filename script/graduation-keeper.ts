@@ -41,6 +41,8 @@ const PRIVATE_KEY = process.env.KEEPER_PRIVATE_KEY as `0x${string}` | undefined;
 const GRADUATION_ROUTER = process.env.GRADUATION_ROUTER_ADDR as `0x${string}` | undefined;
 const START_BLOCK = BigInt(process.env.START_BLOCK ?? "0");
 const POLL_MS = Number(process.env.POLL_INTERVAL_MS ?? 6_000);
+// ONE_SHOT=true: poll once and exit (used by GitHub Actions cron job)
+const ONE_SHOT = process.env.ONE_SHOT === "true";
 
 if (!RPC_URL || !PRIVATE_KEY || !GRADUATION_ROUTER) {
   console.error(
@@ -194,7 +196,11 @@ console.log(`[keeper] Keeper wallet:     ${account.address}`);
 console.log(`[keeper] Start block:       ${START_BLOCK}`);
 console.log(`[keeper] Poll interval:     ${POLL_MS}ms`);
 
-// Initial poll immediately, then on interval
+// Initial poll immediately, then on interval (or exit if ONE_SHOT)
 poll().then(() => {
+  if (ONE_SHOT) {
+    console.log("[keeper] ONE_SHOT mode — exiting after single poll");
+    process.exit(0);
+  }
   setInterval(poll, POLL_MS);
 });

@@ -1,0 +1,45 @@
+name: Graduation Keeper
+
+# Runs every 5 minutes to auto-migrate graduated bonding curves to DEX.
+# GitHub Actions free tier: 2000 min/month — this uses ~8640 min/month.
+# Use a free GitHub Pro or upgrade to Actions minutes if needed.
+# Worst case: a graduation waits up to 5 minutes before migration fires.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 minutes
+  workflow_dispatch:          # allow manual trigger from GitHub UI
+
+jobs:
+  keep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4        # must finish before next run starts
+
+    defaults:
+      run:
+        working-directory: script
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: script/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run keeper (one poll cycle)
+        env:
+          KEEPER_RPC_URL: ${{ secrets.KEEPER_RPC_URL }}
+          KEEPER_PRIVATE_KEY: ${{ secrets.KEEPER_PRIVATE_KEY }}
+          GRADUATION_ROUTER_ADDR: ${{ secrets.GRADUATION_ROUTER_ADDR }}
+          FACTORY_ADDR: ${{ secrets.FACTORY_ADDR }}
+          START_BLOCK: ${{ secrets.START_BLOCK }}
+          # Run in one-shot mode: poll once then exit (CI-friendly)
+          ONE_SHOT: "true"
+        run: node node_modules/tsx/dist/cli.mjs graduation-keeper.ts
