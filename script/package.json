@@ -1,0 +1,19 @@
+{
+  "name": "lick-fun-keeper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Graduation keeper — auto-migrates graduated bonding curves to DEX",
+  "type": "module",
+  "scripts": {
+    "start": "tsx graduation-keeper.ts",
+    "dev": "tsx --watch graduation-keeper.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "viem": "^2.21.19"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
