@@ -16,9 +16,11 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://lickfun.xyz"),
   title: "Lickfun.xyz — Launch tokens. Earn reputation.",
   description:
     "Social-first token launchpad on Monad. Launch meme tokens, trade on a bonding curve, and build on-chain reputation. No hype — your behavior is your content.",
+  manifest: "/site.webmanifest",
   icons: {
     icon: "/logo-transparent.png",
   },
@@ -40,7 +42,7 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Lickfun.xyz — Launch tokens. Earn reputation.",
     description:
       "Social-first token launchpad on Monad. Launch meme tokens, trade on a bonding curve, and build on-chain reputation.",

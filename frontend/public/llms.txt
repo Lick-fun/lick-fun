@@ -1,0 +1,17 @@
+# Lickfun.xyz
+
+> Social-first token launchpad on Monad. Launch meme tokens, trade on a bonding curve, earn on-chain reputation, and watch strong projects graduate to a real DEX.
+
+Lickfun.xyz runs on Monad. Tokens launch with a flat 1 MON fee, trade along a bonding curve, and graduate to a Uniswap-style DEX pool at 69,000 MON market cap. Reputation is earned through on-chain behavior — not hype.
+
+## Key Pages
+
+- [Home](https://lickfun.xyz/): Browse trending and new tokens
+- [Discover](https://lickfun.xyz/discover): Search and filter all tokens
+- [Create Token](https://lickfun.xyz/create): Launch a new meme token on Monad
+- [How It Works](https://lickfun.xyz/how-it-works): Bonding curve mechanics, graduation, reputation system
+- [Prediction Markets](https://lickfun.xyz/markets): Bet on token outcomes
+
+## Optional
+
+- [Token Metadata API](https://lickfun.xyz/api/token-metadata): On-chain token metadata endpoint

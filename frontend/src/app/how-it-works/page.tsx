@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   Coins,
   Shield,
@@ -10,6 +11,25 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "How It Works — Lickfun.xyz",
+  description:
+    "Learn how Lickfun.xyz works: bonding curve mechanics, token graduation to a real DEX, and the on-chain reputation system built on Monad.",
+  openGraph: {
+    title: "How It Works — Lickfun.xyz",
+    description:
+      "Learn how Lickfun.xyz works: bonding curve mechanics, token graduation to a real DEX, and the on-chain reputation system built on Monad.",
+    url: "https://lickfun.xyz/how-it-works",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "How It Works — Lickfun.xyz",
+    description:
+      "Learn how Lickfun.xyz works: bonding curve mechanics, token graduation to a real DEX, and the on-chain reputation system built on Monad.",
+  },
+};
 
 export default function AboutPage() {
   return (

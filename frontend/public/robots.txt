@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Allow OG image crawling (needed for social previews)
+Allow: /api/og/
+
+Sitemap: https://lickfun.xyz/sitemap.xml
