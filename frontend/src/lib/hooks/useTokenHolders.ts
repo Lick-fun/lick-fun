@@ -86,7 +86,7 @@ export function useTokenHolders(
     refetchInterval: 30_000,
   });
 
-  const traders = tradersQuery.data ?? [];
+  const traders = useMemo(() => tradersQuery.data ?? [], [tradersQuery.data]);
 
   // Step 2: Multicall totalSupply + balanceOf for every unique trader
   const balanceContracts = useMemo(
