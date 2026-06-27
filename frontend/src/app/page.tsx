@@ -25,6 +25,7 @@ import {
   formatTxCount,
 } from "@/lib/format";
 import { FounderTokenBanner } from "@/components/home/FounderTokenBanner";
+import { KNOWN_ADDRESS_LABELS } from "@/lib/knownAddresses";
 
 type SortOption = "lastTrade" | "largestMC" | "newestCreated" | "highestReputation";
 
@@ -33,7 +34,7 @@ const TOKENS_PER_PAGE = 60; // 10 rows × 6 cols
 /* ─── Display helpers ─────────────────────────────────────────────────────────── */
 
 function formatTraderAddress(addr: string): string {
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  return KNOWN_ADDRESS_LABELS[addr.toLowerCase()] ?? `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }
 
 function formatAmountMon(wei: bigint): string {

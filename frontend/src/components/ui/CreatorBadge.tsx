@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useProfileMeta } from "@/lib/hooks/useProfileMeta";
+import { KNOWN_ADDRESS_LABELS } from "@/lib/knownAddresses";
 
 interface CreatorBadgeProps {
   address: string;
@@ -12,6 +13,9 @@ interface CreatorBadgeProps {
  * Shows a small round avatar + display name (or truncated address).
  * Navigates to the creator's profile page on click.
  *
+ * Known contract addresses (e.g. VaultBuybackBurn) are shown with a
+ * friendly label and have click navigation disabled.
+ *
  * Uses useProfileMeta internally — react-query caches by address so
  * repeated renders across many cards are free after the first fetch.
  *
@@ -21,16 +25,26 @@ interface CreatorBadgeProps {
  */
 export function CreatorBadge({ address }: CreatorBadgeProps) {
   const router = useRouter();
-  const { data: profileMeta } = useProfileMeta(address);
+  const knownLabel = KNOWN_ADDRESS_LABELS[address.toLowerCase()];
+  // Skip profile fetch entirely for known contract addresses
+  const { data: profileMeta } = useProfileMeta(knownLabel ? "" : address);
 
-  const displayName = profileMeta?.displayName?.trim()
-    ? profileMeta.displayName
-    : `${address.slice(0, 6)}…${address.slice(-4)}`;
+  const displayName =
+    knownLabel ??
+    (profileMeta?.displayName?.trim()
+      ? profileMeta.displayName
+      : `${address.slice(0, 6)}…${address.slice(-4)}`);
 
-  const avatarUrl = profileMeta?.avatarUrl;
+  const avatarUrl = knownLabel ? undefined : profileMeta?.avatarUrl;
   const initials = address.slice(2, 4).toUpperCase();
 
   const handleClick = (e: React.MouseEvent) => {
+    // Known contract addresses are not clickable — no profile page
+    if (knownLabel) {
+      e.stopPropagation();
+      e.preventDefault();
+      return;
+    }
     // Prevent the parent card <Link> from navigating to the token page
     e.stopPropagation();
     e.preventDefault();
@@ -41,8 +55,8 @@ export function CreatorBadge({ address }: CreatorBadgeProps) {
     <button
       type="button"
       onClick={handleClick}
-      className="inline-flex items-center gap-[5px] hover:opacity-80 transition-opacity w-fit bg-transparent border-none p-0 cursor-pointer"
-      title={`View profile of ${displayName}`}
+      className={`inline-flex items-center gap-[5px] transition-opacity w-fit bg-transparent border-none p-0 ${knownLabel ? "cursor-default" : "hover:opacity-80 cursor-pointer"}`}
+      title={knownLabel ? displayName : `View profile of ${displayName}`}
     >
       {/* Avatar */}
       <span

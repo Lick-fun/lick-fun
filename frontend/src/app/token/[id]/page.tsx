@@ -123,6 +123,8 @@ export default function TokenDetailPage() {
   const displayName = tokenName || token.id.slice(0, 10) + "...";
   const displaySymbol = tokenSymbol || "???";
   const shortAddr = `${tokenId.slice(0, 6)}...${tokenId.slice(-4)}`;
+  const founderTokenAddress = process.env.NEXT_PUBLIC_FOUNDER_TOKEN_ADDRESS;
+  const isFounderToken = !!founderTokenAddress && tokenId.toLowerCase() === founderTokenAddress.toLowerCase();
 
   return (
     <div className="max-w-7xl mx-auto pl-sidebar pr-4 pb-20">
@@ -225,6 +227,24 @@ export default function TokenDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Founder burn notice — only shown on the founder token page */}
+          {isFounderToken && (
+            <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 px-4 py-3 flex items-center gap-3">
+              <span className="text-lg">🔥</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs text-figma-white font-semibold">Dev wallet sent to burn address</span>
+              </div>
+              <a
+                href="https://monadvision.com/tx/0x4c34c6facbe1e662d6940a8da22764e86d28f083a54bb6633518e6a3b14f6d05"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-orange-500/40 bg-orange-500/10 text-orange-400 hover:text-orange-300 hover:border-orange-400/60 text-[11px] font-semibold transition-colors no-underline"
+              >
+                View Tx ↗
+              </a>
+            </div>
+          )}
 
           {/* Chart card */}
           <div className="rounded-xl border border-figma-card bg-figma-card p-0 overflow-hidden">

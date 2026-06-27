@@ -88,11 +88,23 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
         </span>
       </div>
 
-      {/* Founder badge */}
-      <div className="relative z-10 flex items-center gap-2">
-        <span className="text-figma-xs px-2 py-0.5 rounded-pill bg-figma-green/20 text-figma-green font-semibold">
-          ⭐ Founder
-        </span>
+      {/* Founder badge + burn notice */}
+      <div className="relative z-10 flex flex-col items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-figma-xs px-2 py-0.5 rounded-pill bg-figma-green/20 text-figma-green font-semibold">
+            ⭐ Founder
+          </span>
+        </div>
+        <a
+          href="https://monadvision.com/tx/0x4c34c6facbe1e662d6940a8da22764e86d28f083a54bb6633518e6a3b14f6d05"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-1 px-2.5 py-0.5 rounded-pill bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:text-orange-300 hover:border-orange-400/50 transition-colors no-underline"
+          style={{ fontSize: "10px", fontWeight: 600 }}
+        >
+          🔥 Dev wallet sent to burn address ↗
+        </a>
       </div>
 
       {/* Token avatar (placeholder = locked circle, live = real avatar) */}
