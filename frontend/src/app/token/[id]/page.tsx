@@ -488,11 +488,11 @@ export default function TokenDetailPage() {
             )}
 
             {/* Social links */}
-            {(ipfsMeta?.telegram || ipfsMeta?.twitter || ipfsMeta?.website) && (
+            {(ipfsMeta?.telegram || ipfsMeta?.twitter || ipfsMeta?.website || isFounderToken) && (
               <div className="flex items-center gap-2 mb-3">
-                {ipfsMeta.telegram && (
+                {(ipfsMeta?.telegram || isFounderToken) && (
                   <a
-                    href={ipfsMeta.telegram}
+                    href={isFounderToken ? "https://t.me/Lickfun_xyz" : ipfsMeta.telegram}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-figma-surface hover:bg-figma-surface/80 transition-colors text-figma-muted hover:text-figma-white text-xs"
