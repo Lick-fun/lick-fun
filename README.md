@@ -1,4 +1,4 @@
-﻿# Lick.fun
+﻿# Lickfun.xyz
 
 > A meme lake on liquidity fun. Social-first token launchpad on Monad with earned creator reputation.
 
@@ -14,7 +14,7 @@
 
 ## Overview
 
-Lick.fun is a social-first token launchpad on [Monad](https://monad.xyz) (MON). It uses a bonding-curve system to bootstrap liquidity for new tokens, then graduates successful ones to a built-in Uniswap V2-style DEX. The core innovation is earned creator reputation — a portable, multi-wallet Profile that replaces hype with on-chain track records.
+Lickfun.xyz is a social-first token launchpad on [Monad](https://monad.xyz) (MON). It uses a bonding-curve system to bootstrap liquidity for new tokens, then graduates successful ones to a built-in Uniswap V2-style DEX. The core innovation is earned creator reputation — a portable, multi-wallet Profile that replaces hype with on-chain track records.
 
 No open posting feed. No shilling. Your behavior is your content.
 

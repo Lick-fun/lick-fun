@@ -1,5 +1,5 @@
 /**
- * Lick.fun Reputation Engine — Core Scoring Module
+ * Lickfun.xyz Reputation Engine — Core Scoring Module
  *
  * Computes profile reputation scores using a weighted multi-factor model
  * with sigmoid normalization to 0-100.  Fully deterministic: same inputs
@@ -197,7 +197,7 @@ export function computeScore(
   const rawScore = computeRawScore(inputs);
   const reputation = sigmoid(rawScore);
   const tier = computeTier(reputation);
-  const badges = computeBadges(inputs, reputation, tokenDiversityData);
+  const badges = computeBadges(inputs, reputation, tokenDiversityData, address);
 
   return {
     address,

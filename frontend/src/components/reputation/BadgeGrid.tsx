@@ -8,7 +8,11 @@ interface BadgeGridProps {
   className?: string;
 }
 
+/** Badges that are completely hidden on profiles where they are not earned. */
+const EXCLUSIVE_BADGES = new Set<Badge>(["Founder"]);
+
 const ALL_BADGES: Badge[] = [
+  "Founder",
   "First Token",
   "Triple Graduate",
   "Deca Graduate",
@@ -22,6 +26,7 @@ const ALL_BADGES: Badge[] = [
 ];
 
 const BADGE_ICONS: Record<Badge, string> = {
+  "Founder": "🏅",
   "First Token": "🚀",
   "Triple Graduate": "🎓",
   "Deca Graduate": "🏆",
@@ -35,6 +40,7 @@ const BADGE_ICONS: Record<Badge, string> = {
 };
 
 const BADGE_DESCRIPTIONS: Record<Badge, string> = {
+  "Founder": "Lickfun.xyz founding developer",
   "First Token": "Launched your first token",
   "Triple Graduate": "Three or more tokens graduated to DEX",
   "Deca Graduate": "Ten or more tokens graduated to DEX",
@@ -54,6 +60,8 @@ export function BadgeGrid({ earned, className }: BadgeGridProps) {
     <div className={cn("grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3", className)}>
       {ALL_BADGES.map((badge) => {
         const isEarned = earnedSet.has(badge);
+        // Exclusive badges (e.g. Founder) are hidden entirely on profiles that haven't earned them.
+        if (!isEarned && EXCLUSIVE_BADGES.has(badge)) return null;
         return (
           <div
             key={badge}

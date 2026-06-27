@@ -308,6 +308,23 @@ export const QUERY_CHART_TRADES = gql`
   ${TRADE_FRAGMENT}
 `;
 
+/**
+ * Fetches all trader addresses for a token (deduplicated on the client).
+ * Uses a high limit to capture every wallet that has ever traded.
+ * Balance is determined on-chain via balanceOf multicall.
+ */
+export const QUERY_TRADERS_BY_TOKEN = gql`
+  query GetTradersByToken($tokenId: String!, $limit: Int!) {
+    Trade(
+      where: { token_id: { _eq: $tokenId } }
+      order_by: { blockTimestamp: desc }
+      limit: $limit
+    ) {
+      trader
+    }
+  }
+`;
+
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Prediction Market Queries                                                       */
 /* ──────────────────────────────────────────────────────────────────────────────── */

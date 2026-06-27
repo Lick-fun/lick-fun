@@ -1,5 +1,5 @@
 /**
- * Lick.fun Reputation Engine — Type Definitions
+ * Lickfun.xyz Reputation Engine — Type Definitions
  * Stage 4: Pure off-chain scoring, badges, tiers, and Merkle anchor.
  *
  * Browser-safe copy of reputation/src/types.ts (no node:crypto deps).
@@ -53,6 +53,7 @@ export interface ProfileEntity {
 }
 
 export type Badge =
+  | "Founder"
   | "First Token"
   | "Triple Graduate"
   | "Deca Graduate"

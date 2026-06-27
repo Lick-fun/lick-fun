@@ -1,5 +1,5 @@
 /**
- * Lick.fun Reputation Engine — Badge System (browser-safe)
+ * Lickfun.xyz Reputation Engine — Badge System (browser-safe)
  *
  * Badges are milestone-based and never claimed. They are computed
  * deterministically from scoring inputs and final reputation.
@@ -16,16 +16,29 @@ const OG_MIN_GRADS = 3;
 const NEVER_RUG_MIN_AGE = 30;
 const VERIFIED_FOUNDER_MIN_SCORE = 70;
 
+/** The one and only address that holds the Founder badge. */
+const FOUNDER_ADDRESS = "0xb2da54bb8d5676247ef83354328c481d518fbb0c";
+
 function hasRugPenalty(inputs: ScoringInputs): boolean {
   return inputs.rugEvents.length > 0;
 }
 
+/**
+ * @param profileAddress - optional wallet address used to grant the hardcoded Founder badge.
+ */
 export function computeBadges(
   inputs: ScoringInputs,
   reputation: number,
-  tokenDiversityData: TokenDiversityData[] = []
+  tokenDiversityData: TokenDiversityData[] = [],
+  profileAddress?: string
 ): Badge[] {
   const badges: Badge[] = [];
+
+  // "Founder" — exclusive to the Lickfun.xyz deployer wallet. Not earnable by anyone else.
+  if (profileAddress?.toLowerCase() === FOUNDER_ADDRESS) {
+    badges.push("Founder");
+  }
+
   const { tokenCount, graduatedCount } = inputs;
 
   if (tokenCount >= 1) badges.push("First Token");

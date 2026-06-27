@@ -1,12 +1,12 @@
-﻿# Lick.fun
+﻿# Lickfun.xyz
 
 A meme lake on liquidity fun. Social-first token launchpad on Monad with earned creator reputation.
 
 ---
 
-## What is Lick.fun?
+## What is Lickfun.xyz?
 
-Lick.fun is a token launchpad where your on-chain behavior is your content. No open posting feed. No shilling. Creators build a portable reputation score from their actual track record — graduation rates, lock fulfillment, pre-buy honesty — and that score unlocks real platform benefits.
+Lickfun.xyz is a token launchpad where your on-chain behavior is your content. No open posting feed. No shilling. Creators build a portable reputation score from their actual track record — graduation rates, lock fulfillment, pre-buy honesty — and that score unlocks real platform benefits.
 
 Tokens launch on a bonding curve, graduate to a built-in V2-style DEX at 100K MON, and LP tokens are burned to `0xdead` at graduation — permanent liquidity, zero rug risk.
 

@@ -27,6 +27,8 @@ import { BetForm } from "@/components/markets/BetForm";
 import { cn } from "@/lib/utils";
 import { useFeeConfig } from "@/lib/hooks/useFeeConfig";
 import { FeeOverviewModal } from "@/components/token/FeeOverviewModal";
+import { CreatorBadge } from "@/components/ui/CreatorBadge";
+import { useTokenHolders } from "@/lib/hooks/useTokenHolders";
 
 export default function TokenDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -56,8 +58,18 @@ export default function TokenDetailPage() {
   // DEX pair: checks GraduationRouter.tokenToPair — polls every 5s
   const { pairAddress } = useTokenPair(tokenId as `0x${string}`);
 
+  const { holders, isLoading: holdersLoading } = useTokenHolders(
+    tokenId,
+    token?.soldTokens,
+    token?.realMon,
+    monUsdPrice
+  );
+
   // Chart tab: "price" | "curve"
   const [chartTab, setChartTab] = useState<"price" | "curve">("price");
+
+  // Activity tab: "trades" | "holders"
+  const [activityTab, setActivityTab] = useState<"trades" | "holders">("trades");
 
   // Price flash effect
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
@@ -259,54 +271,180 @@ export default function TokenDetailPage() {
             </div>
           </div>
 
-          {/* Recent Trades table */}
+          {/* Trades / Holders section */}
           <div className="rounded-xl border border-figma-card bg-figma-card overflow-hidden">
-            <div className="px-4 py-3 border-b border-figma-surface">
-              <h3 className="text-sm font-semibold text-figma-white">Trades</h3>
+            {/* Tab bar */}
+            <div className="flex items-center gap-0 border-b border-figma-surface">
+              <button
+                onClick={() => setActivityTab("trades")}
+                className={[
+                  "px-4 py-3 text-xs font-semibold transition-colors border-b-2 -mb-px",
+                  activityTab === "trades"
+                    ? "text-figma-white border-figma-green"
+                    : "text-figma-muted border-transparent hover:text-figma-white",
+                ].join(" ")}
+              >
+                Trades
+              </button>
+              <button
+                onClick={() => setActivityTab("holders")}
+                className={[
+                  "px-4 py-3 text-xs font-semibold transition-colors border-b-2 -mb-px",
+                  activityTab === "holders"
+                    ? "text-figma-white border-figma-green"
+                    : "text-figma-muted border-transparent hover:text-figma-white",
+                ].join(" ")}
+              >
+                Holders
+                {holders.length > 0 && (
+                  <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-figma-surface text-figma-muted text-[9px] font-bold">
+                    {holders.length}
+                  </span>
+                )}
+              </button>
             </div>
-            {trades.length === 0 ? (
-              <p className="text-xs text-figma-muted py-8 text-center">No trades yet — be the first!</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-figma-muted border-b border-figma-surface/50">
-                      <th className="text-left px-4 py-2 font-medium">Account</th>
-                      <th className="text-left px-4 py-2 font-medium">Type</th>
-                      <th className="text-right px-4 py-2 font-medium">MON</th>
-                      <th className="text-right px-4 py-2 font-medium">{displaySymbol}</th>
-                      <th className="text-right px-4 py-2 font-medium">Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trades.slice(0, 40).map((trade) => (
-                      <tr key={trade.id} className="border-b border-figma-surface/30 hover:bg-figma-surface/20 transition-colors">
-                        <td className="px-4 py-2.5 font-mono text-figma-muted">
-                          {formatAddress(trade.trader)}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${trade.isBuy ? "bg-figma-green/15 text-figma-green" : "bg-red-500/15 text-red-400"}`}>
-                            {trade.isBuy ? "BUY" : "SELL"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-mono text-figma-white">
-                          {trade.isBuy
-                            ? (Number(trade.amountIn) / 1e18).toFixed(3)
-                            : (Number(trade.amountOut) / 1e18).toFixed(3)}
-                        </td>
-                        <td className="px-4 py-2.5 text-right font-mono text-figma-muted">
-                          {trade.isBuy
-                            ? (Number(trade.amountOut) / 1e18).toFixed(0)
-                            : (Number(trade.amountIn) / 1e18).toFixed(0)}
-                        </td>
-                        <td className="px-4 py-2.5 text-right text-figma-muted">
-                          {formatTimeAgo(trade.blockTimestamp)}
-                        </td>
+
+            {activityTab === "trades" ? (
+              /* ── TRADES ── */
+              trades.length === 0 ? (
+                <p className="text-xs text-figma-muted py-8 text-center">No trades yet — be the first!</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-figma-muted border-b border-figma-surface/50">
+                        <th className="text-left px-4 py-2 font-medium">Account</th>
+                        <th className="text-left px-4 py-2 font-medium">Type</th>
+                        <th className="text-right px-4 py-2 font-medium">MON</th>
+                        <th className="text-right px-4 py-2 font-medium">USD</th>
+                        <th className="text-right px-4 py-2 font-medium">{displaySymbol}</th>
+                        <th className="text-right px-4 py-2 font-medium">Time</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {trades.slice(0, 40).map((trade) => {
+                        const isDev = !!creatorAddress && trade.trader.toLowerCase() === creatorAddress.toLowerCase();
+                        const monAmt = Number(trade.isBuy ? trade.amountIn : trade.amountOut) / 1e18;
+                        const usdAmt = monUsdPrice != null ? monAmt * monUsdPrice : null;
+                        return (
+                          <tr
+                            key={trade.id}
+                            className={cn(
+                              "border-b border-figma-surface/30 hover:bg-figma-surface/20 transition-colors",
+                              isDev && "bg-yellow-500/5"
+                            )}
+                          >
+                            <td className="px-4 py-2.5">
+                              <CreatorBadge address={trade.trader} />
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-1">
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${trade.isBuy ? "bg-figma-green/15 text-figma-green" : "bg-red-500/15 text-red-400"}`}>
+                                  {trade.isBuy ? "BUY" : "SELL"}
+                                </span>
+                                {isDev && (
+                                  <span className="px-1 py-0.5 rounded text-[9px] font-bold bg-yellow-500/20 text-yellow-400">
+                                    Dev
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-figma-white">
+                              {monAmt.toFixed(3)}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-figma-muted">
+                              {usdAmt != null ? `$${usdAmt.toFixed(2)}` : "—"}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-figma-muted">
+                              {trade.isBuy
+                                ? (Number(trade.amountOut) / 1e18).toFixed(0)
+                                : (Number(trade.amountIn) / 1e18).toFixed(0)}
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-figma-muted">
+                              {formatTimeAgo(trade.blockTimestamp)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : (
+              /* ── HOLDERS ── */
+              holdersLoading ? (
+                <div className="py-8 flex justify-center">
+                  <div className="w-5 h-5 border-2 border-figma-green/30 border-t-figma-green rounded-full animate-spin" />
+                </div>
+              ) : holders.length === 0 ? (
+                <p className="text-xs text-figma-muted py-8 text-center">No holders found.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-figma-muted border-b border-figma-surface/50">
+                        <th className="text-left px-4 py-2 font-medium">#</th>
+                        <th className="text-left px-4 py-2 font-medium">Holder</th>
+                        <th className="text-right px-4 py-2 font-medium">Balance</th>
+                        <th className="text-right px-4 py-2 font-medium">Value</th>
+                        <th className="text-right px-4 py-2 font-medium">% Supply</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {holders.map((holder, i) => {
+                        const isDevHolder = !!creatorAddress && holder.address.toLowerCase() === creatorAddress.toLowerCase();
+                        return (
+                          <tr
+                            key={holder.address}
+                            className={cn(
+                              "border-b border-figma-surface/30 hover:bg-figma-surface/20 transition-colors",
+                              isDevHolder && "bg-yellow-500/5"
+                            )}
+                          >
+                            <td className="px-4 py-2.5 text-figma-muted font-mono">{i + 1}</td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-1.5">
+                                <CreatorBadge address={holder.address} />
+                                {isDevHolder && (
+                                  <span className="px-1 py-0.5 rounded text-[9px] font-bold bg-yellow-500/20 text-yellow-400">
+                                    Dev
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-figma-white">
+                              {holder.balanceFormatted >= 1_000_000
+                                ? `${(holder.balanceFormatted / 1_000_000).toFixed(2)}M`
+                                : holder.balanceFormatted >= 1_000
+                                  ? `${(holder.balanceFormatted / 1_000).toFixed(2)}K`
+                                  : holder.balanceFormatted.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-mono text-figma-muted">
+                              {holder.valueUsd != null
+                                ? `$${holder.valueUsd.toFixed(2)}`
+                                : `${holder.valueMonFormatted.toFixed(3)} MON`}
+                            </td>
+                            <td className="px-4 py-2.5 text-right">
+                              <span
+                                className={cn(
+                                  "font-semibold",
+                                  holder.pctOfSupply >= 10
+                                    ? "text-red-400"
+                                    : holder.pctOfSupply >= 5
+                                      ? "text-yellow-400"
+                                      : "text-figma-muted"
+                                )}
+                              >
+                                {holder.pctOfSupply.toFixed(2)}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
             )}
           </div>
         </div>
@@ -408,7 +546,9 @@ export default function TokenDetailPage() {
               <div className="bg-figma-surface rounded-lg p-2 text-center">
                 <div className="text-[9px] text-figma-muted uppercase tracking-wide mb-0.5">Price USD</div>
                 <div className="text-xs font-bold text-figma-white font-mono">
-                  ${(token.price?.monPerToken * 0.4).toFixed(6)}
+                  {monUsdPrice != null
+                    ? `$${(token.price?.monPerToken * monUsdPrice).toFixed(6)}`
+                    : `${token.price?.monPerToken.toFixed(6)} MON`}
                 </div>
               </div>
               <div className="bg-figma-surface rounded-lg p-2 text-center">
