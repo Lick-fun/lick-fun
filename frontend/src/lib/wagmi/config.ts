@@ -4,13 +4,19 @@ import { http } from "wagmi";
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { defineChain } from "viem";
 
-// Monad chains (not built into wagmi/chains yet)
+// ─── Chain definitions ────────────────────────────────────────────────────────
+
 const monadTestnetChain = defineChain({
   id: 10143,
   name: "Monad Testnet",
   nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://testnet-rpc.monad.xyz"] },
+    default: {
+      http: [
+        process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC ||
+          "https://testnet-rpc.monad.xyz",
+      ],
+    },
   },
   blockExplorers: {
     default: { name: "Monad Explorer", url: "https://testnet.monadexplorer.com" },
@@ -23,12 +29,25 @@ const monadChain = defineChain({
   name: "Monad",
   nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
   rpcUrls: {
-    default: { http: ["https://rpc.monad.xyz"] },
+    default: {
+      http: [
+        process.env.NEXT_PUBLIC_MONAD_RPC || "https://rpc.monad.xyz",
+      ],
+    },
   },
   blockExplorers: {
     default: { name: "Monad Explorer", url: "https://monadexplorer.com" },
   },
 });
+
+// ─── Active chain selection ───────────────────────────────────────────────────
+// Set NEXT_PUBLIC_CHAIN_ID=143 in .env.local to switch to mainnet.
+// Default is 10143 (testnet) so existing dev setups are unaffected.
+
+const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 10143);
+const activeChain = chainId === 143 ? monadChain : monadTestnetChain;
+
+// ─── WalletConnect ────────────────────────────────────────────────────────────
 
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
@@ -42,11 +61,16 @@ if (!projectId) {
 export const wagmiConfig = getDefaultConfig({
   appName: "Lick.fun",
   projectId,
-  chains: [monadTestnetChain, monadChain],
+  // Primary chain is active, secondary is always available for wallet UX
+  chains: [activeChain, activeChain === monadChain ? monadTestnetChain : monadChain],
   ssr: true,
   transports: {
-    [monadTestnetChain.id]: http(),
-    [monadChain.id]: http(),
+    [monadTestnetChain.id]: http(
+      process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC || "https://testnet-rpc.monad.xyz"
+    ),
+    [monadChain.id]: http(
+      process.env.NEXT_PUBLIC_MONAD_RPC || "https://rpc.monad.xyz"
+    ),
   },
 });
 

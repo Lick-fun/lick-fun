@@ -29,7 +29,11 @@ async function readStore(): Promise<MetadataStore> {
 
 async function writeStore(store: MetadataStore): Promise<void> {
   await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
-  await fs.writeFile(DATA_FILE, JSON.stringify(store, null, 2), "utf-8");
+  const tmpFile = `${DATA_FILE}.tmp`;
+  // Atomic write: write to temp file first, then rename — prevents corruption
+  // if the process is interrupted mid-write.
+  await fs.writeFile(tmpFile, JSON.stringify(store, null, 2), "utf-8");
+  await fs.rename(tmpFile, DATA_FILE);
 }
 
 export async function POST(req: NextRequest) {

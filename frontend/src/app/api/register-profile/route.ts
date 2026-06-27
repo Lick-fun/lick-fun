@@ -53,7 +53,11 @@ async function readStore(): Promise<ProfileStore> {
 
 async function writeStore(store: ProfileStore): Promise<void> {
   await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
-  await fs.writeFile(DATA_FILE, JSON.stringify(store, null, 2), "utf-8");
+  const tmpFile = `${DATA_FILE}.tmp`;
+  // Atomic write: write to temp file first, then rename — prevents corruption
+  // if the process is interrupted mid-write.
+  await fs.writeFile(tmpFile, JSON.stringify(store, null, 2), "utf-8");
+  await fs.rename(tmpFile, DATA_FILE);
 }
 
 export async function POST(req: NextRequest) {
@@ -101,6 +105,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify the wallet signature to prove ownership
+    // ── Input validation ────────────────────────────────────────────────────
+    if (displayName !== undefined && displayName.trim().length > 50) {
+      return NextResponse.json(
+        { error: "Display name too long (max 50 characters)" },
+        { status: 400 }
+      );
+    }
+    if (avatarUri !== undefined && avatarUri.trim() !== "" && !avatarUri.startsWith("https://")) {
+      return NextResponse.json(
+        { error: "Avatar URI must start with https://" },
+        { status: 400 }
+      );
+    }
+
     const valid = await verifyMessage({
       address: walletAddress as `0x${string}`,
       message,

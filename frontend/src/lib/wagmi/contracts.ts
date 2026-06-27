@@ -9,6 +9,10 @@ import { type Abi } from "viem";
 
 export const FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
 export const PREDICTION_MARKET_ADDRESS = (process.env.NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const GRADUATION_ROUTER_ADDRESS = (process.env.NEXT_PUBLIC_GRADUATION_ROUTER_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const DEX_FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_DEX_FACTORY_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const WMON_ADDRESS = (process.env.NEXT_PUBLIC_WMON_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const LICK_ROUTER_ADDRESS = (process.env.NEXT_PUBLIC_LICK_ROUTER_ADDRESS || "0x0000000000000000000000000000000000000000") as `0x${string}`;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const PREDICTION_MARKET_DEPLOYED = PREDICTION_MARKET_ADDRESS !== ZERO_ADDRESS;
 
@@ -657,6 +661,263 @@ export function useSellToken() {
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Minimal ERC-20 ABI (approve + balanceOf — used by TradePanel sell flow)          */
 /* ──────────────────────────────────────────────────────────────────────────────── */
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* DEX ABIs (LickPair, LickFactory, GraduationRouter, LickRouter)                   */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+export const LickPairABI = [
+  {
+    type: "function",
+    name: "getReserves",
+    inputs: [],
+    outputs: [
+      { name: "_reserve0", type: "uint112", internalType: "uint112" },
+      { name: "_reserve1", type: "uint112", internalType: "uint112" },
+      { name: "_blockTimestampLast", type: "uint32", internalType: "uint32" },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "token0",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "token1",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+] as const satisfies Abi;
+
+export const LickFactoryABI = [
+  {
+    type: "function",
+    name: "getPair",
+    inputs: [
+      { name: "tokenA", type: "address", internalType: "address" },
+      { name: "tokenB", type: "address", internalType: "address" },
+    ],
+    outputs: [{ name: "pair", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+] as const satisfies Abi;
+
+export const GraduationRouterABI = [
+  {
+    type: "function",
+    name: "tokenToPair",
+    inputs: [{ name: "token", type: "address", internalType: "address" }],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "migrateLiquidity",
+    inputs: [{ name: "token", type: "address", internalType: "address" }],
+    outputs: [{ name: "pair", type: "address", internalType: "address" }],
+    stateMutability: "nonpayable",
+  },
+] as const satisfies Abi;
+
+export const LickRouterABI = [
+  {
+    type: "function",
+    name: "swapExactETHForTokens",
+    inputs: [
+      { name: "token", type: "address", internalType: "address" },
+      { name: "amountOutMin", type: "uint256", internalType: "uint256" },
+      { name: "to", type: "address", internalType: "address" },
+      { name: "deadline", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "amountOut", type: "uint256", internalType: "uint256" }],
+    stateMutability: "payable",
+  },
+  {
+    type: "function",
+    name: "swapExactTokensForETH",
+    inputs: [
+      { name: "token", type: "address", internalType: "address" },
+      { name: "amountIn", type: "uint256", internalType: "uint256" },
+      { name: "amountOutMin", type: "uint256", internalType: "uint256" },
+      { name: "to", type: "address", internalType: "address" },
+      { name: "deadline", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "amountOut", type: "uint256", internalType: "uint256" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "getAmountOut",
+    inputs: [
+      { name: "amountIn", type: "uint256", internalType: "uint256" },
+      { name: "reserveIn", type: "uint256", internalType: "uint256" },
+      { name: "reserveOut", type: "uint256", internalType: "uint256" },
+    ],
+    outputs: [{ name: "amountOut", type: "uint256", internalType: "uint256" }],
+    stateMutability: "pure",
+  },
+] as const satisfies Abi;
+
+/**
+ * V2 0.25% fee amount-out calculation (mirrors LickPair invariant).
+ * amountInWithFee = amountIn × 9975
+ * amountOut = (amountInWithFee × reserveOut) / (reserveIn × 10000 + amountInWithFee)
+ */
+export function getDexAmountOut(
+  amountIn: bigint,
+  reserveIn: bigint,
+  reserveOut: bigint
+): bigint {
+  if (amountIn === 0n || reserveIn === 0n || reserveOut === 0n) return 0n;
+  const amountInWithFee = amountIn * 9975n;
+  const numerator = amountInWithFee * reserveOut;
+  const denominator = reserveIn * 10000n + amountInWithFee;
+  return numerator / denominator;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* DEX Read Hooks                                                                   */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Read GraduationRouter.tokenToPair:
+ *  - address(0)  → not yet migrated
+ *  - address(1)  → migration in-progress (sentinel)
+ *  - other       → pair address (migrated)
+ */
+export function useTokenPair(tokenAddress: `0x${string}`) {
+  const { data, isLoading, refetch } = useReadContract({
+    address: GRADUATION_ROUTER_ADDRESS,
+    abi: GraduationRouterABI,
+    functionName: "tokenToPair",
+    args: [tokenAddress],
+    query: {
+      enabled: GRADUATION_ROUTER_ADDRESS !== ZERO_ADDRESS && !!tokenAddress,
+      // Poll every 5 seconds so the UI updates shortly after migration completes
+      refetchInterval: 5_000,
+    },
+  });
+  const raw = data as `0x${string}` | undefined;
+  const isMigrated =
+    !!raw &&
+    raw !== "0x0000000000000000000000000000000000000000" &&
+    raw !== "0x0000000000000000000000000000000000000001";
+  const pairAddress = isMigrated ? raw : undefined;
+  return { pairAddress, isMigrated, isLoading, refetch };
+}
+
+/**
+ * Read LickPair reserves and derive sorted (reserveWmon, reserveToken).
+ * Returns null values when the pair address is not yet known.
+ */
+export function usePairReserves(
+  pairAddress: `0x${string}` | undefined,
+  tokenAddress: `0x${string}`
+) {
+  const { data: reservesRaw } = useReadContract({
+    address: pairAddress,
+    abi: LickPairABI,
+    functionName: "getReserves",
+    query: { enabled: !!pairAddress, refetchInterval: 10_000 },
+  });
+  const { data: token0Raw } = useReadContract({
+    address: pairAddress,
+    abi: LickPairABI,
+    functionName: "token0",
+    query: { enabled: !!pairAddress },
+  });
+
+  if (!reservesRaw || !token0Raw) {
+    return { reserveWmon: 0n, reserveToken: 0n, dexPriceMonPerToken: 0 };
+  }
+
+  const [r0, r1] = reservesRaw as [bigint, bigint, number];
+  const token0 = token0Raw as `0x${string}`;
+
+  // Sort: which reserve corresponds to WMON and which to the LickToken
+  const [reserveWmon, reserveToken] =
+    token0.toLowerCase() === WMON_ADDRESS.toLowerCase()
+      ? [r0, r1]
+      : [r1, r0];
+
+  // Spot price: MON per token (both in 1e18, ratio cancels)
+  const dexPriceMonPerToken =
+    reserveToken > 0n ? Number(reserveWmon) / Number(reserveToken) : 0;
+
+  return { reserveWmon, reserveToken, dexPriceMonPerToken };
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
+/* DEX Write Hooks                                                                  */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+/** Trigger liquidity migration for a graduated token. */
+export function useMigrateLiquidity() {
+  const { writeContractAsync, isPending, isSuccess, error } = useWriteContract();
+
+  const migrate = async (tokenAddress: `0x${string}`) => {
+    return writeContractAsync({
+      address: GRADUATION_ROUTER_ADDRESS,
+      abi: GraduationRouterABI,
+      functionName: "migrateLiquidity",
+      args: [tokenAddress],
+    });
+  };
+
+  return { migrate, isPending, isSuccess, error };
+}
+
+/** Swap exact MON for LickToken via LickRouter (post-graduation DEX). */
+export function useDexBuy() {
+  const { writeContractAsync, isPending, error } = useWriteContract();
+
+  const dexBuy = async (
+    tokenAddress: `0x${string}`,
+    amountIn: bigint,       // native MON in wei
+    amountOutMin: bigint,   // min tokens out (slippage)
+    to: `0x${string}`,
+    deadlineSec?: number    // seconds from now, default 300
+  ) => {
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + (deadlineSec ?? 300));
+    return writeContractAsync({
+      address: LICK_ROUTER_ADDRESS,
+      abi: LickRouterABI,
+      functionName: "swapExactETHForTokens",
+      args: [tokenAddress, amountOutMin, to, deadline],
+      value: amountIn,
+    });
+  };
+
+  return { dexBuy, isPending, error };
+}
+
+/** Swap exact LickToken for native MON via LickRouter (post-graduation DEX). */
+export function useDexSell() {
+  const { writeContractAsync, isPending, error } = useWriteContract();
+
+  const dexSell = async (
+    tokenAddress: `0x${string}`,
+    amountIn: bigint,       // tokens in wei
+    amountOutMin: bigint,   // min MON out (slippage)
+    to: `0x${string}`,
+    deadlineSec?: number
+  ) => {
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + (deadlineSec ?? 300));
+    return writeContractAsync({
+      address: LICK_ROUTER_ADDRESS,
+      abi: LickRouterABI,
+      functionName: "swapExactTokensForETH",
+      args: [tokenAddress, amountIn, amountOutMin, to, deadline],
+    });
+  };
+
+  return { dexSell, isPending, error };
+}
 
 export const ERC20ABI = [
   {

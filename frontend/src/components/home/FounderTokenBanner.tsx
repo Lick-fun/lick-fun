@@ -3,12 +3,10 @@
 import Link from "next/link";
 import { TokenAvatar } from "@/components/ui/TokenImage";
 import {
-  formatMarketCapUsd,
   formatPriceChange,
-  formatTxCount,
-  formatVolume,
   type DecoratedToken,
 } from "@/lib/hooks/useData";
+import { formatMarketCapUsd, formatTxCount, formatVolume } from "@/lib/format";
 import { useMonUsdPrice } from "@/lib/hooks/useMonUsdPrice";
 
 interface FounderTokenBannerProps {

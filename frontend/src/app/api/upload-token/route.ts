@@ -101,9 +101,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing token symbol" }, { status: 400 });
     }
 
+    // ── File validation ──────────────────────────────────────────────────────
+    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+    const ALLOWED_MIME = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    const ALLOWED_EXT  = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
+
+    if (image.size > MAX_SIZE) {
+      return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
+    }
+    if (!ALLOWED_MIME.includes(image.type)) {
+      return NextResponse.json(
+        { error: "Invalid file type. Allowed: PNG, JPEG, WEBP, GIF" },
+        { status: 400 }
+      );
+    }
+    const imgExt = getExtension(image.name) || ".png";
+    if (!ALLOWED_EXT.includes(imgExt)) {
+      return NextResponse.json(
+        { error: "Invalid file extension. Allowed: .png, .jpg, .jpeg, .webp, .gif" },
+        { status: 400 }
+      );
+    }
+
     // 1. Upload image
     const imageBuffer = Buffer.from(await image.arrayBuffer());
-    const imageExt = getExtension(image.name) || ".png";
+    const imageExt = imgExt;
     const timestamp = Date.now();
     const safeName = sanitizeFilename(name.trim());
     const imageKey = `tokens/${safeName}-${timestamp}${imageExt}`;

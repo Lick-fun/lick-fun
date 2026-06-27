@@ -1,0 +1,13 @@
+[
+  {
+    "type": "event",
+    "name": "LiquidityMigrated",
+    "inputs": [
+      { "name": "token", "type": "address", "indexed": true },
+      { "name": "pair", "type": "address", "indexed": true },
+      { "name": "tokenLiquidity", "type": "uint256", "indexed": false },
+      { "name": "monLiquidity", "type": "uint256", "indexed": false }
+    ],
+    "anonymous": false
+  }
+]

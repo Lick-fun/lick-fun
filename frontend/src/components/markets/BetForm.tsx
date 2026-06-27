@@ -256,30 +256,60 @@ export function BetForm({
         {!isConnected ? (
           <ConnectButton />
         ) : canClaim ? (
-          <button
-            onClick={handleClaim}
-            disabled={isClaiming}
-            className="w-full py-3 rounded-lg font-semibold bg-figma-green hover:bg-figma-green/80 text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isClaiming ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Claiming...
-              </>
-            ) : (
-              <>
-                <Trophy className="w-4 h-4" />
-                Claim Winnings
-              </>
-            )}
-          </button>
+          <>
+            {/* Parimutuel payout preview: show estimated winnings from opposing pool */}
+            {(() => {
+              const userBet = outcome ? userYesBet : userNoBet;
+              const losingPool = outcome ? totalNoMON : totalYesMON;
+              const winningPool = outcome ? totalYesMON : totalNoMON;
+              const protocolFee = (losingPool * 200n) / 10000n;
+              const distributable = losingPool - protocolFee;
+              const payout = winningPool > 0n
+                ? (userBet * distributable) / winningPool
+                : 0n;
+              const payoutMon = Number(payout) / 1e18;
+              const yourStakeMon = Number(userBet) / 1e18;
+              return (
+                <div className="rounded-lg bg-figma-green/10 border border-figma-green/20 px-3 py-2 mb-3 text-xs space-y-1">
+                  <div className="flex justify-between text-figma-muted">
+                    <span>Your stake</span>
+                    <span className="font-mono text-figma-white">{yourStakeMon.toFixed(4)} MON</span>
+                  </div>
+                  <div className="flex justify-between text-figma-muted">
+                    <span>Winnings from opposing pool</span>
+                    <span className="font-mono text-figma-green">+{payoutMon.toFixed(4)} MON</span>
+                  </div>
+                  <p className="text-figma-muted pt-1 border-t border-figma-green/10">
+                    ⚠ Your original stake is not returned — this is parimutuel.
+                  </p>
+                </div>
+              );
+            })()}
+            <button
+              onClick={handleClaim}
+              disabled={isClaiming}
+              className="w-full py-3 rounded-lg font-semibold bg-figma-green hover:bg-figma-green/80 text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isClaiming ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Claiming...
+                </>
+              ) : (
+                <>
+                  <Trophy className="w-4 h-4" />
+                  Claim Winnings
+                </>
+              )}
+            </button>
+          </>
         ) : userWon && claimed ? (
           <p className="text-sm text-green-400 text-center py-3">
             Winnings already claimed
           </p>
         ) : (
           <p className="text-sm text-muted-foreground text-center py-3">
-            You didn't bet on the winning side.
+            You didn&apos;t bet on the winning side.
           </p>
         )}
 
@@ -319,6 +349,15 @@ export function BetForm({
       <h4 className="font-semibold text-foreground mb-4">
         Place Bet — {tokenName}
       </h4>
+
+      {/* Parimutuel payout explanation — shown once, clearly, before user bets */}
+      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 mb-4 text-xs text-amber-300 leading-relaxed">
+        <span className="font-semibold">How payouts work: </span>
+        Winners receive a share of the <span className="font-semibold">opposing pool</span>{" "}
+        (minus a 2% protocol fee). Your original stake is <span className="font-semibold">not returned</span>.
+        If your side has far more MON than the other, your net return may be less than you put in
+        — even if you win.
+      </div>
 
       {/* Token context header — only renders when caller passes token data */}
       {(tokenSymbol || tokenPrice !== undefined || tokenMarketCap !== undefined || tokenProgress !== undefined) && (

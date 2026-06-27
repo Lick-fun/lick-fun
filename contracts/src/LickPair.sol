@@ -2,6 +2,8 @@
 pragma solidity 0.8.27;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
@@ -11,7 +13,10 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  *      trades — they are bonding-curve-only. Standard V2 constant-product invariant.
  *      ERC-20 LP token is transferable.
  */
-contract LickPair is ERC20, ReentrancyGuard {
+contract LickPair is ERC20, ReentrancyGuard {    using SafeERC20 for IERC20;
+
+    /// @notice Dead address used to permanently lock the first MINIMUM_LIQUIDITY (audit L-01).
+    address private constant DEAD = address(0xdead);
     // ─── Constants ────────────────────────────────────────────────────────────
     uint256 public constant MINIMUM_LIQUIDITY = 1000;
     uint256 public constant FEE_NUMERATOR = 25;   // 0.25% = 25/10000
@@ -59,10 +64,10 @@ contract LickPair is ERC20, ReentrancyGuard {
 
     /**
      * @notice Called once by the factory to set token0 and token1.
-     * @dev Sorted addresses: token0 < token1.
+     * @dev Sorted addresses: token0 < token1. Idempotency-guarded (audit I-02).
      */
-    function initialize(address _token0, address _token1) external {
-        if (msg.sender != factory) revert Forbidden();
+    function initialize(address _token0, address _token1) external onlyFactory {
+        if (token0 != address(0) || token1 != address(0)) revert Forbidden();
         token0 = _token0;
         token1 = _token1;
     }
@@ -96,7 +101,7 @@ contract LickPair is ERC20, ReentrancyGuard {
         uint256 _totalSupply = totalSupply();
         if (_totalSupply == 0) {
             liquidity = _sqrt(amount0 * amount1) - MINIMUM_LIQUIDITY;
-            _mint(address(1), MINIMUM_LIQUIDITY); // permanently lock first MINIMUM_LIQUIDITY
+            _mint(DEAD, MINIMUM_LIQUIDITY); // permanently burn first MINIMUM_LIQUIDITY (audit L-01)
         } else {
             liquidity = _min(
                 (amount0 * _totalSupply) / _reserve0,
@@ -134,8 +139,8 @@ contract LickPair is ERC20, ReentrancyGuard {
         if (amount0 == 0 || amount1 == 0) revert InsufficientLiquidity();
 
         _burn(address(this), liquidity);
-        IERC20(_token0).transfer(to, amount0);
-        IERC20(_token1).transfer(to, amount1);
+        IERC20(_token0).safeTransfer(to, amount0);
+        IERC20(_token1).safeTransfer(to, amount1);
 
         balance0 = IERC20(_token0).balanceOf(address(this));
         balance1 = IERC20(_token1).balanceOf(address(this));
@@ -158,8 +163,8 @@ contract LickPair is ERC20, ReentrancyGuard {
         if (amount0Out > _reserve0 || amount1Out > _reserve1) revert InsufficientLiquidity();
 
         // Transfer outputs
-        if (amount0Out > 0) IERC20(token0).transfer(to, amount0Out);
-        if (amount1Out > 0) IERC20(token1).transfer(to, amount1Out);
+        if (amount0Out > 0) IERC20(token0).safeTransfer(to, amount0Out);
+        if (amount1Out > 0) IERC20(token1).safeTransfer(to, amount1Out);
 
         // Callback for flash swaps / data
         if (data.length > 0) {
@@ -198,6 +203,21 @@ contract LickPair is ERC20, ReentrancyGuard {
         _update(balance0, balance1, reserve0_, reserve1_);
     }
 
+    /**
+     * @notice Send any balance in excess of the tracked reserves to `to` (Uniswap V2 skim).
+     * @dev Used to remove tokens donated directly to the pair so they cannot skew the
+     *      first mint / opening price (audit H-01 / L-03).
+     * @param to Recipient of the excess token0/token1.
+     */
+    function skim(address to) external nonReentrant {
+        address _token0 = token0;
+        address _token1 = token1;
+        uint256 excess0 = IERC20(_token0).balanceOf(address(this)) - reserve0_;
+        uint256 excess1 = IERC20(_token1).balanceOf(address(this)) - reserve1_;
+        if (excess0 > 0) IERC20(_token0).safeTransfer(to, excess0);
+        if (excess1 > 0) IERC20(_token1).safeTransfer(to, excess1);
+    }
+
     // ─── Internal ──────────────────────────────────────────────────────────────
 
     function _update(uint256 balance0, uint256 balance1, uint112 _reserve0, uint112 _reserve1) private {
@@ -205,8 +225,9 @@ contract LickPair is ERC20, ReentrancyGuard {
         uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
         uint32 timeElapsed = blockTimestamp - blockTimestampLast;
         if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
-            // price accumulator update (standard V2 oracle)
-            // omitted for simplicity — can be added later
+            // NOTE (audit L-02): this pair intentionally provides NO on-chain TWAP oracle.
+            // price0CumulativeLast/price1CumulativeLast are deliberately not maintained.
+            // Do NOT build lending/derivative integrations that assume a V2-style oracle here.
         }
         reserve0_ = uint112(balance0);
         reserve1_ = uint112(balance1);

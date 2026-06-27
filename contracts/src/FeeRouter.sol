@@ -29,7 +29,10 @@ contract FeeRouter is ReentrancyGuard {
     // ─── State ────────────────────────────────────────────────────────────────
     mapping(address => FeeConfig) public tokenFeeConfigs;
     address public immutable graduationPool;
-    address public immutable owner;
+    address public owner;
+
+    /// @notice The launch Factory authorised to apply per-token fee configs (audit M-04).
+    address public factory;
 
     address public lpSupportVault;
     address public buybackBurnVault;
@@ -41,6 +44,9 @@ contract FeeRouter is ReentrancyGuard {
     event FeeConfigSet(address indexed token, FeeConfig config);
     event FeeRouted(address indexed token, uint256 totalAmount, uint256 creatorShare, uint256 lpShare, uint256 buybackShare, uint256 giftShare);
     event FeePending(address indexed recipient, uint256 amount);
+    event FactorySet(address indexed factory);
+    event StrandedSwept(address indexed to, uint256 amount);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     // ─── Errors ────────────────────────────────────────────────────────────────
     error AlreadyInitialized();
@@ -48,6 +54,9 @@ contract FeeRouter is ReentrancyGuard {
     error NotOwner();
     error ZeroAddress();
     error UseCustomConfig();
+    error NotAuthorized();
+    error AlreadySet();
+    error SweepFailed();
 
     constructor(address _graduationPool, address _lpSupportVault, address _buybackBurnVault) {
         if (_graduationPool == address(0)) revert ZeroAddress();
@@ -62,6 +71,33 @@ contract FeeRouter is ReentrancyGuard {
     modifier onlyOwner() {
         if (msg.sender != owner) revert NotOwner();
         _;
+    }
+
+    /// @notice Restricts config setters to the launch Factory or owner (audit M-04).
+    modifier onlyFactoryOrOwner() {
+        if (msg.sender != factory && msg.sender != owner) revert NotAuthorized();
+        _;
+    }
+
+    /**
+     * @notice Set the authorised launch Factory. Can only be set once (audit M-04).
+     * @dev FeeRouter is deployed before Factory, so the owner wires this during deploy.
+     */
+    function setFactory(address _factory) external onlyOwner {
+        if (factory != address(0)) revert AlreadySet();
+        if (_factory == address(0)) revert ZeroAddress();
+        factory = _factory;
+        emit FactorySet(_factory);
+    }
+
+    /**
+     * @notice Transfer ownership (admin role) to a new address, e.g. a multisig/timelock.
+     * @dev Used post-deploy to move admin off the deployer EOA (audit M-06).
+     */
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert ZeroAddress();
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
     }
 
     // ─── Preset Helpers ───────────────────────────────────────────────────────
@@ -175,7 +211,7 @@ contract FeeRouter is ReentrancyGuard {
      * @param creatorAddress The actual creator wallet
      * @param preset The preset enum value
      */
-    function applyPreset(address token, address creatorAddress, Preset preset) external {
+    function applyPreset(address token, address creatorAddress, Preset preset) external onlyFactoryOrOwner {
         FeeConfig memory config = getPresetConfig(preset, creatorAddress);
         _setFeeConfig(token, config);
     }
@@ -199,7 +235,7 @@ contract FeeRouter is ReentrancyGuard {
         uint256 buybackBurnBps,
         uint256 giftBps,
         address giftRecipient
-    ) external {
+    ) external onlyFactoryOrOwner {
         FeeConfig memory config = FeeConfig({
             creatorShareBps: creatorShareBps,
             lpSupportBps: lpSupportBps,
@@ -308,5 +344,20 @@ contract FeeRouter is ReentrancyGuard {
         if (_buybackBurnVault == address(0)) revert ZeroAddress();
         lpSupportVault = _lpSupportVault;
         buybackBurnVault = _buybackBurnVault;
+    }
+
+    /**
+     * @notice Sweep MON that arrived outside of {receiveCreatorFee} and is otherwise stranded.
+     * @dev The bare {receive} accepts untagged MON which cannot be routed; this owner-only
+     *      sweep recovers it instead of leaving it locked (audit L-05). It does not touch
+     *      pull-payment balances, which are tracked separately and withdrawn via {withdraw}.
+     * @param to Recipient of the swept MON.
+     * @param amount Amount of MON (wei) to sweep.
+     */
+    function sweepStranded(address to, uint256 amount) external onlyOwner {
+        if (to == address(0)) revert ZeroAddress();
+        (bool ok, ) = payable(to).call{value: amount}("");
+        if (!ok) revert SweepFailed();
+        emit StrandedSwept(to, amount);
     }
 }

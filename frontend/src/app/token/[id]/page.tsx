@@ -10,6 +10,7 @@ import {
   formatTimeAgo, formatAddress,
   computeReputation,
 } from "@/lib/hooks/useData";
+import { useTokenPair } from "@/lib/wagmi/contracts";
 import { TradePanel } from "@/components/token/TradePanel";
 import { CurveChart } from "@/components/token/CurveChart";
 // PriceChart uses lightweight-charts which accesses window — must be client-only
@@ -48,6 +49,8 @@ export default function TokenDetailPage() {
   const { bars, resolution, setResolution, isLoading: barsLoading } = useTokenPriceBars(tokenId);
   const { data: ipfsMeta } = useTokenIpfsMeta(tokenId);
   const { data: monUsdPrice } = useMonUsdPrice();
+  // DEX pair: checks GraduationRouter.tokenToPair — polls every 5s
+  const { pairAddress } = useTokenPair(tokenId as `0x${string}`);
 
   // Chart tab: "price" | "curve"
   const [chartTab, setChartTab] = useState<"price" | "curve">("price");
@@ -281,6 +284,8 @@ export default function TokenDetailPage() {
             soldTokens={token.soldTokens}
             monPerToken={token.price.monPerToken}
             curveAddress={token.curve}
+            graduated={token.graduated}
+            pairAddress={pairAddress}
           />
 
           {/* Bonding Curve progress */}

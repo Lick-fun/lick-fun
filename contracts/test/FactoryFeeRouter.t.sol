@@ -29,8 +29,8 @@ contract FactoryFeeRouterTest is Test {
 
     function setUp() public {
         // Deploy vaults
-        vaultLP = new VaultLPSupport();
-        vaultBB = new VaultBuybackBurn();
+        vaultLP = new VaultLPSupport(address(this));
+        vaultBB = new VaultBuybackBurn(address(this));
 
         // Deploy FeeRouter (test contract is owner)
         feeRouter = new FeeRouter(
@@ -42,6 +42,8 @@ contract FactoryFeeRouterTest is Test {
         // Deploy Factory
         factory = new Factory(deployer);
         factory.setFeeRouter(address(feeRouter));
+        // audit M-04: authorise Factory to apply per-token fee configs.
+        feeRouter.setFactory(address(factory));
     }
 
     /// @notice Helper: create a token + curve where creator fee goes to FeeRouter.

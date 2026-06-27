@@ -92,9 +92,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ── File validation ──────────────────────────────────────────────────────
+    const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+    const ALLOWED_MIME = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    const ALLOWED_EXT  = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
+
+    if (avatar.size > MAX_SIZE) {
+      return NextResponse.json({ error: "File too large (max 5 MB)" }, { status: 400 });
+    }
+    if (!ALLOWED_MIME.includes(avatar.type)) {
+      return NextResponse.json(
+        { error: "Invalid file type. Allowed: PNG, JPEG, WEBP, GIF" },
+        { status: 400 }
+      );
+    }
+    const avatarExtCheck = getExtension(avatar.name);
+    if (!ALLOWED_EXT.includes(avatarExtCheck)) {
+      return NextResponse.json(
+        { error: "Invalid file extension. Allowed: .png, .jpg, .jpeg, .webp, .gif" },
+        { status: 400 }
+      );
+    }
+
     // Upload avatar to Storj
     const avatarBuffer = Buffer.from(await avatar.arrayBuffer());
-    const avatarExt = getExtension(avatar.name);
+    const avatarExt = avatarExtCheck;
     const timestamp = Date.now();
     const safeWallet = walletAddress.toLowerCase().replace(/[^a-z0-9]/g, "");
     const avatarKey = `profiles/${safeWallet}-${timestamp}${avatarExt}`;

@@ -139,20 +139,37 @@ contract GraduationRouter is ReentrancyGuard {
             pair = existingPair;
         }
 
-        // ── 9. Transfer liquidity to pair ──
+        // ── 9. Neutralise first-mint donation manipulation (audit H-01) ──
+        // The pair address is a deterministic CREATE2 address, so an attacker can
+        // transfer token/WETH to it before migration to skew the opening price.
+        // Skim away any pre-existing balance and assert reserves are zero so the
+        // opening price is set solely from the curve snapshot (monAmount / tokenBalance).
+        {
+            (uint112 r0, uint112 r1,) = LickPair(pair).getReserves();
+            require(r0 == 0 && r1 == 0, "PAIR_NOT_EMPTY");
+            uint256 strayToken = IERC20(token).balanceOf(pair);
+            uint256 strayWeth = IERC20(weth).balanceOf(pair);
+            if (strayToken > 0 || strayWeth > 0) {
+                // Send donated tokens to 0xdead so they cannot influence the first mint.
+                LickPair(pair).skim(address(0xdead));
+            }
+        }
+
+        // ── 10. Transfer liquidity to pair ──
         IERC20(token).safeTransfer(pair, tokenBalance);
         // Use the exact snapshotted monAmount (not balanceOf) to avoid stray WETH
         // contaminating the pair's initial price.
         IERC20(weth).safeTransfer(pair, monAmount);
 
-        // ── 10. Mint LP tokens ──
+        // ── 11. Mint LP tokens ──
         uint256 lpAmount = LickPair(pair).mint(address(this));
+        require(lpAmount > 0, "NO_LP_MINTED"); // audit L-04
 
-        // ── 11. Update final state ──
+        // ── 12. Update final state ──
         tokenToPair[token] = pair;
 
-        // ── 12. Burn LP tokens — send to 0xdead ──
-        IERC20(pair).transfer(address(0xdead), lpAmount);
+        // ── 13. Burn LP tokens — send to 0xdead ──
+        IERC20(pair).safeTransfer(address(0xdead), lpAmount); // audit L-04: checked transfer
 
         emit LiquidityMigrated(token, pair, tokenBalance, monAmount);
     }

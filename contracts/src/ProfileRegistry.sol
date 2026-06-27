@@ -43,6 +43,7 @@ contract ProfileRegistry {
     event WalletLinked(uint256 indexed profileId, address indexed wallet, uint256 bond);
     event WalletUnlinked(uint256 indexed profileId, address indexed wallet);
     event MerkleRootAnchored(bytes32 indexed root, uint256 timestamp);
+    event MerkleAnchorRotated(address indexed newAnchor);
 
     // ═══════════════════════════════════════════════════════════
     // Constructor
@@ -110,9 +111,11 @@ contract ProfileRegistry {
 
         emit WalletUnlinked(profileId, msg.sender);
 
-        // External call last (CEI)
+        // External call last (CEI). Use a checked low-level call instead of .transfer so
+        // contract wallets whose receive() costs >2300 gas can still reclaim their bond (audit M-07).
         if (refundAmount > 0) {
-            payable(msg.sender).transfer(refundAmount);
+            (bool ok, ) = payable(msg.sender).call{value: refundAmount}("");
+            require(ok, "REFUND_FAILED");
         }
     }
 
@@ -121,14 +124,26 @@ contract ProfileRegistry {
     // ═══════════════════════════════════════════════════════════
 
     /// @notice Post the daily Merkle root from the off-chain reputation engine
-    /// @param root The new Merkle root
+    /// @param root The new Merkle root (must be non-zero — audit L-07)
     function setMerkleRoot(bytes32 root) external {
         require(msg.sender == merkleAnchor, "Only merkle anchor");
+        require(root != bytes32(0), "ZERO_ROOT");
 
         dailyMerkleRoot = root;
         lastAnchorTimestamp = block.timestamp;
 
         emit MerkleRootAnchored(root, block.timestamp);
+    }
+
+    /// @notice Rotate the off-chain reputation anchor key (audit L-07).
+    /// @dev Allows recovery if the anchor key is lost or compromised. Only the current
+    ///      anchor may rotate to a new non-zero anchor.
+    /// @param newAnchor The new merkle anchor address
+    function setMerkleAnchor(address newAnchor) external {
+        require(msg.sender == merkleAnchor, "Only merkle anchor");
+        require(newAnchor != address(0), "ZERO_ANCHOR");
+        merkleAnchor = newAnchor;
+        emit MerkleAnchorRotated(newAnchor);
     }
 
     // ═══════════════════════════════════════════════════════════

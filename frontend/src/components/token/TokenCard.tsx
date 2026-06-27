@@ -265,6 +265,7 @@ export function TokenCard({
             className="h-full rounded-full"
             style={{
               width: `${progress}%`,
+              minWidth: progress > 0 ? "4px" : "0",
               background: isAnimated
                 ? "linear-gradient(90deg, #6E44D2 0%, #9B6FFF 100%)"
                 : "linear-gradient(90deg, #2CC054 0%, #70E000 100%)",

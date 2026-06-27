@@ -122,6 +122,10 @@ contract BondingCurve {
         uint256 _startTime,
         address _graduationRouter
     ) {
+        // audit L-06: validate critical addresses (graduationRouter == 0 is allowed = migration disabled)
+        require(_token != address(0), "ZERO_TOKEN");
+        require(_protocolFeeReceiver != address(0), "ZERO_PROTOCOL");
+        require(_creator != address(0), "ZERO_CREATOR");
         token = _token;
         protocolFeeReceiver = _protocolFeeReceiver;
         creator = _creator;
@@ -336,8 +340,8 @@ contract BondingCurve {
     /// @dev    Only callable by the configured graduationRouter. Transfers all remaining
     ///         tokens and realMon to the router for DEX liquidity migration.
     function approveMigration() external nonReentrant {
+        // audit G-02: msg.sender == graduationRouter already implies graduationRouter != 0
         require(msg.sender == graduationRouter, "NOT_ROUTER");
-        require(graduationRouter != address(0), "ROUTER_NOT_SET");
         require(graduated, "NOT_GRADUATED");
 
         // ── Effects: snapshot state (CEI pattern) ──

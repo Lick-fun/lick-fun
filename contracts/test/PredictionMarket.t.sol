@@ -166,6 +166,8 @@ contract PredictionMarketTest is Test {
         market.betNo{value: 15 ether}(token);
 
         mockCurve.setGraduated(false);
+        // audit H-04: a non-graduated (NO) market can only be resolved after the window closes.
+        vm.warp(block.timestamp + market.BETTING_WINDOW() + 1);
         market.resolveMarket(token);
 
         (,,,, bool resolved, bool outcome,,) = market.markets(token);
@@ -255,8 +257,9 @@ contract PredictionMarketTest is Test {
         vm.prank(bob);
         market.betNo{value: 20 ether}(token);
 
-        // NO wins (doesn't graduate)
+        // NO wins (doesn't graduate) — audit H-04: must wait for the window to close.
         mockCurve.setGraduated(false);
+        vm.warp(block.timestamp + market.BETTING_WINDOW() + 1);
         market.resolveMarket(token);
 
         uint256 bobBalanceBefore = bob.balance;

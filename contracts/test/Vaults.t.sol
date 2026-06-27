@@ -11,8 +11,8 @@ contract VaultsTest is Test {
     VaultBuybackBurn vaultBB;
 
     function setUp() public {
-        vaultLP = new VaultLPSupport();
-        vaultBB = new VaultBuybackBurn();
+        vaultLP = new VaultLPSupport(address(this));
+        vaultBB = new VaultBuybackBurn(address(this));
     }
 
     // ─── VaultLPSupport ───────────────────────────────────────────────────────

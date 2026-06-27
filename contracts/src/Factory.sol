@@ -17,7 +17,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  */
 contract Factory {
     // ─── State ───────────────────────────────────────────────────────────────
-    address public immutable owner;
+    address public owner;
     address public immutable protocolTreasury;
     address payable public feeRouter;
     address payable public predictionMarket;
@@ -30,6 +30,8 @@ contract Factory {
         uint256 createdAt;
     }
 
+    /// @dev NOTE (audit G-01): `tokens` grows unbounded with every createToken.
+    ///      It must NEVER be iterated on-chain — enumeration is for off-chain indexers only.
     TokenInfo[] public tokens;
     mapping(address => address) public tokenToCurve;
 
@@ -38,6 +40,7 @@ contract Factory {
     event FeeRouterSet(address indexed feeRouter);
     event PredictionMarketSet(address indexed predictionMarket);
     event GraduationRouterSet(address indexed graduationRouter);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     // ─── Errors ──────────────────────────────────────────────────────────────
     error ZeroAddress();
@@ -53,6 +56,16 @@ contract Factory {
         if (_protocolTreasury == address(0)) revert ZeroAddress();
         protocolTreasury = _protocolTreasury;
         owner = msg.sender;
+    }
+
+    /**
+     * @notice Transfer ownership (admin role) to a new address, e.g. a multisig/timelock.
+     * @dev Used post-deploy to move admin off the deployer EOA (audit M-06).
+     */
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert ZeroAddress();
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
     }
 
     /**
@@ -104,6 +117,7 @@ contract Factory {
         address creatorAddress,
         uint256 startTime
     ) external returns (address tokenAddr, address curveAddr) {
+        if (creatorAddress == address(0)) revert ZeroAddress(); // audit H-03
         uint256 st = startTime == 0 ? block.timestamp : startTime;
 
         // Deploy token
@@ -160,6 +174,7 @@ contract Factory {
         FeeRouter.Preset preset
     ) external returns (address tokenAddr, address curveAddr) {
         if (feeRouter == address(0)) revert ZeroAddress();
+        if (creatorAddress == address(0)) revert ZeroAddress(); // audit H-03
         uint256 st = startTime == 0 ? block.timestamp : startTime;
 
         // Deploy token
@@ -228,6 +243,7 @@ contract Factory {
         address giftRecipient
     ) external returns (address tokenAddr, address curveAddr) {
         if (feeRouter == address(0)) revert ZeroAddress();
+        if (creatorAddress == address(0)) revert ZeroAddress(); // audit H-03
         uint256 st = startTime == 0 ? block.timestamp : startTime;
 
         // Deploy token

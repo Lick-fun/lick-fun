@@ -11,10 +11,15 @@ import "./LickPair.sol";
  */
 contract LickFactory {
     // ─── State ────────────────────────────────────────────────────────────────
+    /// @dev NOTE (audit G-01): `allPairs` grows unbounded with every pair created.
+    ///      It must NEVER be iterated on-chain — enumeration is for off-chain indexers only.
     mapping(address => mapping(address => address)) public getPair;
     address[] public allPairs;
     address public graduationRouter;
     address public immutable owner;
+
+    /// @notice Once true, the graduation router can no longer be changed (audit M-01).
+    bool public routerLocked;
 
     /// @notice Returns the number of pairs deployed.
     function allPairsLength() external view returns (uint256) {
@@ -23,12 +28,16 @@ contract LickFactory {
 
     // ─── Events ────────────────────────────────────────────────────────────────
     event PairCreated(address indexed token0, address indexed token1, address pair, uint256 allPairsLength);
+    event GraduationRouterSet(address indexed router);
+    event RouterLocked();
 
     // ─── Errors ────────────────────────────────────────────────────────────────
     error IdenticalAddresses();
     error ZeroAddress();
     error PairExists();
     error Unauthorized();
+    error AlreadyLocked();
+    error Create2Failed();
 
     // ─── Modifiers ──────────────────────────────────────────────────────────────
     modifier onlyRouter() {
@@ -42,13 +51,28 @@ contract LickFactory {
     }
 
     /**
-     * @notice Sets the graduation router address. Can only be called once.
+     * @notice Sets the graduation router address. Disabled once {lockRouter} is called.
+     * @dev The deploy script sets the deployer as a temporary router, then re-points to
+     *      the real GraduationRouter and calls {lockRouter} to make it permanent (audit M-01).
      * @param _router The GraduationRouter address
      */
     function setGraduationRouter(address _router) external {
         if (msg.sender != owner) revert Unauthorized();
+        if (routerLocked) revert AlreadyLocked();
         if (_router == address(0)) revert ZeroAddress();
         graduationRouter = _router;
+        emit GraduationRouterSet(_router);
+    }
+
+    /**
+     * @notice Permanently lock the graduation router so it can never be changed again.
+     * @dev One-way switch. Call after the final {setGraduationRouter} during deploy handoff.
+     */
+    function lockRouter() external {
+        if (msg.sender != owner) revert Unauthorized();
+        if (routerLocked) revert AlreadyLocked();
+        routerLocked = true;
+        emit RouterLocked();
     }
 
     /**
@@ -70,6 +94,7 @@ contract LickFactory {
         assembly {
             pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
         }
+        if (pair == address(0)) revert Create2Failed(); // audit M-02
 
         LickPair(pair).initialize(token0, token1);
 

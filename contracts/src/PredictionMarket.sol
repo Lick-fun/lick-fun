@@ -157,6 +157,15 @@ contract PredictionMarket is ReentrancyGuard {
         // Use stored curve address instead of token address (C1 fix)
         bool _graduated = IBondingCurve(markets[token].curve).graduated();
 
+        // Time gate (audit H-04): resolution may only happen once the betting window has
+        // closed, OR early if the token has already graduated (graduation is a terminal,
+        // irreversible YES outcome so resolving early cannot be gamed). This prevents
+        // resolving a still-open market to lock odds mid-window.
+        require(
+            block.timestamp >= markets[token].closeTime || _graduated,
+            "WINDOW_OPEN"
+        );
+
         // Effects
         markets[token].resolved = true;
         markets[token].outcome = _graduated;
@@ -203,7 +212,8 @@ contract PredictionMarket is ReentrancyGuard {
         // Effects before interactions (CEI)
         winningsClaimed[token][msg.sender] = true;
 
-        // Return the bettor's original stake + winnings from the contract balance
+        // Pay the winner's share of the losing pool only (audit I-03). The original
+        // stake is intentionally retained by the contract (parimutuel design).
         emit WinningsClaimed(token, msg.sender, payout);
 
         // Interactions

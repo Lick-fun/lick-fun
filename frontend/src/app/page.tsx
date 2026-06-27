@@ -175,11 +175,16 @@ export default function HomePage() {
     { key: "highestReputation", label: "Highest Reputation" },
   ];
 
+  /* True once the tokenMap multicall has resolved at least one name.
+     Prevents the ticker from showing addresses during the brief async window. */
+  const tickerReady = !tradesLoading && !isLoading && tokenMap.size > 0;
+
   return (
-    <div className="relative bg-figma-bg min-h-screen px-5 pb-20">
-      {/* ── Buys & Sells Ticker (full-width auto-scrolling banner) ── */}
-      <div className="relative overflow-hidden mt-[17px] h-[58px] -mx-5">
-        {tradesLoading ? (
+    <>
+      {/* ── Buys & Sells Ticker — rendered OUTSIDE the padded page div so it
+           can span the full viewport width regardless of parent overflow ── */}
+      <div className="relative overflow-hidden mt-[17px] h-[58px] w-full bg-figma-bg">
+        {!tickerReady ? (
           <div className="flex gap-2 px-5 items-center h-full">
             {Array.from({ length: 5 }).map((_, i) => (
               <TickerSkeletonCard key={i} />
@@ -197,14 +202,8 @@ export default function HomePage() {
             {[0, 1].map((dup) => (
               <div key={dup} className="flex gap-2 pr-2 shrink-0">
                 {recentTrades.map((trade) => {
-                  // Prefer the token name joined from the indexer (TRADE_FRAGMENT now
-                  // includes `token { name symbol }`). Fall back to the resolved map
-                  // for tokens outside the useAllTokens() cap.
                   const tokenInfo = tokenMap.get(trade.token_id.toLowerCase());
-                  const tokenName =
-                    trade.token?.name?.trim() ||
-                    tokenInfo?.name?.trim() ||
-                    "";
+                  const tokenName = tokenInfo?.name?.trim() || "";
                   const tokenLabel = getTokenDisplayName(tokenName, trade.token_id);
                   const monAmt = formatAmountMon(
                     trade.isBuy ? trade.amountIn : trade.amountOut
@@ -253,6 +252,8 @@ export default function HomePage() {
         <div className="absolute left-0 top-0 bottom-0 w-[34px] gradient-fade-right pointer-events-none z-10" />
         <div className="absolute right-0 top-0 bottom-0 w-[34px] gradient-fade-left pointer-events-none z-10" />
       </div>
+
+    <div className="relative bg-figma-bg min-h-screen px-5 pb-20">
 
       {/* ── Founder Token Banner (pinned, centred, above Trending Now) ── */}
       <FounderTokenBanner
@@ -383,6 +384,7 @@ export default function HomePage() {
                         className="h-full rounded-full"
                         style={{
                           width: `${token.progress}%`,
+                          minWidth: token.progress > 0 ? "4px" : "0",
                           background: "linear-gradient(90deg, #6E44D2 0%, #9B6FFF 100%)",
                           borderRadius: "24px",
                           transition: "width 0.3s ease",
@@ -507,5 +509,6 @@ export default function HomePage() {
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -2,6 +2,11 @@ name: lick-fun-indexer
 
 handlers: src
 
+# ─── Contracts ─────────────────────────────────────────────────────────────────
+# ABIs and events to index. These are shared across all chains.
+# On mainnet, GraduationRouter is added so LiquidityMigrated events are indexed
+# and DEX trades can appear in charts/volume.
+
 contracts:
   - name: Factory
     abi_file_path: "./abis/Factory.json"
@@ -30,18 +35,48 @@ contracts:
       - event: "MarketResolved(address indexed token, bool outcome)"
       - event: "WinningsClaimed(address indexed token, address indexed claimant, uint256 amount)"
 
+  - name: GraduationRouter
+    abi_file_path: "./abis/GraduationRouter.json"
+    events:
+      - event: "LiquidityMigrated(address indexed token, address indexed pair, uint256 tokenLiquidity, uint256 monLiquidity)"
+
+# ─── Chains ────────────────────────────────────────────────────────────────────
+# MAINNET (chain 143) — deployed 2026-06-27, block 83961211
+# To revert to testnet: comment out this block and uncomment the testnet block below.
+
 chains:
-  - id: 10143
+  - id: 143
     hypersync_config:
-      url: https://monad-testnet.hypersync.xyz
+      url: https://monad.hypersync.xyz
     rpc:
-      url: https://testnet-rpc.monad.xyz
-    start_block: 40685542
+      url: https://rpc.monad.xyz
+    start_block: 83961211
     contracts:
       - name: Factory
-        address: "0x7fDDc1ae25164664e8837679f7Fd7b5ef59860f3"
+        address: "0x9845c5625d9f9C48e17956940485aAAAD168aA10"
       - name: BondingCurve
       - name: FeeRouter
-        address: "0xfCFe5E41410575D7D37310A05ef12ed0F48f3A8e"
+        address: "0x5BBe528936E627d33DE36f10d9DB946089b9E903"
       - name: PredictionMarket
-        address: "0xb7aa4530c65EE93F34797A8eE988159E79C2abbE"
+        address: "0xe9200097cA7d7a48D87ce249B671c36ccB406776"
+      - name: GraduationRouter
+        address: "0xb2Dc164Ac4eCDDA7Ea2D4115bC122463c65460b2"
+
+# ─── TESTNET (chain 10143) — uncomment to revert ─────────────────────────────
+# chains:
+#   - id: 10143
+#     hypersync_config:
+#       url: https://monad-testnet.hypersync.xyz
+#     rpc:
+#       url: https://testnet-rpc.monad.xyz
+#     start_block: 40685542
+#     contracts:
+#       - name: Factory
+#         address: "0x7fDDc1ae25164664e8837679f7Fd7b5ef59860f3"
+#       - name: BondingCurve
+#       - name: FeeRouter
+#         address: "0xfCFe5E41410575D7D37310A05ef12ed0F48f3A8e"
+#       - name: PredictionMarket
+#         address: "0xb7aa4530c65EE93F34797A8eE988159E79C2abbE"
+#       - name: GraduationRouter
+#         address: "0x073aD4D827c614494f470195f77a4B753c0963f7"

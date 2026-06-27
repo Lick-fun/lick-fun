@@ -139,7 +139,7 @@ contract VestingController is ReentrancyGuard {
         uint256 totalAmount,
         Tier tier,
         uint256 startTime
-    ) external nonReentrant returns (address vestingWallet) {
+    ) external onlyOwner nonReentrant returns (address vestingWallet) {
         if (allocations[token].initialized) revert AlreadyInitialized();
         if (token == address(0) || beneficiary == address(0)) revert ZeroAddress();
         if (totalAmount == 0) revert ZeroAddress();
@@ -294,18 +294,20 @@ contract VestingController is ReentrancyGuard {
 
     /**
      * @notice Withdraw LP tokens after the lock period ends.
-     * @dev Anyone can call this after lockEnd. LP tokens are sent to the stored creator.
-     *      If creator is address(0), LP tokens are sent to msg.sender.
+     * @dev Anyone can trigger this after lockEnd, but LP tokens are ALWAYS sent to the
+     *      stored creator. A zero creator is rejected so LP can never be sent to an
+     *      arbitrary caller (audit M-05).
      * @param token The LickToken address whose LP lock to withdraw
      */
     function withdrawLP(address token) external nonReentrant {
         LockedLP storage lock = tokenLPLocks[token];
         if (lock.amount == 0) revert NoLP();
         if (block.timestamp < lock.lockEnd) revert NoLP(); // "LOCKED"
+        if (lock.creator == address(0)) revert ZeroAddress();
 
         uint256 amount = lock.amount;
         address pair = lock.pair;
-        address recipient = lock.creator != address(0) ? lock.creator : msg.sender;
+        address recipient = lock.creator;
 
         // CEI: zero out state before transfer
         lock.amount = 0;

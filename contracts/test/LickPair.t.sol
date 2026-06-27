@@ -52,11 +52,11 @@ contract LickPairTest is Test {
         vm.stopPrank();
     }
 
-    /// @notice First mint burns MINIMUM_LIQUIDITY to address(1).
+    /// @notice First mint burns MINIMUM_LIQUIDITY to 0xdead (audit L-01).
     function testLPBurnedOnAdd() public {
-        // MINIMUM_LIQUIDITY (1000) should be burned to address(1)
-        uint256 deadBalance = pair.balanceOf(address(1));
-        assertEq(deadBalance, MINIMUM_LIQUIDITY, "MINIMUM_LIQUIDITY should be burned to address(1)");
+        // MINIMUM_LIQUIDITY (1000) should be burned to 0xdead
+        uint256 deadBalance = pair.balanceOf(address(0xdead));
+        assertEq(deadBalance, MINIMUM_LIQUIDITY, "MINIMUM_LIQUIDITY should be burned to 0xdead");
     }
 
     /// @notice Swap token0 for token1 and verify output with 0.25% LP fee.

@@ -32,11 +32,11 @@ contract DeployVestingAndFactory is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // ── Step A: Deploy vault stubs ──
-        VaultLPSupport vaultLP = new VaultLPSupport();
+        // ── Step A: Deploy recoverable vaults (owner = deployer on testnet) ──
+        VaultLPSupport vaultLP = new VaultLPSupport(deployer);
         console.log("VaultLPSupport deployed at:", address(vaultLP));
 
-        VaultBuybackBurn vaultBB = new VaultBuybackBurn();
+        VaultBuybackBurn vaultBB = new VaultBuybackBurn(deployer);
         console.log("VaultBuybackBurn deployed at:", address(vaultBB));
 
         // ── Step B: Deploy new FeeRouter ──
@@ -50,6 +50,9 @@ contract DeployVestingAndFactory is Script {
         // ── Step C: Deploy new Factory ──
         Factory factory = new Factory(deployer);
         console.log("Factory deployed at:", address(factory));
+
+        // audit M-04: authorise Factory to apply per-token fee configs.
+        feeRouter.setFactory(address(factory));
 
         // ── Step D: Deploy new PredictionMarket (with factory param) ──
         PredictionMarket predictionMarket = new PredictionMarket(deployer, address(factory));

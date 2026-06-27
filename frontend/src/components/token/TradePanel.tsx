@@ -5,8 +5,19 @@ import { useAccount, useBalance, useReadContract, useWriteContract } from "wagmi
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { parseEther, formatEther } from "viem";
 import { cn } from "@/lib/utils";
-import { useBuyToken, useSellToken, ERC20ABI } from "@/lib/wagmi/contracts";
-import { Loader2, AlertCircle, Wallet } from "lucide-react";
+import {
+  useBuyToken,
+  useSellToken,
+  useDexBuy,
+  useDexSell,
+  useMigrateLiquidity,
+  useGetAmountOut,
+  usePairReserves,
+  getDexAmountOut,
+  LICK_ROUTER_ADDRESS,
+  ERC20ABI,
+} from "@/lib/wagmi/contracts";
+import { Loader2, AlertCircle, Wallet, GraduationCap, ArrowRightLeft } from "lucide-react";
 
 interface TradePanelProps {
   tokenId: string;
@@ -15,6 +26,10 @@ interface TradePanelProps {
   soldTokens?: bigint;
   monPerToken: number;
   curveAddress?: string;
+  /** Whether the bonding curve has graduated. */
+  graduated?: boolean;
+  /** DEX pair address — set after migrateLiquidity is called. */
+  pairAddress?: `0x${string}`;
 }
 
 export function TradePanel({
@@ -24,6 +39,8 @@ export function TradePanel({
   soldTokens: _soldTokens,
   monPerToken,
   curveAddress,
+  graduated = false,
+  pairAddress,
 }: TradePanelProps) {
   const { address, isConnected } = useAccount();
   const [tab, setTab] = useState<"buy" | "sell">("buy");
@@ -45,104 +62,145 @@ export function TradePanel({
   });
   const tokenBalance = (tokenBalanceRaw as bigint) ?? 0n;
 
-  /* ── Approve write (for sell flow) ── */
+  /* ── Write hooks ── */
   const { writeContractAsync: approveAsync } = useWriteContract();
-
-  /* ── Trade hooks ── */
   const { buy, isPending: isBuying } = useBuyToken();
   const { sell, isPending: isSelling } = useSellToken();
+  const { dexBuy, isPending: isDexBuying } = useDexBuy();
+  const { dexSell, isPending: isDexSelling } = useDexSell();
+  const { migrate, isPending: isMigrating } = useMigrateLiquidity();
 
+  /* ── On-chain quotes ── */
   const amountNum = parseFloat(amount) || 0;
+  const amountWei = amount ? parseEther(amount) : 0n;
 
-  /* Fee breakdown: 2% total (1% protocol + 1% creator) */
-  const feePercent = 2;
-  const feeAmount = (amountNum * feePercent) / 100;
-  const netAmount = amountNum - feeAmount;
+  // Curve: on-chain quote via BondingCurve.getAmountOut (replaces float * 0.98)
+  const { data: curveAmountOutRaw } = useGetAmountOut(
+    (curveAddress ?? "0x0000000000000000000000000000000000000000") as `0x${string}`,
+    amountWei,
+    tab === "buy"
+  );
+  const curveAmountOut = (curveAmountOutRaw as bigint) ?? 0n;
 
-  const estimatedTokens =
-    tab === "buy" && monPerToken > 0 && netAmount > 0
-      ? netAmount / monPerToken
-      : 0;
+  /* ── DEX reserves + quote ── */
+  const { reserveWmon, reserveToken, dexPriceMonPerToken } = usePairReserves(
+    pairAddress,
+    tokenId as `0x${string}`
+  );
 
-  const estimatedMon =
-    tab === "sell" && monPerToken > 0 && amountNum > 0
-      ? amountNum * monPerToken * 0.98
-      : 0;
+  const dexAmountOut: bigint =
+    graduated && pairAddress && amountWei > 0n
+      ? tab === "buy"
+        ? getDexAmountOut(amountWei, reserveWmon, reserveToken)
+        : getDexAmountOut(amountWei, reserveToken, reserveWmon)
+      : 0n;
 
-  const [slippage, setSlippage] = useState(10); // default 10%
+  /* ── Price + display estimates ── */
+  const priceMonPerToken = graduated && pairAddress ? dexPriceMonPerToken : monPerToken;
+
+  const estimatedTokens = graduated && pairAddress
+    ? Number(dexAmountOut) / 1e18
+    : Number(curveAmountOut) / 1e18;
+
+  const estimatedMon = graduated && pairAddress
+    ? Number(dexAmountOut) / 1e18
+    : Number(curveAmountOut) / 1e18;
+
+  const [slippage, setSlippage] = useState(10);
   const [slippageOpen, setSlippageOpen] = useState(false);
   const [slippageCustom, setSlippageCustom] = useState("");
 
-  const isLoading = isBuying || isSelling || sellStep !== "idle";
+  /* ── State flags ── */
+  const isLoading =
+    isBuying || isSelling || isDexBuying || isDexSelling || isMigrating || sellStep !== "idle";
+
+  // Graduated but pair not yet migrated
+  const needsMigration =
+    graduated &&
+    (!pairAddress ||
+      pairAddress === "0x0000000000000000000000000000000000000000" ||
+      pairAddress === "0x0000000000000000000000000000000000000001");
 
   const canTrade =
     isConnected &&
-    !!curveAddress &&
+    !needsMigration &&
+    (graduated ? !!pairAddress : !!curveAddress) &&
     amountNum > 0 &&
     !isLoading;
 
-  /* ── Formatted balance strings ── */
+  /* ── Formatted balances ── */
   const monBalanceNum = monBalance ? Number(formatEther(monBalance.value)) : 0;
-  // Display-only: safe to round for UI, never used in transactions.
   const tokenBalanceNum = Number(tokenBalance) / 1e18;
 
   function handleMax() {
     if (tab === "buy") {
-      // Leave a small buffer for gas
       const maxMon = Math.max(0, monBalanceNum - 0.01);
       setAmount(maxMon > 0 ? maxMon.toFixed(4) : "");
     } else {
-      // Use formatEther to preserve full wei precision — never round-trip through float.
-      // Float rounding (e.g. 262779.949999... → "262779.95") can produce 1 wei MORE than
-      // the actual balance, causing transferFrom to revert in BondingCurve.sell().
+      // Use formatEther to avoid float rounding that could cause 1-wei revert
       setAmount(tokenBalance > 0n ? formatEther(tokenBalance) : "");
     }
   }
 
-  async function handleTrade() {
-    if (!curveAddress || amountNum <= 0) return;
+  async function handleMigrate() {
     try {
-      // Apply slippage tolerance to minimum output
-      const slippageMultiplier = (100 - slippage) / 100;
-      if (tab === "buy") {
-        // For buy: minTokensOut = estimatedTokens * (1 - slippage)
-        const minTokensOut = estimatedTokens > 0
-          ? parseEther((estimatedTokens * slippageMultiplier).toFixed(18))
-          : 0n;
-        await buy(
-          curveAddress as `0x${string}`,
-          parseEther(amount),
-          minTokensOut
-        );
-      } else {
-        /* Sell: approve first, then sell */
-        const tokensInWei = parseEther(amount);
+      await migrate(tokenId as `0x${string}`);
+    } catch {
+      // surface via wagmi error handling in providers
+    }
+  }
 
-        // For sell: minMonOut = estimatedMon * (1 - slippage)
-        const minMonOut = estimatedMon > 0
-          ? parseEther((estimatedMon * slippageMultiplier).toFixed(18))
-          : 0n;
-
-        setSellStep("approving");
-        await approveAsync({
-          address: tokenId as `0x${string}`,
-          abi: ERC20ABI,
-          functionName: "approve",
-          args: [curveAddress as `0x${string}`, tokensInWei],
-        });
-
-        setSellStep("selling");
-        await sell(
-          curveAddress as `0x${string}`,
-          tokensInWei,
-          minMonOut
-        );
-
-        setSellStep("idle");
+  async function handleTrade() {
+    if (amountNum <= 0) return;
+    const slippageMultiplier = (100 - slippage) / 100;
+    try {
+      if (graduated && pairAddress) {
+        /* ── DEX swap path ── */
+        if (tab === "buy") {
+          const amountOutMin = dexAmountOut > 0n
+            ? BigInt(Math.floor(Number(dexAmountOut) * slippageMultiplier))
+            : 0n;
+          await dexBuy(tokenId as `0x${string}`, amountWei, amountOutMin, address!);
+        } else {
+          const amountOutMin = dexAmountOut > 0n
+            ? BigInt(Math.floor(Number(dexAmountOut) * slippageMultiplier))
+            : 0n;
+          setSellStep("approving");
+          await approveAsync({
+            address: tokenId as `0x${string}`,
+            abi: ERC20ABI,
+            functionName: "approve",
+            args: [LICK_ROUTER_ADDRESS, amountWei],
+          });
+          setSellStep("selling");
+          await dexSell(tokenId as `0x${string}`, amountWei, amountOutMin, address!);
+          setSellStep("idle");
+        }
+      } else if (curveAddress) {
+        /* ── Curve swap path ── */
+        if (tab === "buy") {
+          const minTokensOut = curveAmountOut > 0n
+            ? BigInt(Math.floor(Number(curveAmountOut) * slippageMultiplier))
+            : 0n;
+          await buy(curveAddress as `0x${string}`, amountWei, minTokensOut);
+        } else {
+          const minMonOut = curveAmountOut > 0n
+            ? BigInt(Math.floor(Number(curveAmountOut) * slippageMultiplier))
+            : 0n;
+          setSellStep("approving");
+          await approveAsync({
+            address: tokenId as `0x${string}`,
+            abi: ERC20ABI,
+            functionName: "approve",
+            args: [curveAddress as `0x${string}`, amountWei],
+          });
+          setSellStep("selling");
+          await sell(curveAddress as `0x${string}`, amountWei, minMonOut);
+          setSellStep("idle");
+        }
       }
     } catch {
       setSellStep("idle");
-      // errors surface via wagmi's onError handler in providers
     }
   }
 
@@ -151,21 +209,66 @@ export function TradePanel({
     if (sellStep === "approving") return (
       <><Loader2 className="w-4 h-4 animate-spin" /> Approving {tokenSymbol}...</>
     );
-    if (sellStep === "selling" || isSelling) return (
+    if (sellStep === "selling" || isSelling || isDexSelling) return (
       <><Loader2 className="w-4 h-4 animate-spin" /> Selling...</>
     );
-    if (isBuying) return (
+    if (isBuying || isDexBuying) return (
       <><Loader2 className="w-4 h-4 animate-spin" /> Buying...</>
     );
     return <>{tab === "buy" ? "Buy" : "Sell"} {tokenSymbol}</>;
   }
 
-  /* Quick-select amounts (MON for buy, tokens for sell) */
   const BUY_PRESETS = [50, 500, 2000, 5000];
+
+  /* ── Graduated but not yet migrated: show migration CTA ── */
+  if (needsMigration) {
+    return (
+      <div className="rounded-xl border border-purple-500/30 bg-figma-card overflow-hidden">
+        <div className="p-5 text-center space-y-3">
+          <div className="flex items-center justify-center gap-2 text-purple-400">
+            <GraduationCap className="w-5 h-5" />
+            <span className="font-bold text-sm">Token Graduated!</span>
+          </div>
+          <p className="text-xs text-figma-muted leading-relaxed">
+            Liquidity is ready to migrate to the DEX. Click below to finalize on-chain
+            — this only needs to happen once.
+          </p>
+          {isConnected ? (
+            <button
+              onClick={handleMigrate}
+              disabled={isMigrating}
+              className="w-full py-3 rounded-lg font-bold text-sm bg-purple-500 hover:bg-purple-400 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isMigrating ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Migrating...</>
+              ) : (
+                <><ArrowRightLeft className="w-4 h-4" /> Finalize Graduation</>
+              )}
+            </button>
+          ) : (
+            <div className="flex justify-center"><ConnectButton /></div>
+          )}
+          <p className="text-[10px] text-figma-muted">
+            Anyone can trigger migration — it&apos;s permissionless
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-figma-card bg-figma-card overflow-hidden">
-      {/* Buy / Sell toggle — full-width, prominent */}
+      {/* DEX badge when graduated */}
+      {graduated && pairAddress && (
+        <div className="flex items-center justify-center gap-1.5 py-1.5 bg-purple-500/10 border-b border-purple-500/20">
+          <ArrowRightLeft className="w-3 h-3 text-purple-400" />
+          <span className="text-[10px] font-semibold text-purple-400 uppercase tracking-wide">
+            DEX — 0.25% LP fee
+          </span>
+        </div>
+      )}
+
+      {/* Buy / Sell toggle */}
       <div className="grid grid-cols-2">
         <button
           onClick={() => { setTab("buy"); setAmount(""); }}
@@ -263,11 +366,26 @@ export function TradePanel({
         {/* Expected / preview */}
         {amountNum > 0 && isConnected && (
           <div className="rounded-lg bg-figma-surface px-3 py-2 mb-3 space-y-1 text-xs">
+            {priceMonPerToken > 0 && (
+              <div className="flex justify-between text-figma-muted">
+                <span>Price</span>
+                <span className="font-mono text-figma-white">
+                  {priceMonPerToken < 0.000001
+                    ? priceMonPerToken.toExponential(4)
+                    : priceMonPerToken.toFixed(8)} MON
+                </span>
+              </div>
+            )}
             <div className="flex justify-between text-figma-muted">
               <span>Expected</span>
               <span className="font-mono text-figma-white">
                 {tab === "buy"
-                  ? `${estimatedTokens.toFixed(0)} ${tokenSymbol}`
+                  ? `${estimatedTokens >= 1_000_000
+                      ? `${(estimatedTokens / 1_000_000).toFixed(2)}M`
+                      : estimatedTokens >= 1_000
+                      ? `${(estimatedTokens / 1_000).toFixed(2)}K`
+                      : estimatedTokens.toFixed(2)
+                    } ${tokenSymbol}`
                   : `${estimatedMon.toFixed(4)} MON`}
               </span>
             </div>
@@ -346,10 +464,10 @@ export function TradePanel({
           <div className="flex justify-center">
             <ConnectButton />
           </div>
-        ) : !curveAddress ? (
+        ) : !curveAddress && !pairAddress ? (
           <div className="flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 p-3">
             <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-            <p className="text-xs text-red-400">Curve address unavailable</p>
+            <p className="text-xs text-red-400">Trading address unavailable</p>
           </div>
         ) : (
           <button
@@ -367,7 +485,9 @@ export function TradePanel({
         )}
 
         <p className="text-[10px] text-figma-muted mt-2 text-center">
-          2% fee · {tab === "sell" ? "2 tx (approve + sell)" : "1 tx"}
+          {graduated && pairAddress
+            ? `0.25% DEX fee · ${tab === "sell" ? "2 tx (approve + sell)" : "1 tx"}`
+            : `2% fee · ${tab === "sell" ? "2 tx (approve + sell)" : "1 tx"}`}
         </p>
       </div>
     </div>
