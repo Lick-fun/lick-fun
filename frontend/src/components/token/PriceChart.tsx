@@ -231,7 +231,8 @@ export function PriceChart({
 
   /* ── Create chart on mount ─────────────────────────────────────────────── */
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
     let destroyed = false;
 
@@ -241,6 +242,8 @@ export function PriceChart({
         chartRef.current.applyOptions({ width: entry.contentRect.width });
       }
     });
+
+    let wheelCleanup: (() => void) | null = null;
 
     (async () => {
       const {
@@ -252,12 +255,12 @@ export function PriceChart({
         PriceScaleMode,
       } = await import("lightweight-charts");
 
-      if (destroyed || !containerRef.current) return;
+      if (destroyed || !container) return;
 
       const { LineStyle } = await import("lightweight-charts");
 
-      const chart = createChart(containerRef.current, {
-        width: containerRef.current.clientWidth,
+      const chart = createChart(container, {
+        width: container.clientWidth,
         height: 420,
         layout: {
           background: { color: C.bg },
@@ -464,7 +467,8 @@ export function PriceChart({
         priceScale.setAutoScale(false);
         priceScale.setVisibleRange({ from: mid - newHalfSpan, to: mid + newHalfSpan });
       };
-      containerRef.current?.addEventListener("wheel", onWheel, { passive: false });
+      container.addEventListener("wheel", onWheel, { passive: false });
+      wheelCleanup = () => container.removeEventListener("wheel", onWheel);
       wheelHandlerRef.current = onWheel;
 
       // Apply bars that loaded before the chart was ready
@@ -474,16 +478,14 @@ export function PriceChart({
         hasInitialFitRef.current = true;
       }
 
-      if (containerRef.current) resizeObserver.observe(containerRef.current);
+      if (container) resizeObserver.observe(container);
     })();
 
     return () => {
       destroyed = true;
       resizeObserver.disconnect();
-      if (wheelHandlerRef.current && containerRef.current) {
-        containerRef.current.removeEventListener("wheel", wheelHandlerRef.current);
-        wheelHandlerRef.current = null;
-      }
+      if (wheelCleanup) wheelCleanup();
+      wheelHandlerRef.current = null;
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
