@@ -547,11 +547,13 @@ export function PriceChart({
 
   /* ── Fullscreen: resize chart when wrapper size changes ───────────────── */
   useEffect(() => {
-    if (!chartRef.current || !containerRef.current) return;
+    const container = containerRef.current;
+    const chart = chartRef.current;
+    if (!chart || !container) return;
     // After CSS transition, trigger resize
     const tid = setTimeout(() => {
-      if (containerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({ width: containerRef.current.clientWidth });
+      if (container && chart) {
+        chart.applyOptions({ width: container.clientWidth });
       }
     }, 50);
     return () => clearTimeout(tid);
