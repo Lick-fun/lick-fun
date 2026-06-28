@@ -121,7 +121,7 @@ export function Header() {
                 className="flex items-center justify-center px-3 py-2 rounded-lg bg-figma-surface hover:bg-figma-surface/80 text-sm font-medium transition-colors"
               >
                 {!ready ? (
-                  <span className="text-figma-muted text-xs"></span>
+                  <span className="text-figma-muted text-xs" />
                 ) : !connected ? (
                   <span className="text-figma-white text-xs">Connect</span>
                 ) : (
