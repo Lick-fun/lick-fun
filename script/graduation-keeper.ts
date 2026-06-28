@@ -92,12 +92,12 @@ const GRADUATION_ROUTER_ABI = parseAbi([
 
 const VAULT_BUYBACK_ABI = parseAbi([
   "function pendingBurn(address token) external view returns (uint256)",
-  "function execute(address token, address curve, bool graduated) external",
+  "function execute(address token) external",
 ]);
 
 const VAULT_LP_ABI = parseAbi([
   "function pendingLP(address token) external view returns (uint256)",
-  "function execute(address token, address pair) external",
+  "function execute(address token) external",
 ]);
 
 const BONDING_CURVE_ABI = parseAbi([
@@ -281,7 +281,7 @@ async function pollVaults(): Promise<void> {
                 address: VAULT_BUYBACK,
                 abi: VAULT_BUYBACK_ABI,
                 functionName: "execute",
-                args: [tokenAddr, curve, isGraduated],
+                args: [tokenAddr],
               });
               console.log(`[vault] ✓ BuybackBurn execute tx: ${hash}`);
               const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -323,7 +323,7 @@ async function pollVaults(): Promise<void> {
                 address: VAULT_LP,
                 abi: VAULT_LP_ABI,
                 functionName: "execute",
-                args: [tokenAddr, pairAddress],
+                args: [tokenAddr],
               });
               console.log(`[vault] ✓ LPSupport execute tx: ${hash}`);
               const receipt = await publicClient.waitForTransactionReceipt({ hash });
