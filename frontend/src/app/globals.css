@@ -189,4 +189,12 @@
   .ml-sidebar    { margin-left: var(--sidebar-w); }
   .pl-sidebar    { padding-left: var(--sidebar-w); }
   .max-w-content { max-width: var(--content-max-w); }
+
+  /* Responsive sidebar offset — only applies at lg (1024px+) breakpoint.
+     Use `lg:pl-sidebar` / `lg:ml-sidebar` on elements that should only
+     be offset on desktop (sidebar is hidden on mobile). */
+  @media (min-width: 1024px) {
+    .lg\:pl-sidebar { padding-left: var(--sidebar-w); }
+    .lg\:ml-sidebar { margin-left: var(--sidebar-w); }
+  }
 }

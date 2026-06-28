@@ -99,12 +99,41 @@ export function Header() {
       {/* Mobile: logo only (nav handled by BottomNav) */}
       <div className="flex items-center gap-2 lg:hidden ml-auto" />
 
-      {/* Wallet */}
-      <ConnectButton
-        showBalance={false}
-        chainStatus="icon"
-        accountStatus="address"
-      />
+      {/* Wallet — full on desktop (unchanged) */}
+      <div className="hidden lg:block">
+        <ConnectButton
+          showBalance={false}
+          chainStatus="icon"
+          accountStatus="address"
+        />
+     </div>
+
+      {/* Wallet — compact on mobile */}
+      <div className="lg:hidden">
+        <ConnectButton.Custom>
+          {({ account, chain, openAccountModal, openConnectModal, mounted }) => {
+            const ready = mounted;
+            const connected = ready && !!account && !!chain;
+            return (
+              <button
+                onClick={connected ? openAccountModal : openConnectModal}
+                type="button"
+                className="flex items-center justify-center px-3 py-2 rounded-lg bg-figma-surface hover:bg-figma-surface/80 text-sm font-medium transition-colors"
+              >
+                {!ready ? (
+                  <span className="text-figma-muted text-xs"></span>
+                ) : !connected ? (
+                  <span className="text-figma-white text-xs">Connect</span>
+                ) : (
+                  <span className="text-figma-white text-xs truncate max-w-[100px]">
+                    {account.displayName}
+                 </span>
+                )}
+             </button>
+            );
+          }}
+       </ConnectButton.Custom>
+     </div>
     </header>
   );
 }
