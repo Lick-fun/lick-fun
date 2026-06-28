@@ -103,14 +103,14 @@ export default function TokenDetailPage() {
   }
 
   if (tokenLoading || tradesLoading) {
-    return <div className="max-w-7xl mx-auto pl-sidebar pr-5"><LoadingSpinner label="Loading token..." /></div>;
+    return <div className="max-w-[1600px] mx-auto pl-sidebar pr-6"><LoadingSpinner label="Loading token..." /></div>;
   }
   if (tokenError) {
-    return <div className="max-w-7xl mx-auto pl-sidebar pr-5"><ErrorState message={(tokenError as Error).message} onRetry={() => refetchToken()} /></div>;
+    return <div className="max-w-[1600px] mx-auto pl-sidebar pr-6"><ErrorState message={(tokenError as Error).message} onRetry={() => refetchToken()} /></div>;
   }
   if (!token) {
     return (
-      <div className="max-w-7xl mx-auto pl-sidebar pr-5 text-center py-20">
+      <div className="max-w-[1600px] mx-auto pl-sidebar pr-6 text-center py-20">
         <h2 className="text-figma-2xl text-figma-white font-bold mb-2">Token not found</h2>
         <Link href="/discover" className="text-figma-green hover:underline">Back to Discover</Link>
       </div>
@@ -124,7 +124,7 @@ export default function TokenDetailPage() {
   const isFounderToken = !!founderTokenAddress && tokenId.toLowerCase() === founderTokenAddress.toLowerCase();
 
   return (
-    <div className="max-w-7xl mx-auto pl-sidebar pr-4 pb-20">
+    <div className="max-w-[1600px] mx-auto pl-sidebar pr-6 pb-20">
       {/* Back */}
       <Link href="/discover" className="inline-flex items-center gap-1.5 text-figma-xs text-figma-muted hover:text-figma-white mb-3 transition-colors">
         <ArrowLeft className="w-3.5 h-3.5" />
@@ -132,7 +132,7 @@ export default function TokenDetailPage() {
       </Link>
 
       {/* ── Two-column layout ── */}
-      <div className="flex gap-4 items-start">
+      <div className="flex gap-4 xl:gap-6 items-start">
 
         {/* ────────── LEFT COLUMN ────────── */}
         <div className="flex-1 min-w-0 space-y-3">
@@ -437,7 +437,7 @@ export default function TokenDetailPage() {
         </div>
 
         {/* ────────── RIGHT COLUMN ────────── */}
-        <div className="w-[340px] shrink-0 space-y-3">
+        <div className="w-[380px] shrink-0 space-y-3">
 
           {/* Trade panel */}
           <TradePanel

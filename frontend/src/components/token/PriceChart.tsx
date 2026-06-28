@@ -22,20 +22,24 @@ import type {
   BarData,
   Time,
   MouseEventParams,
+  IPriceLine,
 } from "lightweight-charts";
 
 /* ── Design token colours ─────────────────────────────────────────────────── */
 const C = {
-  bg: "#0a0a0a",
+  bg: "#0d0d0d",
   surface: "#111111",
-  grid: "#1A1A1A",
-  border: "#2A2A2A",
-  textMuted: "#6B7280",
-  green: "#2CC054",
+  grid: "#161616",        // subtler gridlines
+  border: "#222222",
+  textMuted: "#5A6272",
+  green: "#2CC054",       // original Lickfun green for candles
   greenBright: "#70E000",
-  red: "#EF4444",
-  volGreen: "rgba(44,192,84,0.5)",
-  volRed: "rgba(239,68,68,0.5)",
+  red: "#EF4444",         // original Lickfun red for candles
+  connectLine: "rgba(44,192,84,0.5)",  // thin line joining candle gaps
+  sma: "#F0B90B",         // SMA line colour (amber — visible on dark bg)
+  lastPrice: "#70E000",   // last-price dashed line
+  volGreen: "rgba(44,192,84,0.25)",
+  volRed: "rgba(239,68,68,0.25)",
 } as const;
 
 /* ── Timeframe groups ─────────────────────────────────────────────────────── */
@@ -111,20 +115,27 @@ export function PriceChart({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const connectLineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const lineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const barSeriesRef = useRef<ISeriesApi<"Bar"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const smaSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const lastPriceLineRef = useRef<IPriceLine | null>(null);
+  const wheelHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
   const barsRef = useRef<OHLCBar[]>(bars);
 
   const [chartType, setChartType] = useState<ChartType>("candle");
   const [quoteMode, setQuoteMode] = useState<QuoteMode>("USD");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("mcap");
   const [logScale, setLogScale] = useState(false);
+  const [showSma, setShowSma] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [ohlcInfo, setOhlcInfo] = useState<OHLCInfo | null>(null);
   // Whether chart is initialised (async)
   const [chartReady, setChartReady] = useState(false);
   const chartReadyRef = useRef(false);
+  // Only fitContent on the first data load — preserve user zoom/pan on live updates
+  const hasInitialFitRef = useRef(false);
 
   // USD conversion multiplier
   const usdMult = quoteMode === "USD" && monUsdPrice ? monUsdPrice : 1;
@@ -139,6 +150,17 @@ export function PriceChart({
   useEffect(() => {
     barsRef.current = bars;
   }, [bars]);
+
+  /* ── SMA computation ──────────────────────────────────────────────────── */
+  const computeSma = useCallback((b: OHLCBar[], period: number, mult: number): SingleValueData<Time>[] => {
+    const result: SingleValueData<Time>[] = [];
+    for (let i = period - 1; i < b.length; i++) {
+      let sum = 0;
+      for (let j = 0; j < period; j++) sum += b[i - j].close;
+      result.push({ time: b[i].time as Time, value: (sum / period) * mult });
+    }
+    return result;
+  }, []);
 
   /* ── Helpers: apply series data ───────────────────────────────────────── */
   const applyBarsToChart = useCallback((b: OHLCBar[]) => {
@@ -183,7 +205,29 @@ export function PriceChart({
       }));
       volumeSeriesRef.current.setData(volData);
     }
-  }, [valueMult]);
+
+    // Connecting line (joins sparse candles — always tracks close price)
+    if (connectLineSeriesRef.current) {
+      const connectData: SingleValueData<Time>[] = b.map((bar) => ({
+        time: bar.time as Time,
+        value: bar.close * mult,
+      }));
+      connectLineSeriesRef.current.setData(connectData);
+    }
+
+    // SMA (9-period)
+    if (smaSeriesRef.current) {
+      smaSeriesRef.current.setData(computeSma(b, 9, mult));
+    }
+
+    // Update last-price dashed line
+    if (candleSeriesRef.current && b.length > 0) {
+      const lastClose = b[b.length - 1].close * mult;
+      if (lastPriceLineRef.current) {
+        lastPriceLineRef.current.applyOptions({ price: lastClose });
+      }
+    }
+  }, [valueMult, computeSma]);
 
   /* ── Create chart on mount ─────────────────────────────────────────────── */
   useEffect(() => {
@@ -210,46 +254,121 @@ export function PriceChart({
 
       if (destroyed || !containerRef.current) return;
 
+      const { LineStyle } = await import("lightweight-charts");
+
       const chart = createChart(containerRef.current, {
         width: containerRef.current.clientWidth,
-        height: 340,
+        height: 420,
         layout: {
           background: { color: C.bg },
           textColor: C.textMuted,
+          fontSize: 11,
+          fontFamily: "'JetBrains Mono', monospace",
         },
         grid: {
-          vertLines: { color: C.grid },
-          horzLines: { color: C.grid },
+          vertLines: { color: C.grid, style: LineStyle.Solid },
+          horzLines: { color: C.grid, style: LineStyle.Solid },
         },
         crosshair: {
-          vertLine: { color: C.border, labelBackgroundColor: C.surface },
-          horzLine: { color: C.border, labelBackgroundColor: C.surface },
+          mode: 1, // CrosshairMode.Normal
+          vertLine: {
+            color: "#444",
+            width: 1,
+            style: LineStyle.Dashed,
+            labelBackgroundColor: "#222",
+          },
+          horzLine: {
+            color: "#444",
+            width: 1,
+            style: LineStyle.Dashed,
+            labelBackgroundColor: "#222",
+          },
         },
         rightPriceScale: {
           borderColor: C.border,
           textColor: C.textMuted,
           mode: logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal,
+          scaleMargins: { top: 0.08, bottom: 0.12 },
         },
         timeScale: {
           borderColor: C.border,
           timeVisible: true,
           secondsVisible: false,
+          barSpacing: 8,
+          minBarSpacing: 3,
+          rightOffset: 5,
+          fixLeftEdge: false,
+          fixRightEdge: false,
+        },
+        // Mouse wheel over chart = time-scale zoom (NOT pan/scroll).
+        // Mouse wheel over right price axis = price-scale zoom (handled by
+        // the axis itself when mouseWheel scale is enabled).
+        // Left-click drag = horizontal pan only (pressedMouseMove locks to
+        // time axis because axisPressedMouseMove.price is false).
+        handleScroll: {
+          mouseWheel: false,       // wheel does NOT pan the chart
+          pressedMouseMove: true,  // left-drag pans horizontally
+          horzTouchDrag: true,
+          vertTouchDrag: false,    // no vertical dragging on touch
+        },
+        handleScale: {
+          mouseWheel: true,                              // wheel zooms time axis
+          pinch: true,                                   // pinch zooms time axis
+          axisPressedMouseMove: { time: true, price: true }, // drag each axis to resize it
+          axisDoubleClickReset: true,                    // double-click axis to reset
         },
       });
 
       chartRef.current = chart;
 
+      // ── Connecting line — drawn BEHIND candles to join sparse gaps ──
+      // Renders at close price so gaps between infrequent candles are bridged
+      // (nad.fun style). Added first so it sits below candles in z-order.
+      const connectLine = chart.addSeries(LineSeries, {
+        color: C.connectLine,
+        lineWidth: 1,
+        priceScaleId: "right",
+        crosshairMarkerVisible: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        lineStyle: 0, // Solid
+      });
+      connectLineSeriesRef.current = connectLine;
+
       // ── Candle series (main) ──
       const candles = chart.addSeries(CandlestickSeries, {
         upColor: C.green,
         downColor: C.red,
-        borderUpColor: C.green,
-        borderDownColor: C.red,
+        borderVisible: false,
         wickUpColor: C.green,
         wickDownColor: C.red,
         priceScaleId: "right",
+        priceLineVisible: false,
+        lastValueVisible: false,
       });
       candleSeriesRef.current = candles;
+
+      // ── Last-price dashed line ──
+      const lastPriceLine = candles.createPriceLine({
+        price: 0,
+        color: C.lastPrice,
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: "",
+      });
+      lastPriceLineRef.current = lastPriceLine;
+
+      // ── SMA (9-period) overlay ──
+      const sma = chart.addSeries(LineSeries, {
+        color: C.sma,
+        lineWidth: 1,
+        priceScaleId: "right",
+        crosshairMarkerVisible: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      smaSeriesRef.current = sma;
 
       // ── Line series (hidden by default) ──
       const line = chart.addSeries(LineSeries, {
@@ -257,6 +376,8 @@ export function PriceChart({
         lineWidth: 2,
         priceScaleId: "right",
         visible: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
       });
       lineSeriesRef.current = line;
 
@@ -266,17 +387,22 @@ export function PriceChart({
         downColor: C.red,
         priceScaleId: "right",
         visible: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
       });
       barSeriesRef.current = bars2;
 
-      // ── Volume histogram (separate pane via overlay on price scale overlay) ──
+      // ── Volume histogram — sits at bottom 15% of chart ──
       const volume = chart.addSeries(HistogramSeries, {
         priceFormat: { type: "volume" },
         priceScaleId: "volume",
         color: C.volGreen,
+        priceLineVisible: false,
+        lastValueVisible: false,
       });
       volume.priceScale().applyOptions({
-        scaleMargins: { top: 0.8, bottom: 0 },
+        // Top 0.88 = volume bars only use bottom 12% of chart area
+        scaleMargins: { top: 0.88, bottom: 0 },
       });
       volumeSeriesRef.current = volume;
 
@@ -303,10 +429,49 @@ export function PriceChart({
       chartReadyRef.current = true;
       setChartReady(true);
 
+      // ── Custom wheel zoom for the right MC/price axis only ──────────────
+      // Exactly like nad.fun: scrolling over the right axis zooms the visible
+      // price range in/out around its midpoint — candles stay centred, the Y
+      // scale values change (more or fewer price levels visible).
+      // Uses setVisibleRange / getVisibleRange so the behaviour is identical
+      // to dragging the axis — no margin hacks, no chart jumping.
+      const PRICE_AXIS_WIDTH = 72; // px region on the right that counts as the axis
+      const onWheel = (e: WheelEvent) => {
+        const el = containerRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const overAxis = e.clientX >= rect.right - PRICE_AXIS_WIDTH;
+        if (!overAxis) return; // let the chart handle wheel over the body
+
+        // Intercept so the chart's time-zoom does not also fire
+        e.preventDefault();
+        e.stopPropagation();
+
+        const priceScale = chart.priceScale("right");
+        const range = priceScale.getVisibleRange();
+        if (!range) return;
+
+        const { from, to } = range;
+        const mid = (from + to) / 2;
+        const halfSpan = (to - from) / 2;
+
+        // Scroll up (deltaY < 0) = zoom in (smaller range = fewer price levels),
+        // scroll down = zoom out (more price levels visible)
+        const factor = e.deltaY < 0 ? 0.85 : 1.15;
+        const newHalfSpan = halfSpan * factor;
+
+        // Disable autoScale so our range sticks; user can double-click axis to reset
+        priceScale.setAutoScale(false);
+        priceScale.setVisibleRange({ from: mid - newHalfSpan, to: mid + newHalfSpan });
+      };
+      containerRef.current?.addEventListener("wheel", onWheel, { passive: false });
+      wheelHandlerRef.current = onWheel;
+
       // Apply bars that loaded before the chart was ready
       if (barsRef.current.length > 0) {
         applyBarsToChart(barsRef.current);
         chart.timeScale().fitContent();
+        hasInitialFitRef.current = true;
       }
 
       if (containerRef.current) resizeObserver.observe(containerRef.current);
@@ -315,6 +480,10 @@ export function PriceChart({
     return () => {
       destroyed = true;
       resizeObserver.disconnect();
+      if (wheelHandlerRef.current && containerRef.current) {
+        containerRef.current.removeEventListener("wheel", wheelHandlerRef.current);
+        wheelHandlerRef.current = null;
+      }
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
@@ -324,6 +493,10 @@ export function PriceChart({
       barSeriesRef.current = null;
       volumeSeriesRef.current = null;
       chartReadyRef.current = false;
+      hasInitialFitRef.current = false;
+      connectLineSeriesRef.current = null;
+      smaSeriesRef.current = null;
+      lastPriceLineRef.current = null;
       setChartReady(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -332,8 +505,15 @@ export function PriceChart({
   /* ── Update data when bars / valueMult change ─────────────────────────── */
   useEffect(() => {
     if (!chartReady) return;
+    // Re-enable autoScale on every fresh data load so the chart fits the new
+    // resolution correctly (user wheel-zoom on axis is per-session only)
+    chartRef.current?.priceScale("right").setAutoScale(true);
     applyBarsToChart(bars);
-    if (bars.length > 0) chartRef.current?.timeScale().fitContent();
+    // Only fitContent on the first data load — preserve user zoom/pan on live updates
+    if (bars.length > 0 && !hasInitialFitRef.current) {
+      chartRef.current?.timeScale().fitContent();
+      hasInitialFitRef.current = true;
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bars, chartReady, valueMult]);
 
@@ -343,7 +523,15 @@ export function PriceChart({
     candleSeriesRef.current?.applyOptions({ visible: chartType === "candle" });
     lineSeriesRef.current?.applyOptions({ visible: chartType === "line" });
     barSeriesRef.current?.applyOptions({ visible: chartType === "bar" });
-  }, [chartType, chartReady]);
+    // SMA only shown in candle mode (looks odd on line/bar)
+    smaSeriesRef.current?.applyOptions({ visible: chartType === "candle" && showSma });
+  }, [chartType, chartReady, showSma]);
+
+  /* ── Toggle SMA visibility ────────────────────────────────────────────── */
+  useEffect(() => {
+    if (!chartReady) return;
+    smaSeriesRef.current?.applyOptions({ visible: chartType === "candle" && showSma });
+  }, [showSma, chartReady, chartType]);
 
   /* ── Toggle log scale ─────────────────────────────────────────────────── */
   useEffect(() => {
@@ -388,11 +576,11 @@ export function PriceChart({
       ref={wrapperRef}
       className={cn(
         "flex flex-col gap-0",
-        isFullscreen && "fixed inset-0 z-50 bg-[#0a0a0a] p-3"
+        isFullscreen && "fixed inset-0 z-50 bg-[#0d0d0d] p-3"
       )}
     >
-      {/* ── Top toolbar ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 flex-wrap mb-1 px-0.5">
+      {/* ── Top toolbar: token label + OHLC + right-side controls ──────── */}
+      <div className="flex items-center gap-1 flex-wrap mb-0.5 px-0.5">
         {/* Token label */}
         <span className="text-figma-white text-xs font-bold font-mono mr-1">
           {tokenSymbol || "—"}
@@ -401,7 +589,7 @@ export function PriceChart({
           )}
         </span>
 
-        {/* Intraday timeframes */}
+        {/* Timeframe buttons sit inline in top bar */}
         <div className="flex items-center gap-0.5">
           {INTRADAY.map((r) => (
             <button
@@ -410,7 +598,7 @@ export function PriceChart({
               className={cn(
                 "px-2 py-1 rounded text-[11px] font-bold transition-colors",
                 resolution === r.value
-                  ? "bg-figma-green text-black"
+                  ? "bg-figma-green/20 text-figma-green"
                   : "text-figma-muted hover:text-figma-white hover:bg-white/5"
               )}
             >
@@ -419,9 +607,8 @@ export function PriceChart({
           ))}
         </div>
 
-        <span className="text-figma-surface mx-0.5 select-none">|</span>
+        <span className="text-white/10 mx-0.5 select-none">|</span>
 
-        {/* Daily+ timeframes */}
         <div className="flex items-center gap-0.5">
           {DAILY.map((r) => (
             <button
@@ -430,7 +617,7 @@ export function PriceChart({
               className={cn(
                 "px-2 py-1 rounded text-[11px] font-bold transition-colors",
                 resolution === r.value
-                  ? "bg-figma-green text-black"
+                  ? "bg-figma-green/20 text-figma-green"
                   : "text-figma-muted hover:text-figma-white hover:bg-white/5"
               )}
             >
@@ -471,6 +658,22 @@ export function PriceChart({
             )}
           >
             <TrendingUp className="w-3.5 h-3.5" />
+          </button>
+
+          <div className="w-px h-3 bg-figma-border mx-0.5" />
+
+          {/* SMA toggle */}
+          <button
+            onClick={() => setShowSma((v) => !v)}
+            title="Toggle SMA 9"
+            className={cn(
+              "px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors border",
+              showSma
+                ? "bg-[#F0B90B]/20 text-[#F0B90B] border-[#F0B90B]/40"
+                : "text-figma-muted border-transparent hover:text-figma-white hover:border-white/10"
+            )}
+          >
+            SMA
           </button>
 
           <div className="w-px h-3 bg-figma-border mx-0.5" />
@@ -532,25 +735,18 @@ export function PriceChart({
 
       {/* ── OHLC header ──────────────────────────────────────────────────── */}
       {displayOHLC && (
-        <div className="flex items-center gap-2 text-[11px] font-mono px-0.5 mb-1 flex-wrap">
-          <span className="text-figma-muted">
-            O <span className="text-figma-white">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.open)}</span>
-          </span>
-          <span className="text-figma-muted">
-            H <span className="text-figma-green">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.high)}</span>
-          </span>
-          <span className="text-figma-muted">
-            L <span className="text-red-400">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.low)}</span>
-          </span>
-          <span className="text-figma-muted">
-            C <span className="text-figma-white">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.close)}</span>
-          </span>
-          <span className={displayOHLC.change >= 0 ? "text-figma-green" : "text-red-400"}>
+        <div className="flex items-center gap-2.5 text-[11px] font-mono px-0.5 mb-0.5 flex-wrap leading-tight">
+          <span className="text-[#5A6272]">O <span className="text-white">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.open)}</span></span>
+          <span className="text-[#5A6272]">H <span className="text-[#26a69a]">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.high)}</span></span>
+          <span className="text-[#5A6272]">L <span className="text-[#ef5350]">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.low)}</span></span>
+          <span className="text-[#5A6272]">C <span className="text-white">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.close)}</span></span>
+          <span className={cn("font-semibold", displayOHLC.change >= 0 ? "text-[#26a69a]" : "text-[#ef5350]")}>
             {displayOHLC.change >= 0 ? "+" : ""}{displayOHLC.change.toFixed(2)}%
           </span>
-          <span className="text-figma-muted ml-auto">
-            Vol <span className="text-figma-white">{formatVol(displayOHLC.volume)} MON</span>
-          </span>
+          {showSma && (
+            <span className="text-[#5A6272]">SMA <span className="text-[#F0B90B]">9</span></span>
+          )}
+          <span className="text-[#5A6272] ml-auto">Vol <span className="text-white">{formatVol(displayOHLC.volume)} MON</span></span>
         </div>
       )}
 
@@ -560,7 +756,7 @@ export function PriceChart({
           ref={containerRef}
           className="w-full"
           style={{
-            height: isFullscreen ? "calc(100vh - 140px)" : "380px",
+            height: isFullscreen ? "calc(100vh - 140px)" : "420px",
             background: C.bg,
           }}
         />
@@ -580,13 +776,13 @@ export function PriceChart({
         )}
       </div>
 
-      {/* ── Bottom: quote label ───────────────────────────────────────────── */}
-      <div className="flex items-center justify-between text-[10px] text-figma-muted px-0.5 mt-1">
-        <span>
+      {/* ── Bottom bar: scale mode label + lickfun.xyz watermark ────────── */}
+      <div className="flex items-center justify-between text-[10px] text-[#5A6272] px-0.5 mt-1">
+        <span className="font-mono">
           {displayMode === "mcap" ? "MCap" : "Price"} / {quoteSymbol}
-          {logScale && <span className="ml-2 text-figma-green">LOG</span>}
+          {logScale && <span className="ml-2 text-figma-green font-bold">log</span>}
         </span>
-        <span className="opacity-40">lickfun.xyz</span>
+        <span className="opacity-30 font-mono">lickfun.xyz</span>
       </div>
     </div>
   );

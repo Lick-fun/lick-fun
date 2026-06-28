@@ -386,7 +386,7 @@ export default function HomePage() {
                         style={{
                           width: `${token.progress}%`,
                           minWidth: token.progress > 0 ? "4px" : "0",
-                          background: "linear-gradient(90deg, #6E44D2 0%, #9B6FFF 100%)",
+                          background: "linear-gradient(90deg, #2CC054 0%, #70E000 100%)",
                           borderRadius: "24px",
                           transition: "width 0.3s ease",
                         }}

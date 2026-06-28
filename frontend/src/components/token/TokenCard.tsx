@@ -202,7 +202,7 @@ export function TokenCard({
           <div className="flex items-center gap-[3px]">
             {/* mini icon */}
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="5" cy="5" r="4.5" fill={isAnimated ? "#6E44D2" : "#2CC054"} />
+              <circle cx="5" cy="5" r="4.5" fill="#2CC054" />
             </svg>
             {/* Percentage */}
             <span className="text-figma-purple font-figma-bold" style={{ fontSize: "8px", lineHeight: "10px" }}>
@@ -266,9 +266,7 @@ export function TokenCard({
             style={{
               width: `${progress}%`,
               minWidth: progress > 0 ? "4px" : "0",
-              background: isAnimated
-                ? "linear-gradient(90deg, #6E44D2 0%, #9B6FFF 100%)"
-                : "linear-gradient(90deg, #2CC054 0%, #70E000 100%)",
+              background: "linear-gradient(90deg, #2CC054 0%, #70E000 100%)",
               borderRadius: "24px",
               transition: "width 0.3s ease",
             }}
