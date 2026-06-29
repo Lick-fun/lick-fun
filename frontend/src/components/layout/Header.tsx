@@ -1,12 +1,12 @@
 "use client";
 
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
 import { Search, Home, Compass, TrendingUp, BookOpen, Plus, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WalletMenu } from "@/components/layout/WalletMenu";
 
 const navLinks = [
   { href: "/",             label: "Home",         icon: Home },
@@ -99,41 +99,8 @@ export function Header() {
       {/* Mobile: logo only (nav handled by BottomNav) */}
       <div className="flex items-center gap-2 lg:hidden ml-auto" />
 
-      {/* Wallet — full on desktop (unchanged) */}
-      <div className="hidden lg:block">
-        <ConnectButton
-          showBalance={false}
-          chainStatus="icon"
-          accountStatus="address"
-        />
-     </div>
-
-      {/* Wallet — compact on mobile */}
-      <div className="lg:hidden">
-        <ConnectButton.Custom>
-          {({ account, chain, openAccountModal, openConnectModal, mounted }) => {
-            const ready = mounted;
-            const connected = ready && !!account && !!chain;
-            return (
-              <button
-                onClick={connected ? openAccountModal : openConnectModal}
-                type="button"
-                className="flex items-center justify-center px-3 py-2 rounded-lg bg-figma-surface hover:bg-figma-surface/80 text-sm font-medium transition-colors"
-              >
-                {!ready ? (
-                  <span className="text-figma-muted text-xs" />
-                ) : !connected ? (
-                  <span className="text-figma-white text-xs">Connect</span>
-                ) : (
-                  <span className="text-figma-white text-xs truncate max-w-[100px]">
-                    {account.displayName}
-                 </span>
-                )}
-             </button>
-            );
-          }}
-       </ConnectButton.Custom>
-     </div>
+      {/* Wallet — custom dropdown with profile avatar + name (desktop + mobile) */}
+      <WalletMenu />
     </header>
   );
 }
