@@ -47,6 +47,23 @@ export default function TokenDetailPage() {
   const { data: token, isLoading: tokenLoading, error: tokenError, refetch: refetchToken } = useToken(tokenId);
   const { data: trades = [], isLoading: tradesLoading } = useTokenTrades(tokenId);
   const { data: market } = useMarket(tokenId);
+
+  // Grace period: after a fresh token creation the indexer may not have processed
+  // the block yet. Keep showing a loading spinner for up to 15s before declaring
+  // the token truly not-found, so users don't see a flash of "Token not found"
+  // right after they create a token.
+  const [indexerGrace, setIndexerGrace] = useState(true);
+  useEffect(() => {
+    if (tokenLoading || token) {
+      // Reset grace whenever we're loading or the token has appeared.
+      setIndexerGrace(true);
+      return;
+    }
+    // Token came back null — start the grace timer.
+    const timer = setTimeout(() => setIndexerGrace(false), 15_000);
+    return () => clearTimeout(timer);
+  }, [tokenLoading, token]);
+
   const creatorAddress = token?.creator ?? "";
   const { data: creatorProfile } = useProfile(creatorAddress);
   const reputation = creatorProfile ? computeReputation(creatorProfile) : null;
@@ -109,6 +126,11 @@ export default function TokenDetailPage() {
     return <div className="max-w-[1600px] mx-auto px-4 lg:pl-sidebar lg:pr-6"><ErrorState message={(tokenError as Error).message} onRetry={() => refetchToken()} /></div>;
   }
   if (!token) {
+    // While the indexer grace period is active, keep showing a loading spinner
+    // instead of "Token not found" — the indexer may just not have caught up yet.
+    if (indexerGrace) {
+      return <div className="max-w-[1600px] mx-auto px-4 lg:pl-sidebar lg:pr-6"><LoadingSpinner label="Waiting for token to be indexed..." /></div>;
+    }
     return (
       <div className="max-w-[1600px] mx-auto px-4 lg:pl-sidebar lg:pr-6 text-center py-20">
         <h2 className="text-figma-2xl text-figma-white font-bold mb-2">Token not found</h2>
