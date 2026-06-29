@@ -3,7 +3,7 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useAccount, useDisconnect } from "wagmi";
+import { useDisconnect } from "wagmi";
 import {
   Check,
   Copy,
@@ -51,7 +51,6 @@ export function WalletMenu() {
           <ConnectedMenu
             address={account.address}
             ensName={account.ensName}
-            displayName={account.displayName}
             openAccountModal={openAccountModal}
           />
         );
@@ -63,14 +62,12 @@ export function WalletMenu() {
 interface ConnectedMenuProps {
   address: string;
   ensName?: string;
-  displayName: string;
   openAccountModal: () => void;
 }
 
 function ConnectedMenu({
   address,
   ensName,
-  displayName,
   openAccountModal,
 }: ConnectedMenuProps) {
   const router = useRouter();
