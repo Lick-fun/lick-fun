@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  useToken, useTokenTrades, useMarket, useProfile, useTokenMeta,
+  useToken, useTokenTradesMerged, useMarket, useProfile, useTokenMeta,
   useTokenPriceBars,
   formatTimeAgo, formatAddress,
   computeReputation,
@@ -45,7 +45,12 @@ export default function TokenDetailPage() {
   }, []);
 
   const { data: token, isLoading: tokenLoading, error: tokenError, refetch: refetchToken } = useToken(tokenId);
-  const { data: trades = [], isLoading: tradesLoading } = useTokenTrades(tokenId);
+  // useTokenTradesMerged: indexer trades + RPC supplement (catches any missed events)
+  const {
+    data: trades = [],
+    isLoading: tradesLoading,
+    gapCount,
+  } = useTokenTradesMerged(tokenId, token?.curve, token?.startBlock);
   const { data: market } = useMarket(tokenId);
   const creatorAddress = token?.creator ?? "";
   const { data: creatorProfile } = useProfile(creatorAddress);
@@ -265,13 +270,21 @@ export default function TokenDetailPage() {
               <button
                 onClick={() => setActivityTab("trades")}
                 className={[
-                  "px-4 py-3 text-xs font-semibold transition-colors border-b-2 -mb-px",
+                  "px-4 py-3 text-xs font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5",
                   activityTab === "trades"
                     ? "text-figma-white border-figma-green"
                     : "text-figma-muted border-transparent hover:text-figma-white",
                 ].join(" ")}
               >
                 Trades
+                {gapCount > 0 && (
+                  <span
+                    title={`${gapCount} trade${gapCount === 1 ? "" : "s"} recovered from chain (indexer gap)`}
+                    className="px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 text-[9px] font-bold"
+                  >
+                    +{gapCount}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setActivityTab("holders")}

@@ -49,8 +49,8 @@ export default function ProfilePage() {
   const { data: profileMeta, refetch: refetchProfileMeta } = useProfileMeta(addr);
   const { data: monUsdPrice } = useMonUsdPrice();
 
-  // Holdings (tokens the user bought)
-  const { holdings, totals: holdingsTotals, isLoading: holdingsLoading } =
+  // Holdings (tokens the user bought) + raw trades for ActivityTabs
+  const { holdings, trades: holdingTrades, totals: holdingsTotals, isLoading: holdingsLoading } =
     useTokenHoldings(addr, monUsdPrice);
 
   // Creator fees for tokens created by this user
@@ -275,7 +275,7 @@ export default function ProfilePage() {
             Activity
           </h2>
           <ActivityTabs
-            trades={[]}
+            trades={holdingTrades}
             createdTokens={tokens}
             isLoading={holdingsLoading || tokensLoading}
           />

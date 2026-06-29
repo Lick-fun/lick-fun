@@ -338,6 +338,8 @@ export function useTokenHoldings(
 
   return {
     holdings,
+    /** Raw trades fetched from the indexer (all trades by this trader, desc). */
+    trades: tradesQuery.data ?? [],
     totals,
     isLoading: tradesQuery.isLoading || tokenDataQuery.isLoading,
     isError: tradesQuery.isError,

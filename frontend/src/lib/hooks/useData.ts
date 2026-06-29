@@ -135,6 +135,92 @@ export function useTokenTrades(tokenId: string) {
   });
 }
 
+/**
+ * Merged trades hook — combines the Envio indexer with a live RPC log fetch
+ * so any trades the indexer missed (e.g. during RPC rate-limit gaps at launch)
+ * still appear in the token page trade table.
+ *
+ * Deduplication key: trade.id = `${txHash}-${logIndex}` (matches indexer format).
+ * Indexer data is the source of truth; RPC data fills gaps.
+ *
+ * @param tokenId       Token address (lowercase)
+ * @param curveAddress  Bonding curve address — used to call /api/trades/[curve]
+ * @param startBlock    Block the curve was deployed at — narrows the log range
+ */
+export function useTokenTradesMerged(
+  tokenId: string,
+  curveAddress?: string,
+  startBlock?: bigint
+) {
+  // Source 1: Envio GraphQL indexer (fast, most data)
+  const indexerQuery = useTokenTrades(tokenId);
+
+  // Source 2: Server-side RPC log fetch (catches indexer gaps)
+  const rpcQuery = useQuery({
+    queryKey: [
+      "token-trades-rpc",
+      tokenId.toLowerCase(),
+      curveAddress?.toLowerCase(),
+      startBlock?.toString(),
+    ],
+    enabled:
+      !!tokenId &&
+      !!curveAddress &&
+      curveAddress !== "0x0000000000000000000000000000000000000000",
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        tokenId: tokenId.toLowerCase(),
+      });
+      if (startBlock) params.set("fromBlock", startBlock.toString());
+      const res = await fetch(
+        `/api/trades/${curveAddress?.toLowerCase()}?${params}`
+      );
+      if (!res.ok) return [] as TradeEntity[];
+      const json = await res.json();
+      return ((json.trades as unknown[]) ?? []).map((r) =>
+        toBigIntTrade(r)
+      );
+    },
+    // Refresh every 30s — slower than indexer since RPC calls are heavier
+    refetchInterval: 30_000,
+    // Stale time: 20s — avoids hammering the server on every render
+    staleTime: 20_000,
+  });
+
+  const { mergedTrades, gapCount } = useMemo(() => {
+    const indexerTrades = indexerQuery.data ?? [];
+    const rpcTrades = rpcQuery.data ?? [];
+
+    if (rpcTrades.length === 0) {
+      return { mergedTrades: indexerTrades, gapCount: 0 };
+    }
+
+    // Indexer is the source of truth — only add trades the indexer doesn't have
+    const seen = new Set(indexerTrades.map((t) => t.id));
+    const gapTrades = rpcTrades.filter((t) => !seen.has(t.id));
+
+    if (gapTrades.length === 0) {
+      return { mergedTrades: indexerTrades, gapCount: 0 };
+    }
+
+    // Merge and sort by blockTimestamp desc, blockNumber as tiebreaker
+    const merged = [...indexerTrades, ...gapTrades].sort((a, b) => {
+      const tsDiff = Number(b.blockTimestamp) - Number(a.blockTimestamp);
+      if (tsDiff !== 0) return tsDiff;
+      return b.blockNumber - a.blockNumber;
+    });
+
+    return { mergedTrades: merged, gapCount: gapTrades.length };
+  }, [indexerQuery.data, rpcQuery.data]);
+
+  return {
+    data: mergedTrades,
+    isLoading: indexerQuery.isLoading,
+    /** How many trades came from the RPC supplement (shown in token page Trades tab) */
+    gapCount,
+  };
+}
+
 export function useProfile(address: string) {
   return useQuery({
     queryKey: ["profile", address.toLowerCase()],

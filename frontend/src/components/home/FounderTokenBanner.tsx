@@ -89,21 +89,29 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
       </div>
 
       {/* Founder badge + burn notice */}
-      <div className="relative z-10 flex flex-col items-center gap-1.5">
+      <div className="relative z-10 flex flex-col items-center gap-2">
         <div className="flex items-center gap-2">
           <span className="text-figma-xs px-2 py-0.5 rounded-pill bg-figma-green/20 text-figma-green font-semibold">
             ⭐ Founder
           </span>
         </div>
+        {/* Burn-address callout — sized up + bolder + higher contrast so it
+            can’t be missed at a glance. Slightly larger, fully bold, saturated
+            orange background, and a subtle ring so it pops off the card. */}
         <a
           href="https://monadvision.com/tx/0x4c34c6facbe1e662d6940a8da22764e86d28f083a54bb6633518e6a3b14f6d05"
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1 px-2.5 py-0.5 rounded-pill bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:text-orange-300 hover:border-orange-400/50 transition-colors no-underline"
-          style={{ fontSize: "10px", fontWeight: 600 }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill border-2 border-orange-400 text-orange-300 no-underline uppercase tracking-wide shadow-md shadow-orange-500/20 hover:bg-orange-500/30 hover:border-orange-300 hover:text-orange-100 transition-colors"
+          style={{
+            fontSize: "13px",
+            fontWeight: 800,
+            background: "linear-gradient(135deg, rgba(249,115,22,0.25) 0%, rgba(249,115,22,0.35) 100%)",
+            letterSpacing: "0.04em",
+          }}
         >
-          🔥 Dev wallet sent to burn address ↗
+          🔥 Founder &amp; Dev wallet sent to BURN 🔥
         </a>
       </div>
 
