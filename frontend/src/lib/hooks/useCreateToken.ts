@@ -164,24 +164,33 @@ export function useCreateToken(): UseCreateTokenResult {
     if (metadataUri && imageUri) {
       // Sign a message to authenticate the metadata registration (P0-2)
       const metaMessage = `Lickfun.xyz: register metadata for ${parsedToken} by ${address} at ${Date.now()}`;
-      signMessageAsync({ message: metaMessage })
-        .then((metaSig) =>
-          fetch("/api/register-metadata", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              tokenAddress: parsedToken,
-              metadataUri,
-              imageUri,
-              walletAddress: address,
-              signature: metaSig,
-              message: metaMessage,
-            }),
-          })
-        )
-        .catch((err) => {
-          console.warn("[useCreateToken] Failed to register metadata:", err);
+      try {
+        const metaSig = await signMessageAsync({ message: metaMessage });
+        const regRes = await fetch("/api/register-metadata", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tokenAddress: parsedToken,
+            metadataUri,
+            imageUri,
+            walletAddress: address,
+            signature: metaSig,
+            message: metaMessage,
+          }),
         });
+        if (!regRes.ok) {
+          const payload = await regRes.json().catch(() => ({}));
+          console.warn(
+            "[useCreateToken] Metadata registration returned non-OK status:",
+            regRes.status,
+            payload
+          );
+        }
+      } catch (err) {
+        console.warn("[useCreateToken] Failed to register metadata:", err);
+        // Non-fatal: token was created on-chain; image will be missing until manually fixed.
+        // Do NOT block the user from seeing their token.
+      }
     }
 
     const devBuyStr = pendingDevBuyMon;

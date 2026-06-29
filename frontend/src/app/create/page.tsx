@@ -22,7 +22,7 @@ import {
   Coins, Info, Upload, X, ImageIcon, Link2, TrendingUp, Wallet,
 } from "lucide-react";
 
-const MAX_IMAGE_SIZE_MB = 10;
+const MAX_IMAGE_SIZE_MB = 5;
 const ACCEPTED_IMAGE_TYPES = [
   "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
 ];
