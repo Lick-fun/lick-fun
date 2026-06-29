@@ -19,7 +19,8 @@
  *   fromBlock – first block to scan (defaults to contract deploy block)
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { keccak256, toBytes } from "viem";
 
 /* ── Event topic hashes ─────────────────────────────────────────────────── */
