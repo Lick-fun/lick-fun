@@ -47,23 +47,6 @@ export default function TokenDetailPage() {
   const { data: token, isLoading: tokenLoading, error: tokenError, refetch: refetchToken } = useToken(tokenId);
   const { data: trades = [], isLoading: tradesLoading } = useTokenTrades(tokenId);
   const { data: market } = useMarket(tokenId);
-
-  // Grace period: after a fresh token creation the indexer may not have processed
-  // the block yet. Keep showing a loading spinner for up to 15s before declaring
-  // the token truly not-found, so users don't see a flash of "Token not found"
-  // right after they create a token.
-  const [indexerGrace, setIndexerGrace] = useState(true);
-  useEffect(() => {
-    if (tokenLoading || token) {
-      // Reset grace whenever we're loading or the token has appeared.
-      setIndexerGrace(true);
-      return;
-    }
-    // Token came back null — start the grace timer.
-    const timer = setTimeout(() => setIndexerGrace(false), 15_000);
-    return () => clearTimeout(timer);
-  }, [tokenLoading, token]);
-
   const creatorAddress = token?.creator ?? "";
   const { data: creatorProfile } = useProfile(creatorAddress);
   const reputation = creatorProfile ? computeReputation(creatorProfile) : null;
@@ -120,19 +103,14 @@ export default function TokenDetailPage() {
   }
 
   if (tokenLoading || tradesLoading) {
-    return <div className="max-w-[1600px] mx-auto px-4 lg:pl-sidebar lg:pr-6"><LoadingSpinner label="Loading token..." /></div>;
+    return <div className="max-w-7xl mx-auto pl-sidebar pr-5"><LoadingSpinner label="Loading token..." /></div>;
   }
   if (tokenError) {
-    return <div className="max-w-[1600px] mx-auto px-4 lg:pl-sidebar lg:pr-6"><ErrorState message={(tokenError as Error).message} onRetry={() => refetchToken()} /></div>;
+    return <div className="max-w-7xl mx-auto pl-sidebar pr-5"><ErrorState message={(tokenError as Error).message} onRetry={() => refetchToken()} /></div>;
   }
   if (!token) {
-    // While the indexer grace period is active, keep showing a loading spinner
-    // instead of "Token not found" — the indexer may just not have caught up yet.
-    if (indexerGrace) {
-      return <div className="max-w-[1600px] mx-auto px-4 lg:pl-sidebar lg:pr-6"><LoadingSpinner label="Waiting for token to be indexed..." /></div>;
-    }
     return (
-      <div className="max-w-[1600px] mx-auto px-4 lg:pl-sidebar lg:pr-6 text-center py-20">
+      <div className="max-w-7xl mx-auto pl-sidebar pr-5 text-center py-20">
         <h2 className="text-figma-2xl text-figma-white font-bold mb-2">Token not found</h2>
         <Link href="/discover" className="text-figma-green hover:underline">Back to Discover</Link>
       </div>
@@ -146,7 +124,7 @@ export default function TokenDetailPage() {
   const isFounderToken = !!founderTokenAddress && tokenId.toLowerCase() === founderTokenAddress.toLowerCase();
 
   return (
-    <div className="max-w-[1600px] mx-auto px-4 lg:pl-sidebar lg:pr-6 pb-20">
+    <div className="max-w-7xl mx-auto pl-sidebar pr-4 pb-20">
       {/* Back */}
       <Link href="/discover" className="inline-flex items-center gap-1.5 text-figma-xs text-figma-muted hover:text-figma-white mb-3 transition-colors">
         <ArrowLeft className="w-3.5 h-3.5" />
@@ -154,10 +132,10 @@ export default function TokenDetailPage() {
       </Link>
 
       {/* ── Two-column layout ── */}
-      <div className="flex flex-col lg:flex-row gap-4 xl:gap-6 items-start">
+      <div className="flex gap-4 items-start">
 
         {/* ────────── LEFT COLUMN ────────── */}
-        <div className="flex-1 min-w-0 space-y-3 order-2 lg:order-none">
+        <div className="flex-1 min-w-0 space-y-3">
 
           {/* Token header card */}
           <div className="rounded-xl border border-figma-card bg-figma-card p-4">
@@ -459,7 +437,7 @@ export default function TokenDetailPage() {
         </div>
 
         {/* ────────── RIGHT COLUMN ────────── */}
-        <div className="w-full lg:w-[380px] lg:shrink-0 space-y-3 order-1 lg:order-none">
+        <div className="w-[340px] shrink-0 space-y-3">
 
           {/* Trade panel */}
           <TradePanel
@@ -510,11 +488,11 @@ export default function TokenDetailPage() {
             )}
 
             {/* Social links */}
-            {(ipfsMeta?.telegram || ipfsMeta?.twitter || ipfsMeta?.website || isFounderToken) && (
+            {(ipfsMeta?.telegram || ipfsMeta?.twitter || ipfsMeta?.website) && (
               <div className="flex items-center gap-2 mb-3">
-                {(ipfsMeta?.telegram || isFounderToken) && (
+                {ipfsMeta.telegram && (
                   <a
-                    href={isFounderToken ? "https://t.me/Lickfun_xyz" : ipfsMeta?.telegram}
+                    href={ipfsMeta.telegram}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-figma-surface hover:bg-figma-surface/80 transition-colors text-figma-muted hover:text-figma-white text-xs"
@@ -523,7 +501,7 @@ export default function TokenDetailPage() {
                     <span>TG</span>
                   </a>
                 )}
-                {ipfsMeta?.twitter && (
+                {ipfsMeta.twitter && (
                   <a
                     href={ipfsMeta.twitter}
                     target="_blank"
@@ -536,7 +514,7 @@ export default function TokenDetailPage() {
                     <span>X</span>
                   </a>
                 )}
-                {ipfsMeta?.website && (
+                {ipfsMeta.website && (
                   <a
                     href={ipfsMeta.website}
                     target="_blank"

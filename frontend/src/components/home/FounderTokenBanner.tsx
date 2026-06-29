@@ -89,14 +89,10 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
       </div>
 
       {/* Founder badge + burn notice */}
-      <div className="relative z-10 flex flex-col items-center gap-2">
+      <div className="relative z-10 flex flex-col items-center gap-1.5">
         <div className="flex items-center gap-2">
-          <span
-            className="flex items-center gap-1.5 px-3 py-1 rounded-pill bg-black/40 border border-figma-green/60 text-white shadow-sm"
-            style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.02em" }}
-          >
-            <span className="text-figma-green text-[12px] leading-none">⭐</span>
-            <span>Founder</span>
+          <span className="text-figma-xs px-2 py-0.5 rounded-pill bg-figma-green/20 text-figma-green font-semibold">
+            ⭐ Founder
           </span>
         </div>
         <a
@@ -104,12 +100,10 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-pill bg-black/40 border border-orange-400/60 text-white hover:bg-black/60 hover:border-orange-300 transition-colors no-underline shadow-sm"
-          style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.01em" }}
+          className="flex items-center gap-1 px-2.5 py-0.5 rounded-pill bg-orange-500/15 border border-orange-500/30 text-orange-400 hover:text-orange-300 hover:border-orange-400/50 transition-colors no-underline"
+          style={{ fontSize: "10px", fontWeight: 600 }}
         >
-          <span className="text-orange-400 text-[12px] leading-none">🔥</span>
-          <span>Dev wallet sent to burn address</span>
-          <span className="text-orange-300 leading-none">↗</span>
+          🔥 Dev wallet sent to burn address ↗
         </a>
       </div>
 
@@ -181,7 +175,7 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
             className="h-full rounded-full"
             style={{
               width: `${progress}%`,
-              background: "linear-gradient(90deg, #2CC054 0%, #70E000 100%)",
+              background: "linear-gradient(90deg, #6E44D2 0%, #9B6FFF 100%)",
               borderRadius: "24px",
               transition: "width 0.3s ease",
             }}

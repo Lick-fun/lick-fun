@@ -15,7 +15,13 @@
  *   limit: number,
  *   tokens: Array<{
  *     tokenAddress: string,
- *     image: string,
+ *     name: string,
+ *     symbol: string,
+ *     description: string,
+ *     image: string,         ← direct HTTPS image URL
+ *     telegram?: string,
+ *     twitter?: string,
+ *     website?: string,
  *     metadataUrl: string,   ← URL to full metadata (i.e. /api/token-metadata/{address})
  *     registeredAt: number,
  *   }>
@@ -89,12 +95,47 @@ export async function GET(req: NextRequest) {
   const start = (page - 1) * limit;
   const slice = entries.slice(start, start + limit);
 
-  const tokens = slice.map(([address, entry]) => ({
-    tokenAddress: address,
-    image: ipfsToHttp(entry.imageUri),
-    metadataUrl: `${SITE_URL}/api/token-metadata/${address}`,
-    registeredAt: entry.registeredAt,
-  }));
+  // Fetch full metadata (name/symbol/socials) from Storj in parallel.
+  // Each token has its own Storj JSON — we fan-out and settle all at once.
+  const tokens = await Promise.all(
+    slice.map(async ([address, entry]) => {
+      let name = "";
+      let symbol = "";
+      let description = "";
+      let telegram: string | undefined;
+      let twitter: string | undefined;
+      let website: string | undefined;
+
+      try {
+        const metaUrl = ipfsToHttp(entry.metadataUri);
+        const res = await fetch(metaUrl, { next: { revalidate: 300 } });
+        if (res.ok) {
+          const upstream = (await res.json()) as Record<string, unknown>;
+          name = (upstream.name as string) ?? "";
+          symbol = (upstream.symbol as string) ?? "";
+          description = (upstream.description as string) ?? "";
+          telegram = upstream.telegram as string | undefined;
+          twitter = upstream.twitter as string | undefined;
+          website = upstream.website as string | undefined;
+        }
+      } catch {
+        // Storj temporarily unavailable — return minimal record
+      }
+
+      return {
+        tokenAddress: address,
+        name,
+        symbol,
+        description,
+        image: ipfsToHttp(entry.imageUri),
+        ...(telegram && { telegram }),
+        ...(twitter && { twitter }),
+        ...(website && { website }),
+        metadataUrl: `${SITE_URL}/api/token-metadata/${address}`,
+        registeredAt: entry.registeredAt,
+      };
+    })
+  );
 
   return NextResponse.json(
     { total, page, limit, tokens },
