@@ -27,7 +27,9 @@
  *   POLL_INTERVAL_MS            — Optional. How often to poll (default 6000ms)
  *   VAULT_POLL_INTERVAL_MS      — Optional. How often to check vault balances (default 60000ms)
  *   HYPERSYNC_URL               — Optional. Override HyperSync endpoint (default https://monad.hypersync.xyz)
- *   HYPERSYNC_API_TOKEN         — Optional. HyperSync API token (Monad HyperSync is public; empty default)
+ *   ENVIO_API_TOKEN             — Required. Envio API token (same one used for HyperIndex GraphQL).
+ *                                   Get a free token at https://envio.dev after signing up.
+ *                                   HYPERSYNC_API_TOKEN is also accepted as a fallback.
  *
  * Security:
  *   - execute() is permissionless — keeper wallet only needs gas money.
@@ -116,21 +118,31 @@ const walletClient = createWalletClient({
 });
 
 // ─── HyperSync client (for eth_getLogs) ──────────────────────────────────────
-// HyperSync is a purpose-built log query service, free on Monad, with no rate
-// limits. We use it for ALL log scanning and the latest-block lookup so the
-// keeper contributes ZERO eth_getLogs / eth_blockNumber load to Alchemy's free
-// tier (which was throttling us with HTTP 429s when shared with the frontend).
+// HyperSync is a purpose-built log query service. It's required for all log
+// scanning and the latest-block lookup so the keeper contributes ZERO
+// eth_getLogs / eth_blockNumber load to Alchemy's free tier (which was
+// throttling us with HTTP 429s when shared with the frontend).
 // Alchemy is still used for readContract / writeContract / waitForTransactionReceipt
 // — those are cheap and within the free tier.
+//
+// HyperSync requires authentication (since 3 Nov 2025). We reuse the same
+// ENVIO_API_TOKEN as the HyperIndex GraphQL endpoint — Envio issues a single
+// token per account that works for both. Sign up at https://envio.dev.
 
 const HYPERSYNC_URL =
   process.env.HYPERSYNC_URL ?? "https://monad.hypersync.xyz";
-// apiToken is required by the type but Monad HyperSync is public — empty string
-// is accepted by the server. Set HYPERSYNC_API_TOKEN in .env if you have one.
-const HYPERSYNC_API_TOKEN = process.env.HYPERSYNC_API_TOKEN ?? "";
+const ENVIO_API_TOKEN =
+  process.env.ENVIO_API_TOKEN ?? process.env.HYPERSYNC_API_TOKEN ?? "";
+if (!ENVIO_API_TOKEN) {
+  console.error(
+    "[keeper] Missing ENVIO_API_TOKEN. HyperSync requires authentication.\n" +
+      "  Sign up at https://envio.dev and set ENVIO_API_TOKEN in your env."
+  );
+  process.exit(1);
+}
 const hypersync = new HypersyncClient({
   url: HYPERSYNC_URL,
-  apiToken: HYPERSYNC_API_TOKEN,
+  apiToken: ENVIO_API_TOKEN,
 });
 
 // Compute event topic0 hashes at startup (keccak256 of canonical signature).
@@ -203,7 +215,7 @@ async function getLogsViaHypersync(
 }
 
 /**
- * Get the current chain height from HyperSync (free, no rate limit).
+ * Get the current chain height from HyperSync.
  * Used instead of publicClient.getBlockNumber() to avoid contributing to
  * Alchemy's free-tier load.
  */
@@ -285,7 +297,7 @@ async function migrate(token: `0x${string}`): Promise<void> {
  * Scan TokenCreated events from Factory to build the knownTokens map.
  * Called once at startup and again on each graduation poll to catch new tokens.
  *
- * Uses HyperSync (free, no rate limit) instead of Alchemy eth_getLogs.
+ * Uses HyperSync instead of Alchemy eth_getLogs.
  */
 async function syncKnownTokens(): Promise<void> {
   if (!FACTORY_ADDR) return;
