@@ -14,6 +14,11 @@
  * https://app.envio.dev/api-tokens). The token is read from the
  * `ENVIO_API_TOKEN` env var (falls back to `HYPERSYNC_API_TOKEN`).
  *
+ * NOTE: The log-query endpoint is `${HYPERSYNC_URL}/query` (no `/v1/` prefix).
+ * The `/v1/query` path returns 404 with an empty body, while `/query` returns
+ * 200 with the same payload. The NAPI SDK used by the keeper handles this
+ * internally; here we hit the REST endpoint directly.
+ *
  * Query params:
  *   tokenId   – lowercase token address (for Trade.token_id)
  *   fromBlock – first block to scan (defaults to contract deploy block)
@@ -163,7 +168,7 @@ async function queryHyperSync(
       },
     };
 
-    const res = await fetch(`${HYPERSYNC_URL}/v1/query`, {
+    const res = await fetch(`${HYPERSYNC_URL}/query`, {
       method: "POST",
       headers: hyperSyncHeaders(),
       body: JSON.stringify(body),
