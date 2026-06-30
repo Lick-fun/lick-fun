@@ -26,15 +26,18 @@
  *   START_BLOCK                 — Block to start scanning from (Factory deploy block)
  *   POLL_INTERVAL_MS            — Optional. How often to poll (default 6000ms)
  *   VAULT_POLL_INTERVAL_MS      — Optional. How often to check vault balances (default 60000ms)
+ *   HYPERSYNC_URL               — Optional. Override HyperSync endpoint (default https://monad.hypersync.xyz)
+ *   HYPERSYNC_API_TOKEN         — Optional. HyperSync API token (Monad HyperSync is public; empty default)
  *
  * Security:
  *   - execute() is permissionless — keeper wallet only needs gas money.
  *   - Never fund this wallet with more than ~50 MON for gas reserves.
  */
 
-import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
+import { createPublicClient, createWalletClient, http, parseAbi, keccak256, toBytes } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { defineChain } from "viem";
+import { HypersyncClient, LogField } from "@envio-dev/hypersync-client";
 import * as dotenv from "dotenv";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -77,14 +80,6 @@ const monadMainnet = defineChain({
 
 // ─── ABIs ────────────────────────────────────────────────────────────────────
 
-const CURVE_GRADUATE_ABI = parseAbi([
-  "event CurveGraduate(address indexed token, address indexed pool)",
-]);
-
-const TOKEN_CREATED_ABI = parseAbi([
-  "event TokenCreated(address indexed token, address indexed curve, address indexed creator)",
-]);
-
 const GRADUATION_ROUTER_ABI = parseAbi([
   "function migrateLiquidity(address token) external returns (address pair)",
   "function tokenToPair(address token) external view returns (address)",
@@ -105,10 +100,6 @@ const BONDING_CURVE_ABI = parseAbi([
   "function realMon() external view returns (uint256)",
 ]);
 
-const FACTORY_ABI = parseAbi([
-  "function getCurve(address token) external view returns (address curve)",
-]);
-
 // ─── Clients ─────────────────────────────────────────────────────────────────
 
 const account = privateKeyToAccount(PRIVATE_KEY);
@@ -123,6 +114,102 @@ const walletClient = createWalletClient({
   chain: monadMainnet,
   transport: http(RPC_URL),
 });
+
+// ─── HyperSync client (for eth_getLogs) ──────────────────────────────────────
+// HyperSync is a purpose-built log query service, free on Monad, with no rate
+// limits. We use it for ALL log scanning and the latest-block lookup so the
+// keeper contributes ZERO eth_getLogs / eth_blockNumber load to Alchemy's free
+// tier (which was throttling us with HTTP 429s when shared with the frontend).
+// Alchemy is still used for readContract / writeContract / waitForTransactionReceipt
+// — those are cheap and within the free tier.
+
+const HYPERSYNC_URL =
+  process.env.HYPERSYNC_URL ?? "https://monad.hypersync.xyz";
+// apiToken is required by the type but Monad HyperSync is public — empty string
+// is accepted by the server. Set HYPERSYNC_API_TOKEN in .env if you have one.
+const HYPERSYNC_API_TOKEN = process.env.HYPERSYNC_API_TOKEN ?? "";
+const hypersync = new HypersyncClient({
+  url: HYPERSYNC_URL,
+  apiToken: HYPERSYNC_API_TOKEN,
+});
+
+// Compute event topic0 hashes at startup (keccak256 of canonical signature).
+// Using these as topic0 filters is the cheapest, most selective HyperSync query.
+const CURVE_GRADUATE_TOPIC = keccak256(
+  toBytes("CurveGraduate(address,address)")
+);
+const TOKEN_CREATED_TOPIC = keccak256(
+  toBytes("TokenCreated(address,address,address)")
+);
+
+/** Extract an indexed address (last 20 bytes) from a 32-byte topic. */
+function topicToAddress(
+  topic: string | undefined | null
+): `0x${string}` | null {
+  if (!topic || topic === "0x") return null;
+  return `0x${topic.slice(-40).padStart(40, "0")}` as `0x${string}`;
+}
+
+interface HypersyncLog {
+  blockNumber: bigint;
+  topics: string[];
+}
+
+/** Fields we ask HyperSync to return for each log. */
+const LOG_FIELDS: LogField[] = [
+  "Topic0",
+  "Topic1",
+  "Topic2",
+  "Topic3",
+  "BlockNumber",
+];
+
+/**
+ * Query HyperSync for logs matching a given topic0 in [fromBlock, toBlock].
+ * Handles pagination automatically via the `nextBlock` cursor returned by
+ * HyperSync when results exceed the per-page limit.
+ */
+async function getLogsViaHypersync(
+  topic0: `0x${string}`,
+  fromBlock: bigint,
+  toBlock: bigint
+): Promise<HypersyncLog[]> {
+  const all: HypersyncLog[] = [];
+  let currentFrom = fromBlock;
+  // Safety cap to avoid runaway loops on misconfigured queries
+  let safety = 100;
+  while (currentFrom <= toBlock && safety-- > 0) {
+    const res = await hypersync.get({
+      fromBlock: Number(currentFrom),
+      toBlock: Number(toBlock),
+      // topics is a 2D array: outer index = topic position, inner = OR options.
+      // We filter on topic[0] only.
+      logs: [{ topics: [[topic0]] }],
+      fieldSelection: { log: LOG_FIELDS },
+    });
+    for (const log of res.data.logs) {
+      all.push({
+        blockNumber: BigInt(log.blockNumber ?? 0),
+        topics: (log.topics ?? []) as string[],
+      });
+    }
+    // HyperSync returns nextBlock when there are more results to page through.
+    // If nextBlock >= toBlock, we got everything in this single call.
+    if (res.nextBlock >= Number(toBlock)) break;
+    if (res.nextBlock <= Number(currentFrom)) break;
+    currentFrom = BigInt(res.nextBlock);
+  }
+  return all;
+}
+
+/**
+ * Get the current chain height from HyperSync (free, no rate limit).
+ * Used instead of publicClient.getBlockNumber() to avoid contributing to
+ * Alchemy's free-tier load.
+ */
+async function getLatestBlockHypersync(): Promise<bigint> {
+  return BigInt(await hypersync.getHeight());
+}
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -197,27 +284,26 @@ async function migrate(token: `0x${string}`): Promise<void> {
 /**
  * Scan TokenCreated events from Factory to build the knownTokens map.
  * Called once at startup and again on each graduation poll to catch new tokens.
+ *
+ * Uses HyperSync (free, no rate limit) instead of Alchemy eth_getLogs.
  */
 async function syncKnownTokens(): Promise<void> {
   if (!FACTORY_ADDR) return;
   try {
-    const latestBlock = await publicClient.getBlockNumber();
-    let from = START_BLOCK;
-    while (from <= latestBlock) {
-      const to = from + LOG_CHUNK - 1n < latestBlock ? from + LOG_CHUNK - 1n : latestBlock;
-      const logs = await publicClient.getLogs({
-        address: FACTORY_ADDR,
-        event: TOKEN_CREATED_ABI[0],
-        fromBlock: from,
-        toBlock: to,
-      });
-      for (const log of logs) {
-        const token = (log.args.token as string).toLowerCase();
-        const curve = log.args.curve as `0x${string}`;
-        if (token && curve) knownTokens.set(token, curve);
-      }
-      from = to + 1n;
+    const latestBlock = await getLatestBlockHypersync();
+    const logs = await getLogsViaHypersync(
+      TOKEN_CREATED_TOPIC,
+      START_BLOCK,
+      latestBlock
+    );
+    for (const log of logs) {
+      // TokenCreated(address indexed token, address indexed curve, address indexed creator)
+      // topic1 = token, topic2 = curve, topic3 = creator
+      const token = topicToAddress(log.topics[1])?.toLowerCase();
+      const curve = topicToAddress(log.topics[2]);
+      if (token && curve) knownTokens.set(token, curve);
     }
+    console.log(`[vault] synced ${knownTokens.size} known token(s) via HyperSync`);
   } catch (err) {
     console.error("[vault] syncKnownTokens error:", (err as Error).message);
   }
@@ -237,18 +323,18 @@ async function pollVaults(): Promise<void> {
     let isGraduated = false;
     let pairAddress: `0x${string}` | null = null;
     try {
-      isGraduated = await publicClient.readContract({
+      isGraduated = (await publicClient.readContract({
         address: curve,
         abi: BONDING_CURVE_ABI,
         functionName: "graduated",
-      }) as boolean;
+      })) as boolean;
       if (isGraduated) {
-        pairAddress = await publicClient.readContract({
+        pairAddress = (await publicClient.readContract({
           address: GRADUATION_ROUTER!,
           abi: GRADUATION_ROUTER_ABI,
           functionName: "tokenToPair",
           args: [tokenAddr],
-        }) as `0x${string}`;
+        })) as `0x${string}`;
         // address(0) or sentinel = no pair yet
         if (
           pairAddress === "0x0000000000000000000000000000000000000000" ||
@@ -266,12 +352,12 @@ async function pollVaults(): Promise<void> {
       const bbKey = `burn-${token}`;
       if (!vaultAttempted.has(bbKey)) {
         try {
-          const pending = await publicClient.readContract({
+          const pending = (await publicClient.readContract({
             address: VAULT_BUYBACK,
             abi: VAULT_BUYBACK_ABI,
             functionName: "pendingBurn",
             args: [tokenAddr],
-          }) as bigint;
+          })) as bigint;
 
           if (pending >= EXECUTION_THRESHOLD) {
             console.log(`[vault] BuybackBurn: ${token} has ${pending / 10n ** 18n} MON pending — executing`);
@@ -308,12 +394,12 @@ async function pollVaults(): Promise<void> {
       const lpKey = `lp-${token}`;
       if (!vaultAttempted.has(lpKey)) {
         try {
-          const pending = await publicClient.readContract({
+          const pending = (await publicClient.readContract({
             address: VAULT_LP,
             abi: VAULT_LP_ABI,
             functionName: "pendingLP",
             args: [tokenAddr],
-          }) as bigint;
+          })) as bigint;
 
           if (pending >= EXECUTION_THRESHOLD) {
             console.log(`[vault] LPSupport: ${token} has ${pending / 10n ** 18n} MON pending — executing`);
@@ -348,38 +434,32 @@ async function pollVaults(): Promise<void> {
 
 // ─── Poll loop ────────────────────────────────────────────────────────────────
 
-// Alchemy free tier limits eth_getLogs to a 10-block range per request.
-// Use 9 to stay safely under the limit (MONAD public RPC also accepts this).
-const LOG_CHUNK = 9n;
-
 async function poll(): Promise<void> {
   try {
-    const latestBlock = await publicClient.getBlockNumber();
+    const latestBlock = await getLatestBlockHypersync();
     if (latestBlock <= lastBlock) return;
 
-    // Chunk the range into LOG_CHUNK-block windows to satisfy the RPC limit
-    // (Alchemy free tier caps eth_getLogs at a 10-block range).
-    let from = lastBlock + 1n;
-    while (from <= latestBlock) {
-      const to = from + LOG_CHUNK - 1n < latestBlock ? from + LOG_CHUNK - 1n : latestBlock;
+    // HyperSync has no block-range limit, so we query the entire window in one
+    // call (with internal pagination handled by getLogsViaHypersync).
+    const logs = await getLogsViaHypersync(
+      CURVE_GRADUATE_TOPIC,
+      lastBlock + 1n,
+      latestBlock
+    );
 
-      const logs = await publicClient.getLogs({
-        event: CURVE_GRADUATE_ABI[0],
-        fromBlock: from,
-        toBlock: to,
-      });
+    if (logs.length > 0) {
+      console.log(
+        `[keeper] Found ${logs.length} graduation event(s) in blocks ${lastBlock + 1n}–${latestBlock}`
+      );
+    }
 
-      if (logs.length > 0) {
-        console.log(`[keeper] Found ${logs.length} graduation event(s) in blocks ${from}–${to}`);
-      }
-
-      for (const log of logs) {
-        const token = log.args.token as `0x${string}`;
-        console.log(`[keeper] CurveGraduate: token=${token} in block ${log.blockNumber}`);
-        migrate(token).catch((e) => console.error("[keeper] migrate error:", e));
-      }
-
-      from = to + 1n;
+    for (const log of logs) {
+      // CurveGraduate(address indexed token, address indexed pool)
+      // topic1 = token, topic2 = pool
+      const token = topicToAddress(log.topics[1]);
+      if (!token) continue;
+      console.log(`[keeper] CurveGraduate: token=${token} in block ${log.blockNumber}`);
+      migrate(token).catch((e) => console.error("[keeper] migrate error:", e));
     }
 
     lastBlock = latestBlock;
@@ -397,6 +477,7 @@ console.log(`[keeper] VaultLPSupport:    ${VAULT_LP ?? "(not configured)"}`);
 console.log(`[keeper] Factory:           ${FACTORY_ADDR ?? "(not configured — vault polling disabled)"}`);
 console.log(`[keeper] Keeper wallet:     ${account.address}`);
 console.log(`[keeper] Start block:       ${START_BLOCK}`);
+console.log(`[keeper] HyperSync URL:     ${HYPERSYNC_URL}`);
 console.log(`[keeper] Grad poll:         ${POLL_MS}ms`);
 console.log(`[keeper] Vault poll:        ${VAULT_POLL_MS}ms`);
 
