@@ -122,14 +122,14 @@ export default function TokenDetailPage() {
   }
 
   if (tokenLoading || tradesLoading) {
-    return <div className="max-w-7xl mx-auto pl-sidebar pr-5"><LoadingSpinner label="Loading token..." /></div>;
+    return <div className="max-w-7xl mx-auto px-4 lg:pl-sidebar lg:pr-4"><LoadingSpinner label="Loading token..." /></div>;
   }
   if (tokenError) {
-    return <div className="max-w-7xl mx-auto pl-sidebar pr-5"><ErrorState message={(tokenError as Error).message} onRetry={() => refetchToken()} /></div>;
+    return <div className="max-w-7xl mx-auto px-4 lg:pl-sidebar lg:pr-4"><ErrorState message={(tokenError as Error).message} onRetry={() => refetchToken()} /></div>;
   }
   if (!token) {
     return (
-      <div className="max-w-7xl mx-auto pl-sidebar pr-5 text-center py-20">
+      <div className="max-w-7xl mx-auto px-4 lg:pl-sidebar lg:pr-4 text-center py-20">
         <h2 className="text-figma-2xl text-figma-white font-bold mb-2">Token not found</h2>
         <Link href="/discover" className="text-figma-green hover:underline">Back to Discover</Link>
       </div>
@@ -143,18 +143,18 @@ export default function TokenDetailPage() {
   const isFounderToken = !!founderTokenAddress && tokenId.toLowerCase() === founderTokenAddress.toLowerCase();
 
   return (
-    <div className="max-w-7xl mx-auto pl-sidebar pr-4 pb-20">
+    <div className="max-w-7xl mx-auto px-4 lg:pl-sidebar lg:pr-4 pb-24 lg:pb-20">
       {/* Back */}
       <Link href="/discover" className="inline-flex items-center gap-1.5 text-figma-xs text-figma-muted hover:text-figma-white mb-3 transition-colors">
         <ArrowLeft className="w-3.5 h-3.5" />
         Back
       </Link>
 
-      {/* ── Two-column layout ── */}
-      <div className="flex gap-4 items-start">
+      {/* ── Two-column layout (stacks on mobile) ── */}
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
 
         {/* ────────── LEFT COLUMN ────────── */}
-        <div className="flex-1 min-w-0 space-y-3">
+        <div className="flex-1 min-w-0 w-full space-y-3 order-2 lg:order-1">
 
           {/* Token header card */}
           <div className="rounded-xl border border-figma-card bg-figma-card p-4">
@@ -327,12 +327,12 @@ export default function TokenDetailPage() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-figma-muted border-b border-figma-surface/50">
-                        <th className="text-left px-4 py-2 font-medium">Account</th>
-                        <th className="text-left px-4 py-2 font-medium">Type</th>
-                        <th className="text-right px-4 py-2 font-medium">MON</th>
-                        <th className="text-right px-4 py-2 font-medium">USD</th>
-                        <th className="text-right px-4 py-2 font-medium">{displaySymbol}</th>
-                        <th className="text-right px-4 py-2 font-medium">Time</th>
+                        <th className="text-left px-3 sm:px-4 py-2 font-medium">Account</th>
+                        <th className="text-left px-3 sm:px-4 py-2 font-medium">Type</th>
+                        <th className="text-right px-3 sm:px-4 py-2 font-medium">MON</th>
+                        <th className="text-right px-3 sm:px-4 py-2 font-medium hidden sm:table-cell">USD</th>
+                        <th className="text-right px-3 sm:px-4 py-2 font-medium">{displaySymbol}</th>
+                        <th className="text-right px-3 sm:px-4 py-2 font-medium">Time</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -348,10 +348,10 @@ export default function TokenDetailPage() {
                               isDev && "bg-yellow-500/5"
                             )}
                           >
-                            <td className="px-4 py-2.5">
+                            <td className="px-3 sm:px-4 py-2.5">
                               <CreatorBadge address={trade.trader} />
                             </td>
-                            <td className="px-4 py-2.5">
+                            <td className="px-3 sm:px-4 py-2.5">
                               <div className="flex items-center gap-1">
                                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${trade.isBuy ? "bg-figma-green/15 text-figma-green" : "bg-red-500/15 text-red-400"}`}>
                                   {trade.isBuy ? "BUY" : "SELL"}
@@ -363,18 +363,18 @@ export default function TokenDetailPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="px-4 py-2.5 text-right font-mono text-figma-white">
+                            <td className="px-3 sm:px-4 py-2.5 text-right font-mono text-figma-white">
                               {monAmt.toFixed(3)}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-mono text-figma-muted">
+                            <td className="px-3 sm:px-4 py-2.5 text-right font-mono text-figma-muted hidden sm:table-cell">
                               {usdAmt != null ? `$${usdAmt.toFixed(2)}` : "—"}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-mono text-figma-muted">
+                            <td className="px-3 sm:px-4 py-2.5 text-right font-mono text-figma-muted">
                               {trade.isBuy
                                 ? (Number(trade.amountOut) / 1e18).toFixed(0)
                                 : (Number(trade.amountIn) / 1e18).toFixed(0)}
                             </td>
-                            <td className="px-4 py-2.5 text-right text-figma-muted">
+                            <td className="px-3 sm:px-4 py-2.5 text-right text-figma-muted">
                               {formatTimeAgo(trade.blockTimestamp)}
                             </td>
                           </tr>
@@ -397,11 +397,11 @@ export default function TokenDetailPage() {
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-figma-muted border-b border-figma-surface/50">
-                        <th className="text-left px-4 py-2 font-medium">#</th>
-                        <th className="text-left px-4 py-2 font-medium">Holder</th>
-                        <th className="text-right px-4 py-2 font-medium">Balance</th>
-                        <th className="text-right px-4 py-2 font-medium">Value</th>
-                        <th className="text-right px-4 py-2 font-medium">% Supply</th>
+                        <th className="text-left px-3 sm:px-4 py-2 font-medium">#</th>
+                        <th className="text-left px-3 sm:px-4 py-2 font-medium">Holder</th>
+                        <th className="text-right px-3 sm:px-4 py-2 font-medium">Balance</th>
+                        <th className="text-right px-3 sm:px-4 py-2 font-medium hidden sm:table-cell">Value</th>
+                        <th className="text-right px-3 sm:px-4 py-2 font-medium">% Supply</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -415,8 +415,8 @@ export default function TokenDetailPage() {
                               isDevHolder && "bg-yellow-500/5"
                             )}
                           >
-                            <td className="px-4 py-2.5 text-figma-muted font-mono">{i + 1}</td>
-                            <td className="px-4 py-2.5">
+                            <td className="px-3 sm:px-4 py-2.5 text-figma-muted font-mono">{i + 1}</td>
+                            <td className="px-3 sm:px-4 py-2.5">
                               <div className="flex items-center gap-1.5">
                                 <CreatorBadge address={holder.address} />
                                 {isDevHolder && (
@@ -426,19 +426,19 @@ export default function TokenDetailPage() {
                                 )}
                               </div>
                             </td>
-                            <td className="px-4 py-2.5 text-right font-mono text-figma-white">
+                            <td className="px-3 sm:px-4 py-2.5 text-right font-mono text-figma-white">
                               {holder.balanceFormatted >= 1_000_000
                                 ? `${(holder.balanceFormatted / 1_000_000).toFixed(2)}M`
                                 : holder.balanceFormatted >= 1_000
                                   ? `${(holder.balanceFormatted / 1_000).toFixed(2)}K`
                                   : holder.balanceFormatted.toFixed(2)}
                             </td>
-                            <td className="px-4 py-2.5 text-right font-mono text-figma-muted">
+                            <td className="px-3 sm:px-4 py-2.5 text-right font-mono text-figma-muted hidden sm:table-cell">
                               {holder.valueUsd != null
                                 ? `$${holder.valueUsd.toFixed(2)}`
                                 : `${holder.valueMonFormatted.toFixed(3)} MON`}
                             </td>
-                            <td className="px-4 py-2.5 text-right">
+                            <td className="px-3 sm:px-4 py-2.5 text-right">
                               <span
                                 className={cn(
                                   "font-semibold",
@@ -464,7 +464,7 @@ export default function TokenDetailPage() {
         </div>
 
         {/* ────────── RIGHT COLUMN ────────── */}
-        <div className="w-[340px] shrink-0 space-y-3">
+        <div className="w-full lg:w-[340px] lg:shrink-0 space-y-3 order-1 lg:order-2">
 
           {/* Trade panel */}
           <TradePanel
