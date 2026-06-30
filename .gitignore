@@ -47,6 +47,8 @@ npm-debug.log*
 
 # Local RAG memory (MCP local-rag storage)
 .memory/
+# But keep chat-history memory docs tracked
+!.memory/2026-*
 
 # Anima design tool (contains local user paths)
 .anima/

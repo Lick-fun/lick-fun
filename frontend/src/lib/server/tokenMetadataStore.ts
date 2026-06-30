@@ -16,6 +16,7 @@
  */
 
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import bundledTokenMetadata from "@/data/token-metadata.json";
 
 const STORJ_ACCESS_KEY_ID = process.env.STORJ_ACCESS_KEY_ID ?? "";
 const STORJ_SECRET_ACCESS_KEY = process.env.STORJ_SECRET_ACCESS_KEY ?? "";
@@ -67,10 +68,21 @@ function isNotFoundError(err: unknown): boolean {
 }
 
 /**
- * Read the metadata index from Storj.
- * Returns an empty object if the index doesn't exist yet (first-ever registration).
+ * The bundled token-metadata.json (committed to the repo) acts as a permanent
+ * fallback so that founder/legacy tokens always resolve even when the Storj
+ * metadata-index.json is missing, empty, or unreachable.
+ *
+ * Read order:
+ *  1. Start with bundled JSON as the base (all known tokens covered).
+ *  2. Fetch Storj index and merge on top — Storj entries win so live data
+ *     always overrides the static fallback.
+ *  3. On any Storj error (missing creds, network failure, missing key) the
+ *     bundled data is returned as-is so images keep working instead of 503-ing.
  */
 export async function readMetadataIndex(): Promise<MetadataStore> {
+  // Cast the imported JSON to MetadataStore — structure is identical.
+  const fallback = bundledTokenMetadata as MetadataStore;
+
   try {
     const s3 = getS3Client();
     const res = await s3.send(
@@ -80,15 +92,19 @@ export async function readMetadataIndex(): Promise<MetadataStore> {
       })
     );
     const body = await res.Body?.transformToString("utf-8");
-    if (!body) return {};
-    return JSON.parse(body) as MetadataStore;
+    if (!body) return { ...fallback };
+    const storjIndex = JSON.parse(body) as MetadataStore;
+    // Storj entries win over bundled for any overlapping address.
+    return { ...fallback, ...storjIndex };
   } catch (err) {
-    // NoSuchKey / NotFound is expected on first run — return empty store.
+    // NoSuchKey / NotFound — index hasn't been seeded yet; bundled data covers us.
     if (isNotFoundError(err)) {
-      return {};
+      return { ...fallback };
     }
-    // Unknown S3/network error — bubble up so the route can return 500.
-    throw err;
+    // Credentials missing or network/S3 error — degrade gracefully to bundled
+    // data rather than surfacing a 503 for every token image.
+    console.error("[tokenMetadataStore] Storj read failed, using bundled fallback:", err);
+    return { ...fallback };
   }
 }
 

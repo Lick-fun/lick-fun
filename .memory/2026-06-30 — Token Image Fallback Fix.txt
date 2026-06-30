@@ -1,0 +1,51 @@
+# 2026-06-30 — Token Image Fallback Fix
+# For Cline: bundled token-metadata.json fallback when Storj metadata-index.json is unreachable
+
+=============================================================================
+PROBLEM
+=============================================================================
+- Token images (founder token, profile avatars, etc.) stopped displaying on the site
+- The /api/token-image/[address] route was returning 503 errors
+- Root cause: the Storj S3 bucket's metadata-index.json was either missing, empty, or the
+  STORJ_* environment variables on Railway were misconfigured/expired
+- The raw Storj image files themselves were confirmed LIVE (HTTP 200 via curl) — the issue
+  was purely in the metadata index resolution layer
+
+=============================================================================
+FIX APPLIED
+=============================================================================
+File: frontend/src/lib/server/tokenMetadataStore.ts
+
+- Added import of bundledTokenMetadata from "@/data/token-metadata.json"
+- Changed readMetadataIndex() to use a 3-tier resolution:
+  1. Start with the bundled JSON (committed to repo, covers all known tokens)
+  2. Fetch Storj metadata-index.json and merge on top (Storj entries win for overlap)
+  3. On ANY Storj error (missing creds, NoSuchKey, network failure), return bundled
+     data instead of throwing — the route gets valid data and serves images
+
+- Previously: Storj failure → throw → route returns 503 → no images
+- Now: Storj failure → bundled fallback → images work
+
+=============================================================================
+FILES CHANGED
+=============================================================================
+- frontend/src/lib/server/tokenMetadataStore.ts (modified)
+
+=============================================================================
+VERIFICATION
+=============================================================================
+- TypeScript compiles cleanly (npx tsc --noEmit exits 0)
+- No other files needed changes — the /api/token-image/[address] route already
+  handles the response correctly; only the data source needed fixing
+- The bundled token-metadata.json already contains all token entries including
+  the founder token (0x896e7fba5ba700e4db8614a12b8d35381c9618cf) with Storj URLs
+
+=============================================================================
+NEXT STEPS IF IMAGES STILL DON'T SHOW
+=============================================================================
+1. Check Railway env vars: STORJ_ACCESS_KEY_ID, STORJ_SECRET_ACCESS_KEY,
+   STORJ_ENDPOINT, STORJ_BUCKET must be set correctly
+2. Check NEXT_PUBLIC_STORAGE_BASE_URL on Railway — if the share-id changed,
+   newly uploaded images would use a different base URL than old ones
+3. Check browser console for next/image errors (even with unoptimized=true,
+   remotePatterns: ["**"] should cover all hosts)
