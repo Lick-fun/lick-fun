@@ -215,15 +215,21 @@ export async function GET(
     const latestBlock = await getHyperSyncHeight();
     const latestBlockBig = BigInt(latestBlock);
 
-    // Determine fromBlock, capped to MAX_LOOKBACK from latest
+    // Determine fromBlock.
+    // When the caller supplies an explicit startBlock (the token's deploy block),
+    // use it directly so HyperSync scans the full history — HyperSync paginates
+    // via next_block with no block-range limits, so this is safe.
+    // Only fall back to the MAX_LOOKBACK window when no startBlock was given, to
+    // avoid scanning the entire chain history for tokens with no known deploy block.
     const requestedFrom = fromBlockParam
       ? BigInt(fromBlockParam)
       : MONAD_DEPLOY_BLOCK;
 
-    const fromBlockBig =
-      latestBlockBig - requestedFrom > MAX_LOOKBACK
+    const fromBlockBig = fromBlockParam
+      ? requestedFrom                                  // explicit startBlock → use as-is
+      : latestBlockBig > MAX_LOOKBACK                  // no startBlock → recent-window fallback
         ? latestBlockBig - MAX_LOOKBACK
-        : requestedFrom;
+        : MONAD_DEPLOY_BLOCK;
 
     const fromBlock = Number(fromBlockBig);
     const curveAddr = curve.toLowerCase();
