@@ -63,11 +63,25 @@ export default function TokenDetailPage() {
   // DEX pair: checks GraduationRouter.tokenToPair — polls every 5s
   const { pairAddress } = useTokenPair(tokenId as `0x${string}`);
 
+  // Extract unique trader addresses from the merged trade list
+  // (indexer + RPC gap-fill) so wallets missed by the indexer are still
+  // checked for current balances via the holders multicall.
+  const extraTraderAddresses = useMemo(() => {
+    const seen = new Set<string>();
+    for (const t of trades) seen.add(t.trader.toLowerCase());
+    // Also include the token creator (dev wallet) — they may hold tokens
+    // from a CurveLaunch mint or post-launch distribution, even if they
+    // never appeared as a trader in the indexer.
+    if (creatorAddress) seen.add(creatorAddress.toLowerCase());
+    return Array.from(seen);
+  }, [trades, creatorAddress]);
+
   const { holders, isLoading: holdersLoading } = useTokenHolders(
     tokenId,
     token?.soldTokens,
     token?.realMon,
-    monUsdPrice
+    monUsdPrice,
+    extraTraderAddresses
   );
 
   // Activity tab: "trades" | "holders"

@@ -63,7 +63,8 @@ export function useTokenHolders(
   tokenId: string,
   soldTokens: bigint | undefined,
   realMon: bigint | undefined,
-  monUsdPrice?: number | null
+  monUsdPrice?: number | null,
+  extraTraders?: string[]
 ) {
   const enabled = !!tokenId;
   const tokenLower = tokenId.toLowerCase();
@@ -86,7 +87,16 @@ export function useTokenHolders(
     refetchInterval: 30_000,
   });
 
-  const traders = useMemo(() => tradersQuery.data ?? [], [tradersQuery.data]);
+  const traders = useMemo(() => {
+    const fromIndexer = tradersQuery.data ?? [];
+    if (!extraTraders || extraTraders.length === 0) return fromIndexer;
+    const seen = new Set<string>();
+    for (const addr of fromIndexer) seen.add(addr);
+    for (const addr of extraTraders) {
+      if (addr) seen.add(addr.toLowerCase());
+    }
+    return Array.from(seen);
+  }, [tradersQuery.data, extraTraders]);
 
   // Step 2: Multicall totalSupply + balanceOf for every unique trader
   const balanceContracts = useMemo(
