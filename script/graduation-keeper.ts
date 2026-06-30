@@ -348,15 +348,17 @@ async function pollVaults(): Promise<void> {
 
 // ─── Poll loop ────────────────────────────────────────────────────────────────
 
-// Monad public RPC limits eth_getLogs to 99 blocks per request.
-const LOG_CHUNK = 99n;
+// Alchemy free tier limits eth_getLogs to a 10-block range per request.
+// Use 9 to stay safely under the limit (MONAD public RPC also accepts this).
+const LOG_CHUNK = 9n;
 
 async function poll(): Promise<void> {
   try {
     const latestBlock = await publicClient.getBlockNumber();
     if (latestBlock <= lastBlock) return;
 
-    // Chunk the range into 99-block windows to satisfy the RPC limit.
+    // Chunk the range into LOG_CHUNK-block windows to satisfy the RPC limit
+    // (Alchemy free tier caps eth_getLogs at a 10-block range).
     let from = lastBlock + 1n;
     while (from <= latestBlock) {
       const to = from + LOG_CHUNK - 1n < latestBlock ? from + LOG_CHUNK - 1n : latestBlock;

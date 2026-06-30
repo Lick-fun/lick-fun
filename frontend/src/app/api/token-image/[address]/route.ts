@@ -4,13 +4,13 @@
  * Returns { imageUri, metadataUri, imageUrl } for a given token address.
  * imageUrl is the gateway-converted HTTPS URL ready to use in <img>.
  * Returns 404 if no metadata is registered for this address.
+ *
+ * The metadata index lives in Storj (S3-compatible bucket), so it survives
+ * Railway redeploys. See lib/server/tokenMetadataStore.ts.
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
-
-const DATA_FILE = path.join(process.cwd(), "src", "data", "token-metadata.json");
+import { readMetadataIndex } from "@/lib/server/tokenMetadataStore";
 
 // Public IPFS gateway used for serving images to the browser.
 // Keep this in sync with NEXT_PUBLIC_PINATA_GATEWAY in .env.local
@@ -31,27 +31,24 @@ function ipfsToHttp(uri: string): string {
   return `${IPFS_GATEWAY}${uri}`;
 }
 
-type MetadataStore = Record<
-  string,
-  { metadataUri: string; imageUri: string; registeredAt: number }
->;
-
-async function readStore(): Promise<MetadataStore> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(raw) as MetadataStore;
-  } catch {
-    return {};
-  }
-}
-
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ address: string }> }
 ) {
   const { address } = await params;
   const normalised = address.toLowerCase();
-  const store = await readStore();
+
+  let store;
+  try {
+    store = await readMetadataIndex();
+  } catch (err) {
+    console.error("[token-image] failed to read metadata index:", err);
+    return NextResponse.json(
+      { error: "Metadata index unavailable" },
+      { status: 503 }
+    );
+  }
+
   const entry = store[normalised];
 
   if (!entry) {

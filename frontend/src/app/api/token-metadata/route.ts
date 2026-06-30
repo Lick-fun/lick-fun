@@ -31,10 +31,7 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
-
-const DATA_FILE = path.join(process.cwd(), "src", "data", "token-metadata.json");
+import { readMetadataIndex } from "@/lib/server/tokenMetadataStore";
 
 const IPFS_GATEWAY =
   process.env.NEXT_PUBLIC_PINATA_GATEWAY ?? "https://gateway.pinata.cloud/ipfs/";
@@ -54,20 +51,6 @@ function ipfsToHttp(uri: string): string {
   return `${IPFS_GATEWAY}${uri}`;
 }
 
-type MetadataStore = Record<
-  string,
-  { metadataUri: string; imageUri: string; registeredAt: number }
->;
-
-async function readStore(): Promise<MetadataStore> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(raw) as MetadataStore;
-  } catch {
-    return {};
-  }
-}
-
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -84,7 +67,16 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
   const limit = Math.min(500, Math.max(1, parseInt(searchParams.get("limit") ?? "100", 10)));
 
-  const store = await readStore();
+  let store;
+  try {
+    store = await readMetadataIndex();
+  } catch (err) {
+    console.error("[token-metadata] failed to read metadata index:", err);
+    return NextResponse.json(
+      { error: "Metadata index unavailable" },
+      { status: 503, headers: CORS_HEADERS }
+    );
+  }
 
   // Sort by registeredAt descending (newest first)
   const entries = Object.entries(store).sort(

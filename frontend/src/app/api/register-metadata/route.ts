@@ -1,46 +1,32 @@
 /**
  * POST /api/register-metadata
- * Body: { tokenAddress: string; metadataUri: string; imageUri: string }
+ * Body: { tokenAddress: string; metadataUri: string; imageUri: string,
+ *         walletAddress: string; signature: string; message: string }
  *
- * Stores a mapping of tokenAddress → { metadataUri, imageUri } in a lightweight
- * JSON file on disk. This is just a lookup index — the actual content lives on IPFS
- * forever regardless of whether this server is running.
+ * Stores a mapping of tokenAddress → { metadataUri, imageUri } in a persistent
+ * JSON index inside the configured Storj (S3-compatible) bucket. Using Storj
+ * instead of local disk means the index survives Railway redeploys (Railway
+ * containers have ephemeral filesystems).
+ *
+ * The actual image + metadata content lives on Storj forever regardless of
+ * whether this server is running.
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import { verifyMessage } from "viem";
-
-const DATA_FILE = path.join(process.cwd(), "src", "data", "token-metadata.json");
-
-type MetadataStore = Record<
-  string,
-  { metadataUri: string; imageUri: string; registeredAt: number }
->;
-
-async function readStore(): Promise<MetadataStore> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(raw) as MetadataStore;
-  } catch {
-    return {};
-  }
-}
-
-async function writeStore(store: MetadataStore): Promise<void> {
-  await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
-  const tmpFile = `${DATA_FILE}.tmp`;
-  // Atomic write: write to temp file first, then rename — prevents corruption
-  // if the process is interrupted mid-write.
-  await fs.writeFile(tmpFile, JSON.stringify(store, null, 2), "utf-8");
-  await fs.rename(tmpFile, DATA_FILE);
-}
+import { readMetadataIndex, writeMetadataIndex } from "@/lib/server/tokenMetadataStore";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { tokenAddress, metadataUri, imageUri, walletAddress, signature, message } = body as {
+    const {
+      tokenAddress,
+      metadataUri,
+      imageUri,
+      walletAddress,
+      signature,
+      message,
+    } = body as {
       tokenAddress?: string;
       metadataUri?: string;
       imageUri?: string;
@@ -77,7 +63,7 @@ export async function POST(req: NextRequest) {
     }
 
     const normalised = tokenAddress.toLowerCase();
-    const store = await readStore();
+    const store = await readMetadataIndex();
 
     store[normalised] = {
       metadataUri,
@@ -85,7 +71,7 @@ export async function POST(req: NextRequest) {
       registeredAt: Date.now(),
     };
 
-    await writeStore(store);
+    await writeMetadataIndex(store);
 
     return NextResponse.json({ ok: true, tokenAddress: normalised });
   } catch (err) {
