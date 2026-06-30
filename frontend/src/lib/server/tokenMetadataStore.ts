@@ -55,6 +55,18 @@ function getS3Client(): S3Client {
 }
 
 /**
+ * Type guard for the AWS SDK "object not found" error.
+ * The SDK throws a ServiceException whose shape depends on the underlying
+ * transport; both `$metadata.httpStatusCode === 404` and `name === "NoSuchKey"`
+ * are valid signals across the major SDK versions.
+ */
+function isNotFoundError(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const e = err as { $metadata?: { httpStatusCode?: number }; name?: string };
+  return e.$metadata?.httpStatusCode === 404 || e.name === "NoSuchKey";
+}
+
+/**
  * Read the metadata index from Storj.
  * Returns an empty object if the index doesn't exist yet (first-ever registration).
  */
@@ -70,9 +82,9 @@ export async function readMetadataIndex(): Promise<MetadataStore> {
     const body = await res.Body?.transformToString("utf-8");
     if (!body) return {};
     return JSON.parse(body) as MetadataStore;
-  } catch (err: any) {
+  } catch (err) {
     // NoSuchKey / NotFound is expected on first run — return empty store.
-    if (err?.$metadata?.httpStatusCode === 404 || err?.name === "NoSuchKey") {
+    if (isNotFoundError(err)) {
       return {};
     }
     // Unknown S3/network error — bubble up so the route can return 500.
