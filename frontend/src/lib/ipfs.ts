@@ -30,6 +30,10 @@ const FALLBACK_GATEWAYS = [
 export function ipfsToHttp(uri: string | null | undefined): string | null {
   if (!uri) return null;
   if (uri.startsWith("https://") || uri.startsWith("http://")) return uri;
+  // Local/relative asset served from the Next.js public/ folder (e.g. a
+  // short-term hardcoded image at /tokens/foo.jpg) — pass through as-is so
+  // the browser resolves it against the current origin.
+  if (uri.startsWith("/")) return uri;
   if (uri.startsWith("ipfs://")) {
     const cid = uri.replace("ipfs://", "").replace(/^\//, "");
     return `${IPFS_GATEWAY}${cid}`;
@@ -40,6 +44,7 @@ export function ipfsToHttp(uri: string | null | undefined): string | null {
   }
   return null;
 }
+
 
 /**
  * Return fallback gateway URLs for an IPFS URI (for <img> onError retry logic).

@@ -44,11 +44,17 @@ function ipfsToHttp(uri: string): string {
     }
     return uri;
   }
+  // Local/relative asset served from the Next.js public/ folder — external
+  // aggregators need a fully-qualified URL, so prefix with SITE_URL.
+  if (uri.startsWith("/")) {
+    return `${SITE_URL}${uri}`;
+  }
   if (uri.startsWith("ipfs://")) {
     return `${IPFS_GATEWAY}${uri.replace("ipfs://", "")}`;
   }
   return `${IPFS_GATEWAY}${uri}`;
 }
+
 
 // Standard metadata shape that aggregators understand
 interface AggregatorMeta {

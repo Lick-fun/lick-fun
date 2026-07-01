@@ -108,11 +108,16 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
         {/* Burn-address callout — sized up + bolder + higher contrast so it
             can’t be missed at a glance. Slightly larger, fully bold, saturated
             orange background, and a subtle ring so it pops off the card. */}
-        <a
-          href="https://monadvision.com/tx/0x4c34c6facbe1e662d6940a8da22764e86d28f083a54bb6633518e6a3b14f6d05"
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open(
+              "https://monadvision.com/tx/0x4c34c6facbe1e662d6940a8da22764e86d28f083a54bb6633518e6a3b14f6d05",
+              "_blank",
+              "noopener,noreferrer"
+            );
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill border-2 border-orange-400 text-orange-300 no-underline uppercase tracking-wide shadow-md shadow-orange-500/20 hover:bg-orange-500/30 hover:border-orange-300 hover:text-orange-100 transition-colors"
           style={{
             fontSize: "13px",
@@ -122,7 +127,8 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
           }}
         >
           🔥 Founder &amp; Dev wallet sent to BURN 🔥
-        </a>
+        </button>
+
       </div>
 
       {/* Token avatar (placeholder = locked circle, live = real avatar) */}

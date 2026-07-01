@@ -25,11 +25,18 @@ function ipfsToHttp(uri: string): string {
     }
     return uri;
   }
+  // Local/relative asset served from the Next.js public/ folder (e.g. a
+  // short-term hardcoded image at /tokens/foo.jpg) — pass through as-is so
+  // the browser resolves it against the current origin.
+  if (uri.startsWith("/")) {
+    return uri;
+  }
   if (uri.startsWith("ipfs://")) {
     return `${IPFS_GATEWAY}${uri.replace("ipfs://", "")}`;
   }
   return `${IPFS_GATEWAY}${uri}`;
 }
+
 
 export async function GET(
   _req: NextRequest,

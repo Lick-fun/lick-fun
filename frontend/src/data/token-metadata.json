@@ -73,5 +73,11 @@
     "metadataUri": "https://link.storjshare.io/s/jvqgktahde346s3s65orx4mmtk4a/lickfun/tokens/test-1782698076924-metadata.json?wrap=0",
     "imageUri": "https://link.storjshare.io/s/jvqgktahde346s3s65orx4mmtk4a/lickfun/tokens/test-1782698076924.jpg?wrap=0",
     "registeredAt": 1782698111504
+  },
+  "0x46c26ca65f0b3e54c300f819cc73351141152d4a": {
+    "metadataUri": "",
+    "imageUri": "/tokens/blob.jpg",
+    "registeredAt": 1782700000000
   }
 }
+

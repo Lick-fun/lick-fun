@@ -160,11 +160,19 @@ export function useCreateToken(): UseCreateTokenResult {
     setTokenAddress(parsedToken);
     setCurveAddress(parsedCurve);
 
-    // Register metadata with our API so the image shows everywhere
-    if (metadataUri && imageUri) {
-      // Sign a message to authenticate the metadata registration (P0-2)
-      const metaMessage = `Lickfun.xyz: register metadata for ${parsedToken} by ${address} at ${Date.now()}`;
-      (async () => {
+    // Register metadata with our API so the image shows everywhere, then proceed
+    // to the dev-buy step (if any) or mark the flow done. This whole block is
+    // awaited sequentially (rather than firing the registration fetch without
+    // waiting) so that navigation to the token page — which happens as soon as
+    // step === "done" — never occurs before the image/metadata index write has
+    // actually landed on the server. Without this, the token page's first
+    // /api/token-image fetch could 404 (registration still in-flight) and that
+    // "no image" result gets cached client-side for 5 minutes, making the image
+    // appear permanently missing even though registration succeeds moments later.
+    (async () => {
+      if (metadataUri && imageUri) {
+        // Sign a message to authenticate the metadata registration (P0-2)
+        const metaMessage = `Lickfun.xyz: register metadata for ${parsedToken} by ${address} at ${Date.now()}`;
         try {
           const metaSig = await signMessageAsync({ message: metaMessage });
           const regRes = await fetch("/api/register-metadata", {
@@ -195,47 +203,48 @@ export function useCreateToken(): UseCreateTokenResult {
           // Non-fatal: token was created on-chain; image will be missing until manually fixed.
           // Do NOT block the user from seeing their token.
         }
-      })();
-    }
+      }
 
-    const devBuyStr = pendingDevBuyMon;
-    const devBuyFloat = parseFloat(devBuyStr);
-    if (devBuyStr && devBuyFloat > 0 && Number.isFinite(devBuyFloat)) {
-      // Fire the dev pre-buy on the freshly deployed curve.
-      // First buy is exempt from anti-sniping penalty by contract design
-      // (initialBuyExecuted flag). We pass minTokensOut=0 because:
-      //  1. The curve has 0 realMon / 0 soldTokens — pricing is deterministic.
-      //  2. We sign + broadcast immediately after the create tx in the same session,
-      //     so no front-running window.
-      //  3. The user explicitly chose this amount.
-      try {
-        const valueWei = parseEther(devBuyStr);
-        writeBuyAsync({
-          address: parsedCurve,
-          abi: BondingCurveABI,
-          functionName: "buy",
-          args: [0n],
-          value: valueWei,
-        }).catch((err) => {
-          console.error("[useCreateToken] dev buy failed:", err);
-          setError(
-            err instanceof Error ? err : new Error(String(err))
-          );
-          // Token was created successfully; still mark done so user sees it.
+      const devBuyStr = pendingDevBuyMon;
+      const devBuyFloat = parseFloat(devBuyStr);
+      if (devBuyStr && devBuyFloat > 0 && Number.isFinite(devBuyFloat)) {
+        // Fire the dev pre-buy on the freshly deployed curve.
+        // First buy is exempt from anti-sniping penalty by contract design
+        // (initialBuyExecuted flag). We pass minTokensOut=0 because:
+        //  1. The curve has 0 realMon / 0 soldTokens — pricing is deterministic.
+        //  2. We sign + broadcast immediately after the create tx in the same session,
+        //     so no front-running window.
+        //  3. The user explicitly chose this amount.
+        try {
+          const valueWei = parseEther(devBuyStr);
+          writeBuyAsync({
+            address: parsedCurve,
+            abi: BondingCurveABI,
+            functionName: "buy",
+            args: [0n],
+            value: valueWei,
+          }).catch((err) => {
+            console.error("[useCreateToken] dev buy failed:", err);
+            setError(
+              err instanceof Error ? err : new Error(String(err))
+            );
+            // Token was created successfully; still mark done so user sees it.
+            setStep("done");
+          });
+        } catch (err) {
+          console.error("[useCreateToken] dev buy setup failed:", err);
+          setError(err instanceof Error ? err : new Error(String(err)));
           setStep("done");
-        });
-      } catch (err) {
-        console.error("[useCreateToken] dev buy setup failed:", err);
-        setError(err instanceof Error ? err : new Error(String(err)));
+        }
+      } else {
+        // No dev buy requested — flow complete.
         setStep("done");
       }
-    } else {
-      // No dev buy requested — flow complete.
-      setStep("done");
-    }
+    })();
   }, [
     isCreateSuccess,
     receipt,
+
     step,
     metadataUri,
     imageUri,
