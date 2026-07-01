@@ -183,7 +183,7 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
             className="h-full rounded-full"
             style={{
               width: `${progress}%`,
-              background: "linear-gradient(90deg, #6E44D2 0%, #9B6FFF 100%)",
+              background: "linear-gradient(90deg, #2CC054 0%, #4ADE80 100%)",
               borderRadius: "24px",
               transition: "width 0.3s ease",
             }}
