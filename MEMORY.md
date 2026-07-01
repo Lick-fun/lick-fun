@@ -46,7 +46,13 @@
 - **What:** Changed "⭐ Founder" to "⭐ Founder ⭐".
 - **Why:** User wanted the stars symmetric on both sides of the "Founder" word on the homepage banner.
 
+### 9. Fee Strategy Toggle Slider Alignment Fix
+- **File:** `frontend/src/components/fee/FeeConfigSelector.tsx`
+- **What:** Fixed the white thumb position on the four Fee Strategy toggles (Buyback & Burn, LP Support, Creator, Gift) on the Create Token page. Gave the thumb an explicit `left-0.5 top-0.5` resting position; changed OFF transform from `translate-x-0.5` to `translate-x-0`; kept ON as `translate-x-5`. Also moved `border` to the base classes (always present) and used `border-figma-green` on the ON state so the box model is identical in both states.
+- **Why:** Thumb had no explicit `left` and relied on the browser's default static position, so the `translate-x-5` shift in the ON state left ~4px of right-side gap instead of the matching 2px seen on the left. The OFF track also had a 1px border that the ON track didn't, causing a sub-pixel shift between states.
+
 ## Git History
 - Commit `69c4093` — Changes 1, 2, 3, 5
 - Commit `7fd052c` — Change 4
 - (Pending) Commit — Changes 6, 7, 8
+- (Pending) Commit — Change 9

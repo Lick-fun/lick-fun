@@ -212,14 +212,14 @@ export function FeeConfigSelector({
                   aria-checked={isOn}
                   onClick={() => handleToggle(row.key)}
                   className={clsx(
-                    "relative shrink-0 h-6 w-11 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-figma-green",
-                    isOn ? "bg-figma-green" : "bg-figma-surface border border-white/20",
+                    "relative shrink-0 h-6 w-11 rounded-full border transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-figma-green",
+                    isOn ? "bg-figma-green border-figma-green" : "bg-figma-surface border-white/20",
                   )}
                 >
                   <span
                     className={clsx(
-                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200",
-                      isOn ? "translate-x-5" : "translate-x-0.5",
+                      "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200",
+                      isOn ? "translate-x-5" : "translate-x-0",
                     )}
                   />
                 </button>
