@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAccount } from "wagmi";
 import { cn } from "@/lib/utils";
 import {
   Home,
@@ -12,7 +11,6 @@ import {
   BookOpen,
   Plus,
   Zap,
-  User,
 } from "lucide-react";
 
 const mainLinks = [
@@ -21,10 +19,6 @@ const mainLinks = [
   { href: "/create",    label: "Create Token", icon: Plus },
   { href: "/markets",   label: "Markets",      icon: TrendingUp },
   { href: "/how-it-works", label: "How It Works", icon: BookOpen },
-];
-
-const extraLinks = [
-  { href: "/profile", label: "Profile", icon: User },
 ];
 
 // Simple SVG social icons (lucide doesn't ship Telegram/Instagram/Discord variants)
@@ -91,33 +85,17 @@ function NavLink({
   );
 }
 
-function DisabledNavLink({
-  label,
-  icon: Icon,
-}: {
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
-  return (
-    <span
-      className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium border-l-2 border-transparent text-figma-muted opacity-40 cursor-not-allowed select-none"
-      title="Connect wallet to view profile"
-    >
-      <Icon className="w-5 h-5" />
-      {label}
-    </span>
-  );
-}
-
 /**
  * Figma-sourced sidebar:
  *   - Width: 291px (token: --sidebar-w)
  *   - Background: var(--color-bg)  (#0E0E0E)
  *   - Active item: green left border + green text
+ *
+ * "Profile" lives in the wallet dropdown menu (WalletMenu) rather than here,
+ * since it's an account-scoped action tied to the connected wallet.
  */
 export function Sidebar() {
   const pathname = usePathname();
-  const { address } = useAccount();
 
   return (
     <aside
@@ -153,41 +131,6 @@ export function Sidebar() {
             active={isActiveLink(pathname, link.href)}
           />
         ))}
-
-        <div className="pt-4 mt-4 border-t border-figma-surface" />
-
-        {extraLinks.map((link) => {
-          if (link.href === "/profile") {
-            if (!address) {
-              return (
-                <DisabledNavLink
-                  key={link.href}
-                  label={link.label}
-                  icon={link.icon}
-                />
-              );
-            }
-            const href = `/profile/${address}`;
-            return (
-              <NavLink
-                key={link.href}
-                href={href}
-                label={link.label}
-                icon={link.icon}
-                active={isActiveLink(pathname, href)}
-              />
-            );
-          }
-          return (
-            <NavLink
-              key={link.href}
-              href={link.href}
-              label={link.label}
-              icon={link.icon}
-              active={isActiveLink(pathname, link.href)}
-            />
-          );
-        })}
       </nav>
 
       {/* Footer */}

@@ -3,15 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAccount } from "wagmi";
-import { Search, Home, Compass, TrendingUp, BookOpen, Plus, User } from "lucide-react";
+import { Search, Home, Compass, TrendingUp, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WalletMenu } from "@/components/layout/WalletMenu";
 
 const navLinks = [
   { href: "/",             label: "Home",         icon: Home },
   { href: "/discover",     label: "Discover",     icon: Compass },
-  { href: "/create",       label: "Create Token", icon: Plus },
   { href: "/markets",      label: "Markets",      icon: TrendingUp },
   { href: "/how-it-works", label: "How It Works", icon: BookOpen },
 ];
@@ -24,10 +22,12 @@ function isActiveLink(pathname: string, href: string): boolean {
 /**
  * Full-width top navigation bar:
  *   Logo → Nav links → Search pill → Wallet connect
+ *
+ * "Create Token" and "Profile" live in the wallet dropdown menu (WalletMenu)
+ * rather than the main nav, since they're account-scoped actions.
  */
 export function Header() {
   const pathname = usePathname();
-  const { address } = useAccount();
 
   return (
     <header className="flex items-center gap-4 h-16 px-6 border-b border-figma-surface bg-figma-bg shrink-0 w-full">
@@ -46,9 +46,6 @@ export function Header() {
       {/* Desktop nav links */}
       <nav className="hidden lg:flex items-center gap-1 ml-2">
         {navLinks.map((link) => {
-          // Profile link — disabled without wallet
-          if (link.href === "/profile") return null;
-
           const active = isActiveLink(pathname, link.href);
           return (
             <Link
@@ -66,22 +63,6 @@ export function Header() {
             </Link>
           );
         })}
-
-        {/* Profile — only shown when wallet connected */}
-        {address && (
-          <Link
-            href={`/profile/${address}`}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150",
-              isActiveLink(pathname, `/profile/${address}`)
-                ? "bg-figma-surface text-figma-white"
-                : "text-figma-muted hover:text-figma-white hover:bg-figma-surface"
-            )}
-          >
-            <User className={cn("w-4 h-4", isActiveLink(pathname, `/profile/${address}`) ? "text-figma-green" : "")} />
-            Profile
-          </Link>
-        )}
       </nav>
 
       {/* Search pill — grows to fill remaining space */}

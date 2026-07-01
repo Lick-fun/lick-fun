@@ -27,7 +27,26 @@
 - **What:** Lowercased `transaction_hash` in trade ID generation.
 - **Why:** Case mismatch between indexer (lowercase) and HyperSync (mixed case) caused duplicate entries.
 
+### 6. Remove Profile From Main Nav (consolidate to wallet dropdown)
+- **Files:**
+  - `frontend/src/components/layout/Header.tsx`
+  - `frontend/src/components/layout/Sidebar.tsx`
+- **What:**
+  - Header: removed "Create Token" from `navLinks` and removed the conditional "Profile" `<Link>` block (and unused `Plus`/`User`/`useAccount` imports).
+  - Sidebar: removed the entire `extraLinks`/Profile section, the `DisabledNavLink` component, and the `User` icon import.
+- **Why:** "Create Token" and "Profile" are both already accessible from the wallet dropdown (`WalletMenu`), so listing them in the main nav is redundant.
+
+### 7. Mobile Bottom Nav Re-optimization (Create as raised FAB)
+- **File:** `frontend/src/components/layout/BottomNav.tsx`
+- **What:** Removed "Create" from the flat tab list and promoted it to a raised circular floating action button centered on the nav bar. The remaining 4 links (Home, Discover, Markets, Learn) now split evenly left/right around the FAB, each with `flex-1` so the layout is balanced on any mobile width. Icons bumped to 20px, labels to 11px (truncate-safe). FAB uses `bg-figma-purple` (green when active) with a 12×12 round button, 4px `border-figma-bg` ring so it visually "floats", and `shadow-lg`.
+- **Why:** Removing "Create" from the flat 5-tab row would have left a sparse, off-center bar. Keeping it as a raised FAB preserves prominence of the primary CTA while balancing the remaining 4 tabs.
+
+### 8. Founder Badge Symmetry
+- **File:** `frontend/src/components/home/FounderTokenBanner.tsx`
+- **What:** Changed "⭐ Founder" to "⭐ Founder ⭐".
+- **Why:** User wanted the stars symmetric on both sides of the "Founder" word on the homepage banner.
+
 ## Git History
 - Commit `69c4093` — Changes 1, 2, 3, 5
 - Commit `7fd052c` — Change 4
-- Both pushed to `origin main`
+- (Pending) Commit — Changes 6, 7, 8

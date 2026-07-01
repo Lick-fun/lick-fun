@@ -101,8 +101,9 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
               textShadow: "0 0 10px rgba(44,192,84,0.7)",
             }}
           >
-            ⭐ Founder
+            ⭐ Founder ⭐
           </span>
+
         </div>
         {/* Burn-address callout — sized up + bolder + higher contrast so it
             can’t be missed at a glance. Slightly larger, fully bold, saturated
