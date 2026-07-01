@@ -1,0 +1,40 @@
+# 2026-07-02 — Founder Token X Link Override
+
+# Context
+# User asked to change the X link on the Lickfun Founder token page to point
+# at the Lickfun X profile (https://x.com/Lickfun__) instead of whatever the
+# token's IPFS metadata says. Other token pages should still use the
+# IPFS-provided twitter link.
+
+# Why override at all (vs editing IPFS metadata)
+# - The Founder token's IPFS metadata lives in a Storj-pinned JSON that the
+#   user controls, but they wanted a guaranteed, app-side override so the
+#   page never depends on the on-chain/IPFS data being correct.
+# - It mirrors the existing pattern on the Founder token page where we
+#   already hardcode the dev-wallet burn tx link (see
+#   `frontend/src/app/token/[id]/page.tsx`, "Founder burn notice" block).
+# - Single-file change; no other token pages are affected.
+
+# Fix shipped
+# File: `frontend/src/app/token/[id]/page.tsx`
+
+# 1. Added a derived `twitterUrl` value next to the existing `isFounderToken`
+#    check (which already uses `NEXT_PUBLIC_FOUNDER_TOKEN_ADDRESS`):
+#        const twitterUrl = isFounderToken
+#          ? "https://x.com/Lickfun__"
+#          : ipfsMeta?.twitter;
+#
+# 2. Updated the "Social links" block in the right-hand "Information" card
+#    to use `twitterUrl` instead of `ipfsMeta.twitter` — both the outer
+#    render condition (`(ipfsMeta?.telegram || twitterUrl || ipfsMeta?.website)`)
+#    and the X anchor's `href={twitterUrl}`. The TG and Web buttons are
+#    untouched and still driven directly by `ipfsMeta.telegram` / `ipfsMeta.website`.
+
+# Net behaviour
+# - Founder token page: X button always opens https://x.com/Lickfun__ in a
+#   new tab, regardless of IPFS metadata.
+# - Every other token page: X button still uses its own IPFS-provided twitter
+#   link (unchanged).
+# - If the IPFS metadata has no `twitter` field, the X button is hidden on
+#   non-founder pages (same as before). On the Founder page the button is
+#   always shown because `twitterUrl` is always truthy.

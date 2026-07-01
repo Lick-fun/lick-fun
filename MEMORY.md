@@ -72,10 +72,16 @@
 - **What:** Added a bundled fallback entry for BLOB (`0x46c26ca65f0b3e54c300f819cc73351141152d4a`) pointing at `/tokens/blob.jpg` (empty `metadataUri` since no real on-chain metadata JSON exists yet). Updated all `ipfsToHttp` resolvers to pass through relative `/...` paths: client-side (used by `TokenImage`/`useTokenImage`) and the same-origin `token-image` API return the path as-is so the browser resolves it; the aggregator-facing `token-metadata` API routes prefix with `SITE_URL` so external bots get a fully-qualified URL.
 - **Why:** User had created the BLOB token but missed the second wallet signature prompt, so the on-chain create succeeded but the metadata registration never ran. Instead of forcing a re-create, this hardcodes the image as a short-term fix so BLOB shows correctly on discovery, the homepage, and the token page. Can be removed once a real registration write replaces the bundled entry.
 
+### 13. Founder Token X Link Override
+- **File:** `frontend/src/app/token/[id]/page.tsx`
+- **What:** Added a derived `twitterUrl` that is hardcoded to `https://x.com/Lickfun__` when `isFounderToken` is true (driven by `NEXT_PUBLIC_FOUNDER_TOKEN_ADDRESS`), else falls back to `ipfsMeta?.twitter`. Updated the "Social links" block in the right-hand "Information" card so the X anchor's `href` and the surrounding render condition both use `twitterUrl` instead of `ipfsMeta.twitter`. TG and Web links remain driven by IPFS metadata.
+- **Why:** User wanted the Founder token page's X button to point at the official Lickfun X profile, regardless of whatever's in the token's IPFS metadata. App-side override mirrors the existing pattern used for the dev-wallet burn-tx link on the same page.
+
 ## Git History
 - Commit `69c4093` — Changes 1, 2, 3, 5
 - Commit `7fd052c` — Change 4
 - (Pending) Commit — Changes 6, 7, 8
 - Commit `bce6dd9` — Change 9
 - Commit `(pending)` — Changes 10, 11, 12
+- Commit `(pending)` — Change 13
 

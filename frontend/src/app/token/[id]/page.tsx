@@ -147,6 +147,10 @@ export default function TokenDetailPage() {
   const founderTokenAddress = process.env.NEXT_PUBLIC_FOUNDER_TOKEN_ADDRESS;
   const isFounderToken = !!founderTokenAddress && tokenId.toLowerCase() === founderTokenAddress.toLowerCase();
 
+  // Force the Founder token page's X link to the Lickfun profile, regardless of
+  // whatever's in the IPFS metadata. Other token pages keep using ipfsMeta.twitter.
+  const twitterUrl = isFounderToken ? "https://x.com/Lickfun__" : ipfsMeta?.twitter;
+
   return (
     <div className="max-w-7xl mx-auto px-4 lg:pl-sidebar lg:pr-4 pb-24 lg:pb-20">
       {/* Back */}
@@ -542,7 +546,7 @@ export default function TokenDetailPage() {
             )}
 
             {/* Social links */}
-            {(ipfsMeta?.telegram || ipfsMeta?.twitter || ipfsMeta?.website) && (
+            {(ipfsMeta?.telegram || twitterUrl || ipfsMeta?.website) && (
               <div className="flex items-center gap-2 mb-3">
                 {ipfsMeta.telegram && (
                   <a
@@ -555,9 +559,9 @@ export default function TokenDetailPage() {
                     <span>TG</span>
                   </a>
                 )}
-                {ipfsMeta.twitter && (
+                {twitterUrl && (
                   <a
-                    href={ipfsMeta.twitter}
+                    href={twitterUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-figma-surface hover:bg-figma-surface/80 transition-colors text-figma-muted hover:text-figma-white text-xs"
