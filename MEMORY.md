@@ -77,11 +77,17 @@
 - **What:** Added a derived `twitterUrl` that is hardcoded to `https://x.com/Lickfun__` when `isFounderToken` is true (driven by `NEXT_PUBLIC_FOUNDER_TOKEN_ADDRESS`), else falls back to `ipfsMeta?.twitter`. Updated the "Social links" block in the right-hand "Information" card so the X anchor's `href` and the surrounding render condition both use `twitterUrl` instead of `ipfsMeta.twitter`. TG and Web links remain driven by IPFS metadata.
 - **Why:** User wanted the Founder token page's X button to point at the official Lickfun X profile, regardless of whatever's in the token's IPFS metadata. App-side override mirrors the existing pattern used for the dev-wallet burn-tx link on the same page.
 
+### 14. Founder Token X Link — TS Narrowing Fix
+- **File:** `frontend/src/app/token/[id]/page.tsx`
+- **What:** Changed `ipfsMeta.telegram` to `ipfsMeta?.telegram` and `ipfsMeta.website` to `ipfsMeta?.website` on the condition + href lines of the TG and Web anchors in the same "Social links" block touched by Change 13.
+- **Why:** After Change 13, the outer render condition references `twitterUrl` — which can be truthy even when `ipfsMeta` is null — so TypeScript no longer narrows `ipfsMeta` to non-null inside the block, and bare `ipfsMeta.telegram` / `ipfsMeta.website` accesses failed the type check (and would break the Next.js build). Optional chaining keeps the build green without changing runtime behaviour. Verified with `node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit`.
+
 ## Git History
 - Commit `69c4093` — Changes 1, 2, 3, 5
 - Commit `7fd052c` — Change 4
 - (Pending) Commit — Changes 6, 7, 8
 - Commit `bce6dd9` — Change 9
 - Commit `(pending)` — Changes 10, 11, 12
-- Commit `(pending)` — Change 13
+- Commit `f51f615` — Change 13
+- Commit `(pending)` — Change 14
 

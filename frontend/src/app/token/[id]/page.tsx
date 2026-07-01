@@ -548,7 +548,7 @@ export default function TokenDetailPage() {
             {/* Social links */}
             {(ipfsMeta?.telegram || twitterUrl || ipfsMeta?.website) && (
               <div className="flex items-center gap-2 mb-3">
-                {ipfsMeta.telegram && (
+                {ipfsMeta?.telegram && (
                   <a
                     href={ipfsMeta.telegram}
                     target="_blank"
@@ -572,7 +572,7 @@ export default function TokenDetailPage() {
                     <span>X</span>
                   </a>
                 )}
-                {ipfsMeta.website && (
+                {ipfsMeta?.website && (
                   <a
                     href={ipfsMeta.website}
                     target="_blank"

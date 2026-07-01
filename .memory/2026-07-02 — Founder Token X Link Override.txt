@@ -29,6 +29,17 @@
 #    render condition (`(ipfsMeta?.telegram || twitterUrl || ipfsMeta?.website)`)
 #    and the X anchor's `href={twitterUrl}`. The TG and Web buttons are
 #    untouched and still driven directly by `ipfsMeta.telegram` / `ipfsMeta.website`.
+#
+# 3. Follow-up fix (TS narrowing): the original pass also changed
+#    `ipfsMeta.telegram` to `ipfsMeta?.telegram` and `ipfsMeta.website` to
+#    `ipfsMeta?.website` on the condition + href lines of the TG and Web
+#    anchors (i.e. lines that now sit inside a branch whose own condition
+#    references `twitterUrl` — which can be truthy even when `ipfsMeta` is
+#    null). Without the optional chains TypeScript no longer narrowed
+#    `ipfsMeta` to non-null inside that block, so bare `ipfsMeta.telegram` /
+#    `ipfsMeta.website` accesses failed the type check and broke the
+#    Next.js build. The X anchor was already safe (it uses `twitterUrl`).
+#    Verified clean with `node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit`.
 
 # Net behaviour
 # - Founder token page: X button always opens https://x.com/Lickfun__ in a
