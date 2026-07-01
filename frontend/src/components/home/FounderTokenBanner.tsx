@@ -91,7 +91,16 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
       {/* Founder badge + burn notice */}
       <div className="relative z-10 flex flex-col items-center gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-figma-xs px-2 py-0.5 rounded-pill bg-figma-green/20 text-figma-green font-semibold">
+          <span
+            className="rounded-pill text-figma-green font-extrabold uppercase tracking-widest border border-figma-green/60 shadow-md shadow-figma-green/20"
+            style={{
+              fontSize: "15px",
+              padding: "4px 14px",
+              background: "linear-gradient(135deg, rgba(44,192,84,0.22) 0%, rgba(44,192,84,0.38) 100%)",
+              letterSpacing: "0.1em",
+              textShadow: "0 0 10px rgba(44,192,84,0.7)",
+            }}
+          >
             ⭐ Founder
           </span>
         </div>
