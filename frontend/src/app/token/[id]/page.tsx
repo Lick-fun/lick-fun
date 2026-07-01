@@ -86,6 +86,11 @@ export default function TokenDetailPage() {
 
   // Activity tab: "trades" | "holders"
   const [activityTab, setActivityTab] = useState<"trades" | "holders">("trades");
+  // Trades pagination
+  const TRADES_PER_PAGE = 10;
+  const [tradePage, setTradePage] = useState(0);
+  const tradePageCount = Math.max(1, Math.ceil(trades.length / TRADES_PER_PAGE));
+  const pagedTrades = trades.slice(tradePage * TRADES_PER_PAGE, (tradePage + 1) * TRADES_PER_PAGE);
 
   // Price flash effect
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
@@ -324,6 +329,28 @@ export default function TokenDetailPage() {
                 <p className="text-xs text-figma-muted py-8 text-center">No trades yet — be the first!</p>
               ) : (
                 <div className="overflow-x-auto">
+                  {/* Pagination row — sits above the table header */}
+                  {tradePageCount > 1 && (
+                    <div className="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-figma-surface/30">
+                      <button
+                        onClick={() => setTradePage((p) => Math.max(0, p - 1))}
+                        disabled={tradePage === 0}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold text-figma-muted hover:text-figma-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        ← Prev
+                      </button>
+                      <span className="text-[10px] text-figma-muted font-mono">
+                        {tradePage + 1} / {tradePageCount}
+                      </span>
+                      <button
+                        onClick={() => setTradePage((p) => Math.min(tradePageCount - 1, p + 1))}
+                        disabled={tradePage >= tradePageCount - 1}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold text-figma-muted hover:text-figma-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  )}
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-figma-muted border-b border-figma-surface/50">
@@ -336,7 +363,7 @@ export default function TokenDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {trades.slice(0, 40).map((trade) => {
+                      {pagedTrades.map((trade) => {
                         const isDev = !!creatorAddress && trade.trader.toLowerCase() === creatorAddress.toLowerCase();
                         const monAmt = Number(trade.isBuy ? trade.amountIn : trade.amountOut) / 1e18;
                         const usdAmt = monUsdPrice != null ? monAmt * monUsdPrice : null;

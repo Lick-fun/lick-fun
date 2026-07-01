@@ -156,6 +156,8 @@ export function useTokenTradesMerged(
   const indexerQuery = useTokenTrades(tokenId);
 
   // Source 2: Server-side RPC log fetch (catches indexer gaps)
+  // Disabled — indexer is healthy and covers all trades. Enabling this caused
+  // duplicates due to a race condition between stale RPC cache and indexer fetch.
   const rpcQuery = useQuery({
     queryKey: [
       "token-trades-rpc",
@@ -163,10 +165,7 @@ export function useTokenTradesMerged(
       curveAddress?.toLowerCase(),
       startBlock?.toString(),
     ],
-    enabled:
-      !!tokenId &&
-      !!curveAddress &&
-      curveAddress !== "0x0000000000000000000000000000000000000000",
+    enabled: false,
     queryFn: async () => {
       const params = new URLSearchParams({
         tokenId: tokenId.toLowerCase(),
@@ -196,8 +195,9 @@ export function useTokenTradesMerged(
     }
 
     // Indexer is the source of truth — only add trades the indexer doesn't have
-    const seen = new Set(indexerTrades.map((t) => t.id));
-    const gapTrades = rpcTrades.filter((t) => !seen.has(t.id));
+    // Normalise IDs to lowercase so case differences (indexer vs HyperSync) don't cause duplicates
+    const seen = new Set(indexerTrades.map((t) => t.id.toLowerCase()));
+    const gapTrades = rpcTrades.filter((t) => !seen.has(t.id.toLowerCase()));
 
     if (gapTrades.length === 0) {
       return { mergedTrades: indexerTrades, gapCount: 0 };

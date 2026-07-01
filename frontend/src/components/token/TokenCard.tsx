@@ -127,39 +127,40 @@ export function TokenCard({
           </span>
 
           {/* Social links (TG / X / Web) — icon-only, only renders if any exist */}
+          {/* Using <button> + window.open instead of <a> to avoid invalid nested anchor */}
           {(ipfsMeta?.telegram || ipfsMeta?.twitter || ipfsMeta?.website) && (
             <div className="flex items-center gap-[4px] mt-[2px]">
               {ipfsMeta.telegram && (
-                <a
-                  href={ipfsMeta.telegram}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open(ipfsMeta.telegram, "_blank", "noopener,noreferrer"); }}
                   title="Telegram"
-                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors"
+                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors cursor-pointer"
                   style={{
                     width: "18px",
                     height: "18px",
                     borderRadius: "4px",
                     background: "#1B1B1B",
+                    border: "none",
+                    padding: 0,
                   }}
                 >
                   <Send style={{ width: "10px", height: "10px" }} />
-                </a>
+                </button>
               )}
               {ipfsMeta.twitter && (
-                <a
-                  href={ipfsMeta.twitter}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open(ipfsMeta.twitter, "_blank", "noopener,noreferrer"); }}
                   title="Twitter / X"
-                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors"
+                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors cursor-pointer"
                   style={{
                     width: "18px",
                     height: "18px",
                     borderRadius: "4px",
                     background: "#1B1B1B",
+                    border: "none",
+                    padding: 0,
                   }}
                 >
                   <svg
@@ -169,25 +170,25 @@ export function TokenCard({
                   >
                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.26 5.632 5.905-5.632Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
-                </a>
+                </button>
               )}
               {ipfsMeta.website && (
-                <a
-                  href={ipfsMeta.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open(ipfsMeta.website, "_blank", "noopener,noreferrer"); }}
                   title="Website"
-                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors"
+                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors cursor-pointer"
                   style={{
                     width: "18px",
                     height: "18px",
                     borderRadius: "4px",
                     background: "#1B1B1B",
+                    border: "none",
+                    padding: 0,
                   }}
                 >
                   <Globe style={{ width: "10px", height: "10px" }} />
-                </a>
+                </button>
               )}
             </div>
           )}

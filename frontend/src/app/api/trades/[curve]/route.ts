@@ -252,7 +252,7 @@ export async function GET(
         const derivedTokenId = topicToAddress(log.topic2!); // indexed token
 
         return {
-          id: `${log.transaction_hash}-${log.log_index}`,
+          id: `${log.transaction_hash.toLowerCase()}-${log.log_index}`,
           token_id:
             tokenId.toLowerCase() || derivedTokenId,
           trader,
