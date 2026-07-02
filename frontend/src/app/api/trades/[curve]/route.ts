@@ -1,23 +1,16 @@
 /**
  * /api/trades/[curve]
  *
- * Server-side API route that fetches CurveBuy + CurveSell logs via the
- * Envio HyperSync HTTP API (https://monad.hypersync.xyz). This supplements
- * the Envio indexer — any trades the indexer missed (e.g. during RPC
- * rate-limit gaps at launch) will still appear in the token page trade table.
+ * Server-side API route that fetches CurveBuy + CurveSell logs directly via
+ * the Alchemy RPC (viem publicClient.getLogs). This supplements the Envio
+ * indexer — any trades the indexer missed will still appear in the token
+ * page trade table.
  *
- * HyperSync has no block-range limits and returns block timestamps inline,
- * so it avoids all RPC provider restrictions (e.g. Alchemy free tier's
- * 10-block eth_getLogs limit).
- *
- * HyperSync now requires a bearer API token (created at
- * https://app.envio.dev/api-tokens). The token is read from the
- * `ENVIO_API_TOKEN` env var (falls back to `HYPERSYNC_API_TOKEN`).
- *
- * NOTE: The log-query endpoint is `${HYPERSYNC_URL}/query` (no `/v1/` prefix).
- * The `/v1/query` path returns 404 with an empty body, while `/query` returns
- * 200 with the same payload. The NAPI SDK used by the keeper handles this
- * internally; here we hit the REST endpoint directly.
+ * Previously this route queried Envio's HyperSync HTTP API to work around
+ * Alchemy's free-tier 10-block eth_getLogs range limit. Now that the project
+ * runs on Alchemy's Pay-As-You-Go plan (unlimited block range on Monad
+ * Mainnet), we query Alchemy directly and no longer need a separate service
+ * or API token for this route.
  *
  * Query params:
  *   tokenId   – lowercase token address (for Trade.token_id)
@@ -26,15 +19,15 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { keccak256, toBytes } from "viem";
+import { createPublicClient, http, parseAbiItem, defineChain } from "viem";
 
-/* ── Event topic hashes ─────────────────────────────────────────────────── */
+/* ── Event definitions ──────────────────────────────────────────────────── */
 
-const BUY_TOPIC0 = keccak256(
-  toBytes("CurveBuy(address,address,uint256,uint256)")
+const BUY_EVENT = parseAbiItem(
+  "event CurveBuy(address indexed buyer, address indexed token, uint256 amountIn, uint256 amountOut)"
 );
-const SELL_TOPIC0 = keccak256(
-  toBytes("CurveSell(address,address,uint256,uint256)")
+const SELL_EVENT = parseAbiItem(
+  "event CurveSell(address indexed seller, address indexed token, uint256 amountIn, uint256 amountOut)"
 );
 
 /* ── Constants ──────────────────────────────────────────────────────────── */
@@ -43,161 +36,82 @@ const SELL_TOPIC0 = keccak256(
 const MAX_LOOKBACK = 200_000n;
 /** Fallback start block: Monad mainnet contract deploy block. */
 const MONAD_DEPLOY_BLOCK = 83_961_211n;
-/** Envio HyperSync base URL for Monad mainnet. */
-const HYPERSYNC_URL = "https://monad.hypersync.xyz";
+/** Maximum block span per getLogs call — chunked defensively. */
+const MAX_LOG_CHUNK = 500_000n;
 
-/* ── HyperSync types ────────────────────────────────────────────────────── */
+/** Monad mainnet RPC (Alchemy PAYG — no eth_getLogs block-range limit). */
+const RPC_URL =
+  process.env.NEXT_PUBLIC_MONAD_RPC || "https://rpc.monad.xyz";
 
-interface HyperSyncLog {
-  block_number: number;
-  transaction_hash: string;
-  log_index: number;
-  topic0: string | null;
-  topic1: string | null;
-  topic2: string | null;
-  data: string | null;
-}
+const monadMainnet = defineChain({
+  id: 143,
+  name: "Monad",
+  nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 },
+  rpcUrls: { default: { http: [RPC_URL] } },
+});
 
-interface HyperSyncResponse {
-  data: Array<{
-    logs: HyperSyncLog[];
-    blocks: Array<{ number: number; timestamp: number }>;
-  }>;
-  next_block: number;
-  archive_height: number;
-}
+const publicClient = createPublicClient({
+  chain: monadMainnet,
+  transport: http(RPC_URL),
+});
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
 /**
- * Read the Envio/HyperSync API token from env. Set `ENVIO_API_TOKEN` (or
- * `HYPERSYNC_API_TOKEN`) in your deployment. Without a token, HyperSync
- * returns 401 "token is malformed".
+ * Fetch CurveBuy/CurveSell logs for a curve address in [fromBlock, toBlock],
+ * chunking the range defensively to avoid oversized single requests.
  */
-function getHyperSyncToken(): string | null {
-  return (
-    process.env.ENVIO_API_TOKEN?.trim() ||
-    process.env.HYPERSYNC_API_TOKEN?.trim() ||
-    null
-  );
-}
+async function getTradeLogs(
+  curveAddr: `0x${string}`,
+  fromBlock: bigint,
+  toBlock: bigint
+) {
+  const buys: Awaited<ReturnType<typeof publicClient.getLogs>> = [];
+  const sells: Awaited<ReturnType<typeof publicClient.getLogs>> = [];
 
-/**
- * Headers for any HyperSync request. Includes Authorization: Bearer <token>
- * when a token is configured. Also includes X-Envio-Token (Envio's legacy
- * header) so the token works across SDK versions.
- */
-function hyperSyncHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  const token = getHyperSyncToken();
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-    headers["X-Envio-Token"] = token;
+  let cursor = fromBlock;
+  while (cursor <= toBlock) {
+    const end = cursor + MAX_LOG_CHUNK > toBlock ? toBlock : cursor + MAX_LOG_CHUNK;
+
+    const [buyLogs, sellLogs] = await Promise.all([
+      publicClient.getLogs({
+        address: curveAddr,
+        event: BUY_EVENT,
+        fromBlock: cursor,
+        toBlock: end,
+      }),
+      publicClient.getLogs({
+        address: curveAddr,
+        event: SELL_EVENT,
+        fromBlock: cursor,
+        toBlock: end,
+      }),
+    ]);
+
+    buys.push(...buyLogs);
+    sells.push(...sellLogs);
+    cursor = end + 1n;
   }
-  return headers;
+
+  return { buys, sells };
 }
 
-/** Extract an address from a 32-byte padded hex topic. */
-function topicToAddress(topic: string): string {
-  return "0x" + topic.slice(-40).toLowerCase();
-}
-
-/**
- * Decode two packed uint256 values from ABI-encoded log data.
- * Layout: [amountIn (32 bytes)][amountOut (32 bytes)]
- */
-function decodeUint256Pair(data: string): [bigint, bigint] {
-  const hex = data.startsWith("0x") ? data.slice(2) : data;
-  const amountIn = BigInt("0x" + (hex.slice(0, 64) || "0"));
-  const amountOut = BigInt("0x" + (hex.slice(64, 128) || "0"));
-  return [amountIn, amountOut];
-}
-
-/** Fetch the latest indexed block height from HyperSync. */
-async function getHyperSyncHeight(): Promise<number> {
-  const res = await fetch(`${HYPERSYNC_URL}/height`, {
-    headers: hyperSyncHeaders(),
-    signal: AbortSignal.timeout(10_000),
-  });
-  if (!res.ok) {
-    throw new Error(`HyperSync /height error ${res.status}`);
-  }
-  const json = (await res.json()) as { height: number };
-  return json.height;
-}
-
-/**
- * Fetch all CurveBuy/CurveSell logs for a curve address from HyperSync.
- * Automatically paginates via the next_block cursor — no block-range limits.
- */
-async function queryHyperSync(
-  curveAddr: string,
-  fromBlock: number,
-  toBlock: number
-): Promise<{
-  logs: HyperSyncLog[];
-  blockTimestamps: Map<number, number>;
-}> {
-  const allLogs: HyperSyncLog[] = [];
-  const blockTimestamps = new Map<number, number>();
-  let currentFrom = fromBlock;
-
-  while (currentFrom <= toBlock) {
-    const body = {
-      from_block: currentFrom,
-      to_block: toBlock,
-      logs: [
-        {
-          address: [curveAddr],
-          topics: [[BUY_TOPIC0, SELL_TOPIC0]],
-        },
-      ],
-      field_selection: {
-        log: [
-          "block_number",
-          "transaction_hash",
-          "log_index",
-          "topic0",
-          "topic1",
-          "topic2",
-          "data",
-        ],
-        block: ["number", "timestamp"],
-      },
-    };
-
-    const res = await fetch(`${HYPERSYNC_URL}/query`, {
-      method: "POST",
-      headers: hyperSyncHeaders(),
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(30_000),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`HyperSync query error ${res.status}: ${text}`);
-    }
-
-    const json: HyperSyncResponse = await res.json();
-
-    for (const batch of json.data) {
-      allLogs.push(...batch.logs);
-      for (const block of batch.blocks) {
-        blockTimestamps.set(block.number, block.timestamp);
+/** Fetch block timestamps for a set of unique block numbers. */
+async function getBlockTimestamps(
+  blockNumbers: Set<bigint>
+): Promise<Map<number, number>> {
+  const timestamps = new Map<number, number>();
+  await Promise.all(
+    Array.from(blockNumbers).map(async (blockNumber) => {
+      try {
+        const block = await publicClient.getBlock({ blockNumber });
+        timestamps.set(Number(blockNumber), Number(block.timestamp));
+      } catch {
+        // leave unset — falls back to 0 downstream
       }
-    }
-
-    // Pagination: continue if HyperSync returns a next_block inside our range.
-    // A next_block <= currentFrom means no progress (shouldn't happen), abort.
-    if (json.next_block <= currentFrom || json.next_block > toBlock) {
-      break;
-    }
-    currentFrom = json.next_block;
-  }
-
-  return { logs: allLogs, blockTimestamps };
+    })
+  );
+  return timestamps;
 }
 
 /* ── Route handler ──────────────────────────────────────────────────────── */
@@ -211,14 +125,12 @@ export async function GET(
     const tokenId = req.nextUrl.searchParams.get("tokenId") ?? "";
     const fromBlockParam = req.nextUrl.searchParams.get("fromBlock");
 
-    // Get the current chain tip from HyperSync (no RPC call needed)
-    const latestBlock = await getHyperSyncHeight();
-    const latestBlockBig = BigInt(latestBlock);
+    const latestBlock = await publicClient.getBlockNumber();
 
     // Determine fromBlock.
     // When the caller supplies an explicit startBlock (the token's deploy block),
-    // use it directly so HyperSync scans the full history — HyperSync paginates
-    // via next_block with no block-range limits, so this is safe.
+    // use it directly so we scan the full history — Alchemy PAYG has no
+    // block-range limit on Monad Mainnet, so this is safe.
     // Only fall back to the MAX_LOOKBACK window when no startBlock was given, to
     // avoid scanning the entire chain history for tokens with no known deploy block.
     const requestedFrom = fromBlockParam
@@ -226,77 +138,89 @@ export async function GET(
       : MONAD_DEPLOY_BLOCK;
 
     const fromBlockBig = fromBlockParam
-      ? requestedFrom                                  // explicit startBlock → use as-is
-      : latestBlockBig > MAX_LOOKBACK                  // no startBlock → recent-window fallback
-        ? latestBlockBig - MAX_LOOKBACK
+      ? requestedFrom                            // explicit startBlock → use as-is
+      : latestBlock > MAX_LOOKBACK                // no startBlock → recent-window fallback
+        ? latestBlock - MAX_LOOKBACK
         : MONAD_DEPLOY_BLOCK;
 
-    const fromBlock = Number(fromBlockBig);
-    const curveAddr = curve.toLowerCase();
+    const fromBlock = fromBlockBig;
+    const curveAddr = curve.toLowerCase() as `0x${string}`;
 
-    // Fetch all buy/sell logs from HyperSync (paginated, no block-range limits)
-    const { logs, blockTimestamps } = await queryHyperSync(
-      curveAddr,
-      fromBlock,
-      latestBlock
-    );
+    // Fetch all buy/sell logs from Alchemy (chunked, no hard block-range limit)
+    const { buys, sells } = await getTradeLogs(curveAddr, fromBlock, latestBlock);
+
+    // Collect unique block numbers to resolve timestamps
+    const blockNumbers = new Set<bigint>();
+    for (const log of [...buys, ...sells]) {
+      if (log.blockNumber != null) blockNumbers.add(log.blockNumber);
+    }
+    const blockTimestamps = await getBlockTimestamps(blockNumbers);
 
     // Build serialised trade objects (bigints → strings for JSON transport)
-    const trades = logs
-      .filter((log) => log.topic0 && log.topic1 && log.topic2 && log.data)
-      .map((log) => {
-        const isBuy =
-          log.topic0!.toLowerCase() === BUY_TOPIC0.toLowerCase();
-        const [amountIn, amountOut] = decodeUint256Pair(log.data!);
-        const trader = topicToAddress(log.topic1!); // indexed buyer / seller
-        const derivedTokenId = topicToAddress(log.topic2!); // indexed token
+    const buyTrades = buys.map((log) => {
+      const args = (log as unknown as { args: Record<string, unknown> }).args as {
+        buyer?: `0x${string}`;
+        token?: `0x${string}`;
+        amountIn?: bigint;
+        amountOut?: bigint;
+      };
 
-        return {
-          id: `${log.transaction_hash.toLowerCase()}-${log.log_index}`,
-          token_id:
-            tokenId.toLowerCase() || derivedTokenId,
-          trader,
-          isBuy,
-          amountIn: amountIn.toString(),
-          amountOut: amountOut.toString(),
-          blockNumber: log.block_number,
-          blockTimestamp: (
-            blockTimestamps.get(log.block_number) ?? 0
-          ).toString(),
-          penaltyBps: 0,
-        };
-      })
-      .sort((a, b) => b.blockNumber - a.blockNumber);
+      return {
+        id: `${log.transactionHash!.toLowerCase()}-${log.logIndex}`,
+        token_id: tokenId.toLowerCase() || args.token?.toLowerCase() || "",
+        trader: args.buyer?.toLowerCase() ?? "",
+        isBuy: true,
+        amountIn: (args.amountIn ?? 0n).toString(),
+        amountOut: (args.amountOut ?? 0n).toString(),
+        blockNumber: Number(log.blockNumber),
+        blockTimestamp: (
+          blockTimestamps.get(Number(log.blockNumber)) ?? 0
+        ).toString(),
+        penaltyBps: 0,
+      };
+    });
 
-    const buyCount = trades.filter((t) => t.isBuy).length;
-    const sellCount = trades.filter((t) => !t.isBuy).length;
+    const sellTrades = sells.map((log) => {
+      const args = (log as unknown as { args: Record<string, unknown> }).args as {
+        seller?: `0x${string}`;
+        token?: `0x${string}`;
+        amountIn?: bigint;
+        amountOut?: bigint;
+      };
+
+      return {
+        id: `${log.transactionHash!.toLowerCase()}-${log.logIndex}`,
+        token_id: tokenId.toLowerCase() || args.token?.toLowerCase() || "",
+        trader: args.seller?.toLowerCase() ?? "",
+        isBuy: false,
+        amountIn: (args.amountIn ?? 0n).toString(),
+        amountOut: (args.amountOut ?? 0n).toString(),
+        blockNumber: Number(log.blockNumber),
+        blockTimestamp: (
+          blockTimestamps.get(Number(log.blockNumber)) ?? 0
+        ).toString(),
+        penaltyBps: 0,
+      };
+    });
+
+    const trades = [...buyTrades, ...sellTrades].sort(
+      (a, b) => b.blockNumber - a.blockNumber
+    );
 
     return NextResponse.json({
       trades,
       meta: {
         fromBlock: fromBlock.toString(),
         toBlock: latestBlock.toString(),
-        buyCount,
-        sellCount,
+        buyCount: buyTrades.length,
+        sellCount: sellTrades.length,
       },
     });
   } catch (err) {
-    // Surface a clear, actionable error: if ENVIO_API_TOKEN is missing,
-    // the user gets one obvious fix instead of a stack trace dump.
     const message = err instanceof Error ? err.message : String(err);
-    const noTokenConfigured = !getHyperSyncToken();
-    if (noTokenConfigured) {
-      console.error(
-        "[api/trades] ENVIO_API_TOKEN is not set — add it to .env.local or your deployment env. " +
-          "Generate a token at https://app.envio.dev/api-tokens"
-      );
-    }
     console.error("[api/trades] unhandled error:", message);
-    const hint = noTokenConfigured
-      ? "ENVIO_API_TOKEN missing — generate one at https://app.envio.dev/api-tokens and add it to .env.local"
-      : message;
     return NextResponse.json(
-      { trades: [], error: hint },
+      { trades: [], error: message },
       { status: 500 }
     );
   }

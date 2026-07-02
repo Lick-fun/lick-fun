@@ -43,12 +43,19 @@ Edit `script/.env`:
 
 | Variable | Required | Description |
 |---|---|---|
-| `KEEPER_RPC_URL` | ✅ | Monad mainnet RPC (`https://rpc.monad.xyz` or a dedicated provider) |
+| `KEEPER_RPC_URL` | ✅ | Monad mainnet RPC — dedicated Alchemy provider (Pay-As-You-Go plan, unlimited `eth_getLogs` block range) |
 | `KEEPER_PRIVATE_KEY` | ✅ | Funded keeper wallet private key — use a **dedicated throwaway wallet** |
 | `GRADUATION_ROUTER_ADDR` | ✅ | `0xb2Dc164Ac4eCDDA7Ea2D4115bC122463c65460b2` |
 | `FACTORY_ADDR` | ✅ | `0x9845c5625d9f9C48e17956940485aAAAD168aA10` |
 | `START_BLOCK` | optional | `83961211` (deploy block — skips all pre-deploy history) |
 | `POLL_INTERVAL_MS` | optional | Default `6000` (6 seconds) |
+
+> The keeper reads all logs (`CurveGraduate`, `TokenCreated`) and chain height
+> directly from `KEEPER_RPC_URL` via viem. It previously used Envio HyperSync
+> to work around Alchemy's free-tier 10-block `eth_getLogs` limit — now that
+> the project is on Alchemy PAYG (unlimited range on Monad Mainnet), no
+> separate service or `ENVIO_API_TOKEN` is required for this keeper.
+
 
 > ⚠️ **Security:** Use a dedicated keeper wallet with only the gas MON it needs. Never reuse your deployer key or Safe signing keys.
 

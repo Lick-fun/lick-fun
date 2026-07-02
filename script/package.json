@@ -8,7 +8,6 @@
     "dev": "tsx --watch graduation-keeper.ts"
   },
   "dependencies": {
-    "@envio-dev/hypersync-client": "^1.4.0",
     "dotenv": "^16.4.7",
     "viem": "^2.21.19"
   },
