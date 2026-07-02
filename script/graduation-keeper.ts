@@ -426,7 +426,30 @@ async function poll(): Promise<void> {
 
 // ─── Startup ─────────────────────────────────────────────────────────────────
 
+// ─── Graceful shutdown & error guards ───────────────────────────────────────
+// Railway (and most container platforms) send SIGTERM on redeploy/restart.
+// Without an explicit handler, npm's process wrapper logs a scary
+// "npm error signal SIGTERM" even though nothing is actually broken.
+// Handling the signal ourselves lets us exit(0) cleanly and log intent.
+let shuttingDown = false;
+function handleShutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[keeper] Received ${signal} — shutting down gracefully`);
+  process.exit(0);
+}
+process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+process.on("SIGINT", () => handleShutdown("SIGINT"));
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[keeper] Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[keeper] Uncaught exception:", err);
+});
+
 console.log(`[keeper] Starting graduation + vault keeper`);
+
 console.log(`[keeper] GraduationRouter:  ${GRADUATION_ROUTER}`);
 console.log(`[keeper] VaultBuybackBurn:  ${VAULT_BUYBACK ?? "(not configured)"}`);
 console.log(`[keeper] VaultLPSupport:    ${VAULT_LP ?? "(not configured)"}`);

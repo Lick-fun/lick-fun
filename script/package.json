@@ -4,9 +4,10 @@
   "private": true,
   "description": "Graduation keeper — auto-migrates graduated bonding curves to DEX",
   "scripts": {
-    "start": "tsx graduation-keeper.ts",
+    "start": "exec tsx graduation-keeper.ts",
     "dev": "tsx --watch graduation-keeper.ts"
   },
+
   "dependencies": {
     "dotenv": "^16.4.7",
     "viem": "^2.21.19"

@@ -1,4 +1,28 @@
+# Session Memory — 2026-07-02
+
+## Changes Made
+
+### 1. Graduation Keeper — Graceful Shutdown + Railway Restart Policy
+- **Files:**
+  - `script/graduation-keeper.ts`
+  - `script/package.json`
+  - `script/railway.json` (new)
+  - `script/README.md`
+- **What:**
+  - Added explicit `SIGTERM` / `SIGINT` handlers in `graduation-keeper.ts` that log a clean shutdown message and `process.exit(0)`, plus `unhandledRejection` / `uncaughtException` guards so real errors are visible instead of silently killing the process.
+  - Changed `script/package.json` start script from `tsx graduation-keeper.ts` to `exec tsx graduation-keeper.ts` so the shell replaces itself with the tsx process (proper signal delivery, no orphaned npm wrapper).
+  - Added `script/railway.json` with `startCommand: npx tsx graduation-keeper.ts` and `restartPolicyType: ON_FAILURE` (10 retries) so genuine crashes auto-restart.
+  - Updated `script/README.md` Railway section to document the new `railway.json`, the requirement to set `VAULT_BUYBACK_ADDR` and `VAULT_LP_ADDR` env vars on the Railway service, and to keep "Serverless/Sleep" off with no public domain/healthcheck attached to this headless worker.
+- **Why:** Railway logs were showing `Starting Container` → `[vault] synced 3 known token(s) via Alchemy` → `Stopping Container` → `npm error signal SIGTERM` on every redeploy/restart. Root cause: Railway sends `SIGTERM` to stop the old container, and npm's process wrapper cosmetically logs that as an "error" because the keeper wasn't handling the signal itself and exiting with code 0. Separately, `VaultBuybackBurn: (not configured)` / `VaultLPSupport: (not configured)` in the logs meant the vault execution half of the keeper was silently disabled in production because those env vars weren't set on the Railway service.
+- **Verified:** Ran the keeper locally end-to-end — it connects, logs config, and syncs known tokens successfully. No syntax errors.
+
+## Git History
+- Commit `(pending)` — Change 1
+
+---
+
 # Session Memory — 2026-07-01
+
 
 ## Changes Made
 

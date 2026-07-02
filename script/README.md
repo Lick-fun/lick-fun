@@ -90,8 +90,27 @@ pm2 startup
 
 1. Connect your GitHub repo
 2. Set root directory to `script/`
-3. Set start command: `npx tsx graduation-keeper.ts`
-4. Add all env vars from `.env.example` as environment variables in the dashboard
+3. Set start command: `npx tsx graduation-keeper.ts` (a `script/railway.json` is
+   already committed with this start command + an `ON_FAILURE` restart policy,
+   so Railway will pick it up automatically once the service root is `script/`)
+4. Add all env vars from `.env.example` as environment variables in the dashboard —
+   **make sure to set `VAULT_BUYBACK_ADDR` and `VAULT_LP_ADDR` too**, otherwise the
+   vault execution half of the keeper silently stays disabled (you'll see
+   `VaultBuybackBurn: (not configured)` in the logs)
+5. Under Settings, make sure "Serverless"/"Sleep Application" is **off** for this
+   service (it's a headless poller with no HTTP traffic, so Railway can't
+   detect activity and may sleep/cycle it if that's enabled)
+6. This service has no HTTP server, so do **not** attach a public domain or a
+   healthcheck path to it — Railway would keep restarting it waiting for a
+   health check response that will never come
+
+> Note on `Stopping Container` / `npm error signal SIGTERM` in logs: this is
+> expected on every redeploy or restart — Railway sends `SIGTERM` to stop the
+> old container. The keeper now handles this signal explicitly and exits
+> cleanly (see `graduation-keeper.ts`), and the start command bypasses the
+> `npm run` wrapper (which otherwise logs a cosmetic `npm error signal
+> SIGTERM` even on a clean shutdown).
+
 
 ### Option C — Docker
 
