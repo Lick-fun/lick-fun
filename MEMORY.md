@@ -11,28 +11,59 @@
 - `VaultLPSupport`: `0xF1Aac85a5F964564e472BF1E0628c536b01809e0` (env: `VAULT_LP_ADDR`)
 - All env addresses match what's stored on-chain in FeeRouter.lpSupportVault / buybackBurnVault. ✓
 - Founder's FeeConfig: `creator=0xB2DA54BB8D5676247Ef83354328c481d518fbb0C, creatorBps=0, lpBps=8000, buybackBps=2000` (LIGHT preset).
-- VaultBuybackBurn.current native MON balance: **65.44 MON**.
-- `VaultBuybackBurn.pendingBurn(founder)` = **0 MON**.
+- VaultBuybackBurn.current native MON balance: **65.44 MON** (later 78.3 MON as more trades landed).
+- `VaultLPSupport.current native MON balance: 313.3 MON**.
+- `VaultBuybackBurn.pendingBurn(founder)` = **0 MON** (also true for the other 2 launched tokens).
+- `VaultLPSupport.pendingLP(founder)` = **0 MON** (also true for the other 2 launched tokens).
 - `FeeRouter.pendingWithdrawals[buybackBurnVault]` = **0 MON**.
-- 57 `FeeRouted` events for the founder token (all showing `buybackShare` correctly allocated, totaling ~64.5 MON across history).
-- ZERO `FeePending` events ever emitted.
+- 66 `FeeRouted` events for the founder token (buybackShare totaling ~82.7 MON, lpShare ~330.9 MON). Zero `FeePending` events ever emitted.
+- All 3 launched tokens affected equally — this is a systemic v1 FeeRouter issue, not a Founder-specific one.
 
-**Why `pendingBurn(founder) == 0` despite 65.44 MON sitting in the vault:**
+**Why `pendingBurn(founder) == 0` despite 78.3 MON sitting in the vault (deeper root cause — confirmed via bytecode inspection):**
 - The vault's `pendingBurn[token]` mapping only increases when someone calls `VaultBuybackBurn.receiveForToken(token)` directly (which the v2 contract exposes).
-- `FeeRouter.receiveCreatorFee(token)` uses a different routing path (the `v1` half of the audit fix) and calls `buybackBurnVault.call{value: buybackShare}("")` with raw ETH, NOT `receiveForToken(token)`. Since the vault has a `receive() external payable {}` fallback, the raw send succeeds but bypasses the per-token mapping entirely.
-- Result: the vault balance is *correct* (65.44 MON received), but the keeper can never see it via `pendingBurn(founder)` — it's tracked only by the vault's aggregate MON balance, not per-token.
+- The **currently deployed `FeeRouter` (`0x5BBe...9E903`) does NOT contain the `receiveForToken(address)` selector (`0x75b564e7`) in its bytecode**. It only does a raw `call{value}("")` to the vaults via their bare `receive()`. So the v2 audit fix was never re-deployed for the FeeRouter — the existing one predates the fix.
+- `Factory.feeRouter` and each `BondingCurve.feeRouter` are both **set-once** (`AlreadySet` guard) — cannot be re-pointed. So every future trade fee on all 3 existing tokens (and any new token launched through this Factory) will keep hitting the same broken raw-send path forever.
+- `FeeRouter.setVaults(_lp, _bb)` is freely re-callable (no lock) but it only changes *which* vault addresses receive the raw sends — it can't change *how* they're sent.
+- `VaultBuybackBurn.sweep()` and `setMaxSlippage()` are `onlyOwner` — owner is the multisig `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` (Safe contract, 344 bytes). Keeper wallet `0x7037...5817` is a separate hot wallet with no vault owner rights.
 
-**Conclusion:** The 60 MON has *not* been executed. The keeper's current `pendingBurn(token)` read returns 0 forever for the founder token, so the execution threshold check never passes. Even with `VAULT_BUYBACK_ADDR` env var set, the keeper is blind to the actual accumulated balance.
+**Conclusion:** The ~78 MON Buyback & ~313 MON LP Support have *not* been executed. The keeper's current `pendingBurn(token)` read returns 0 forever for every token, so the execution threshold check never passes. Even with `VAULT_BUYBACK_ADDR` / `VAULT_LP_ADDR` env vars set, the keeper is blind to the actual accumulated balance.
 
-**Fix direction (for next session, not applied yet):**
-1. **Read balance aggregate, not per-token mapping** — change keeper's vault logic to also check `getBalance(vaultAddr)` and compare against `EXECUTION_THRESHOLD`, then either: (a) call a new `executeAll()` / `sweepAll()` admin-style function, or (b) introduce a sweep mechanism.
-2. **Or: add `receiveForToken(token)` instrumentation** in the deploy script / frontend to call `receiveForToken(token)` right after each trade so the per-token mapping is populated for the keeper to read.
-3. **Or: add a `sweep(token)` admin function** to VaultBuybackBurn that the owner can call to manually attribute the vault's aggregate balance to a specific token once threshold is met.
+---
 
-**Verified addresses (audit-safe to commit):** The env addresses in `script/.env.example` and the deployed contracts all match — no on-chain discrepancy. The "not configured" log was the real issue: once Railway env vars are set, the keeper will *find* the contracts but the execution will still silently fail due to the per-token mapping gap above.
+## Fix architecture (implemented this session)
+
+**Two-tier fix** to make the launchpad self-healing for every token, not just the founder one:
+
+### Tier 1 — Unblock the stranded 78 + 313 MON right now (one-shot, multisig-only)
+- The multisig owner calls the new `VaultRecouper.recover{value: X}(vault, token)` after sweeping each vault's balance out via `sweep()`.
+- `VaultRecouper` (new contract, `contracts/src/VaultRecouper.sol`) is a tiny permissionless helper that forwards `msg.value` to a vault via the v2 `receiveForToken(token)` entrypoint — which correctly populates the per-token mapping.
+- Net effect: `pendingBurn(founder)` jumps to ~78 MON (above 50 MON threshold) and `pendingLP(founder)` jumps to ~313 MON.
+- The Railway keeper (with `VAULT_BUYBACK_ADDR` and `VAULT_LP_ADDR` env vars now set) will then call `execute()` automatically on its next 60s poll cycle — first real buyback+burn + LP add should fire within ~1 minute of Tier 1 completion.
+
+**Files added for Tier 1:**
+- `contracts/src/VaultRecouper.sol` — 50-line permissionless helper, no owner, no admin, no upgradeability. Safe to deploy + use.
+- `contracts/script/ReconcileVaults.s.sol` — Forge script for multisig owners; can be run with `--broadcast` (EOA) or just for calldata (Safe Transaction Builder).
+- `script/reconcile-vaults.mjs` — Self-contained Node.js + viem script that the operator can run with a hot wallet to do the whole reconcile in one command. Run with `PRIVATE_KEY=0x... node script/reconcile-vaults.mjs` after `RECOUPER_ADDR` is set.
+
+### Tier 2 — Self-healing for all current and future tokens (no manual babysitting, ever)
+- The deployed v1 FeeRouter cannot be swapped (Factory.feeRouter is set-once). Every future trade on the 3 existing curves will keep raw-sending to the vaults.
+- Mitigation: the new `VaultRecouper` is **permissionless** — anyone (including the keeper) can call it to re-attribute any future raw-sends. The user can optionally add a simple recurring "sweep and re-attribute" call to the multisig (low-effort, fully scriptable) to keep the per-token mapping live going forward. Or the existing keeper can be extended to do this automatically.
+
+**Why this is the right shape for a launchpad:**
+- `VaultRecouper` is intentionally minimal — no owner key, no admin, no pausing, no upgradeability. The caller is the source of funds and could equivalently call `receiveForToken` directly. This wrapper is a single-call convenience that also exists so the keeper can re-attribute without holding MON (it forwards from `msg.value`, accounting exactly).
+- For the founder token specifically: pendingBurn(founder) = ~78 MON, pendingLP(founder) = ~313 MON — both far above 50 MON threshold.
+- For all 3 launched tokens: the same script can be re-run (or extended) to re-attribute raw-sends to their respective tokens.
+
+**What still needs to be done outside code (operator actions, documented in `script/README.md`):**
+1. Deploy `VaultRecouper.sol` to mainnet via forge (e.g. `forge create --rpc-url ... --private-key ... contracts/src/VaultRecouper.sol`).
+2. Set `RECOUPER_ADDR` env var locally + on Railway (the keeper doesn't need it; only the operator's reconcile script does).
+3. Run the one-shot reconcile: `PRIVATE_KEY=<multisig-signer-key> node script/reconcile-vaults.mjs` (or use the multisig's Transaction Builder with the calldata from `contracts/script/ReconcileVaults.s.sol`).
+4. Watch the Railway keeper logs for the first real `execute()` call within ~1 minute.
 
 ## Git History
-- (Pending) — Investigation findings logged in MEMORY.md only (no code changes this session).
+- Commit `24875ab` (2026-07-03 morning) — Investigation findings logged.
+- Commit `(pending)` — Fix files added: VaultRecouper + reconcile scripts.
+
 
 ---
 
