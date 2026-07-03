@@ -1,3 +1,41 @@
+# Session Memory — 2026-07-03
+
+## Investigation: Founder Token Buyback & Burn Vault
+
+**Question:** What happens to the ~60 MON that should be in the buyback vault for the Founder token? Will it execute now?
+
+**Findings (on-chain via Alchemy, block 85072083):**
+- Founder token: `0x0236787a1bAaEeD46a123fa264A2355eed11d151` (env: `NEXT_PUBLIC_FOUNDER_TOKEN_ADDRESS`)
+- FeeRouter: `0x5BBe528936E627d33DE36f10d9DB946089b9E903` (env: `NEXT_PUBLIC_FEE_ROUTER_ADDRESS`)
+- `VaultBuybackBurn`: `0x45B1Ee1E9E8E9FF8CE6bBbd55B430Cab4b25e06d` (env: `VAULT_BUYBACK_ADDR`)
+- `VaultLPSupport`: `0xF1Aac85a5F964564e472BF1E0628c536b01809e0` (env: `VAULT_LP_ADDR`)
+- All env addresses match what's stored on-chain in FeeRouter.lpSupportVault / buybackBurnVault. ✓
+- Founder's FeeConfig: `creator=0xB2DA54BB8D5676247Ef83354328c481d518fbb0C, creatorBps=0, lpBps=8000, buybackBps=2000` (LIGHT preset).
+- VaultBuybackBurn.current native MON balance: **65.44 MON**.
+- `VaultBuybackBurn.pendingBurn(founder)` = **0 MON**.
+- `FeeRouter.pendingWithdrawals[buybackBurnVault]` = **0 MON**.
+- 57 `FeeRouted` events for the founder token (all showing `buybackShare` correctly allocated, totaling ~64.5 MON across history).
+- ZERO `FeePending` events ever emitted.
+
+**Why `pendingBurn(founder) == 0` despite 65.44 MON sitting in the vault:**
+- The vault's `pendingBurn[token]` mapping only increases when someone calls `VaultBuybackBurn.receiveForToken(token)` directly (which the v2 contract exposes).
+- `FeeRouter.receiveCreatorFee(token)` uses a different routing path (the `v1` half of the audit fix) and calls `buybackBurnVault.call{value: buybackShare}("")` with raw ETH, NOT `receiveForToken(token)`. Since the vault has a `receive() external payable {}` fallback, the raw send succeeds but bypasses the per-token mapping entirely.
+- Result: the vault balance is *correct* (65.44 MON received), but the keeper can never see it via `pendingBurn(founder)` — it's tracked only by the vault's aggregate MON balance, not per-token.
+
+**Conclusion:** The 60 MON has *not* been executed. The keeper's current `pendingBurn(token)` read returns 0 forever for the founder token, so the execution threshold check never passes. Even with `VAULT_BUYBACK_ADDR` env var set, the keeper is blind to the actual accumulated balance.
+
+**Fix direction (for next session, not applied yet):**
+1. **Read balance aggregate, not per-token mapping** — change keeper's vault logic to also check `getBalance(vaultAddr)` and compare against `EXECUTION_THRESHOLD`, then either: (a) call a new `executeAll()` / `sweepAll()` admin-style function, or (b) introduce a sweep mechanism.
+2. **Or: add `receiveForToken(token)` instrumentation** in the deploy script / frontend to call `receiveForToken(token)` right after each trade so the per-token mapping is populated for the keeper to read.
+3. **Or: add a `sweep(token)` admin function** to VaultBuybackBurn that the owner can call to manually attribute the vault's aggregate balance to a specific token once threshold is met.
+
+**Verified addresses (audit-safe to commit):** The env addresses in `script/.env.example` and the deployed contracts all match — no on-chain discrepancy. The "not configured" log was the real issue: once Railway env vars are set, the keeper will *find* the contracts but the execution will still silently fail due to the per-token mapping gap above.
+
+## Git History
+- (Pending) — Investigation findings logged in MEMORY.md only (no code changes this session).
+
+---
+
 # Session Memory — 2026-07-02
 
 ## Changes Made
@@ -8,6 +46,7 @@
   - `script/package.json`
   - `script/railway.json` (new)
   - `script/README.md`
+
 - **What:**
   - Added explicit `SIGTERM` / `SIGINT` handlers in `graduation-keeper.ts` that log a clean shutdown message and `process.exit(0)`, plus `unhandledRejection` / `uncaughtException` guards so real errors are visible instead of silently killing the process.
   - Changed `script/package.json` start script from `tsx graduation-keeper.ts` to `exec tsx graduation-keeper.ts` so the shell replaces itself with the tsx process (proper signal delivery, no orphaned npm wrapper).
