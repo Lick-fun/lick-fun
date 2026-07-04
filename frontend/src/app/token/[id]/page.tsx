@@ -149,7 +149,7 @@ export default function TokenDetailPage() {
 
   // Force the Founder token page's X link to the Lickfun profile, regardless of
   // whatever's in the IPFS metadata. Other token pages keep using ipfsMeta.twitter.
-  const twitterUrl = isFounderToken ? "https://x.com/Lickfun__" : ipfsMeta?.twitter;
+  const twitterUrl = isFounderToken ? "https://x.com/__Lickfun" : ipfsMeta?.twitter;
 
   return (
     <div className="max-w-7xl mx-auto px-4 lg:pl-sidebar lg:pr-4 pb-24 lg:pb-20">
