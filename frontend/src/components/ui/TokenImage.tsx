@@ -137,6 +137,10 @@ interface TokenImageProps {
   directImageUrl?: string | null;
 }
 
+// Hardcoded founder token image — used when Storj/IPFS is unreliable
+const FOUNDER_TOKEN_ADDRESS = "0x0236787a1baaeed46a123fa264a2355eed11d151";
+const FOUNDER_TOKEN_IMAGE = "/tokens/founder-token.png";
+
 export function TokenImage({
   tokenAddress,
   tokenName,
@@ -145,14 +149,19 @@ export function TokenImage({
   className,
   directImageUrl,
 }: TokenImageProps) {
-  const { data, isLoading } = useTokenImage(directImageUrl ? null : tokenAddress);
+  // If this is the founder token, always use the hardcoded image
+  const isFounderToken = tokenAddress?.toLowerCase() === FOUNDER_TOKEN_ADDRESS.toLowerCase();
+  const founderImageUrl = isFounderToken ? FOUNDER_TOKEN_IMAGE : null;
+
+  const { data, isLoading } = useTokenImage(directImageUrl || founderImageUrl ? null : tokenAddress);
   const [errorCount, setErrorCount] = useState(0);
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
 
   const { px, className: sizeClass } = SIZE_MAP[size];
 
-  // Resolve URL: directImageUrl → API data → null (show placeholder)
+  // Resolve URL: hardcoded founder image → directImageUrl → API data → null (show placeholder)
   const resolvedImageUrl =
+    founderImageUrl ??
     directImageUrl ??
     (currentUrl || (data?.imageUrl ?? null));
 

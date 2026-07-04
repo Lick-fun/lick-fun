@@ -106,7 +106,7 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
 
         </div>
         {/* Burn-address callout — sized up + bolder + higher contrast so it
-            can’t be missed at a glance. Slightly larger, fully bold, saturated
+            can't be missed at a glance. Slightly larger, fully bold, saturated
             orange background, and a subtle ring so it pops off the card. */}
         <button
           type="button"
@@ -126,7 +126,7 @@ export function FounderTokenBanner({ tokens, priceChangePct }: FounderTokenBanne
             letterSpacing: "0.04em",
           }}
         >
-          🔥 Founder &amp; Dev wallet sent to BURN 🔥
+          🔥 Founder & Dev wallet sent to BURN 🔥
         </button>
 
       </div>
