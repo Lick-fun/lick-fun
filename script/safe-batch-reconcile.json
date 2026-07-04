@@ -1,0 +1,80 @@
+{
+  "version": "1.0",
+  "chainId": "143",
+  "createdAt": 1783163000000,
+  "meta": {
+    "name": "Reconcile stranded vault MON to founder token",
+    "description": "Sweeps VaultBuybackBurn and VaultLPSupport to the Safe, then re-deposits both amounts via VaultRecouper.recover() attributing them to the Founder token (0x0236787a1bAaEeD46a123fa264A2355eed11d151). After this batch executes, pendingBurn(founder) and pendingLP(founder) will both be above the 50 MON execution threshold, and the Railway keeper will automatically call execute() on both vaults within ~60 seconds. IMPORTANT: re-check the live vault balances immediately before executing this batch since more trade fees land continuously — if balances have changed since this file was generated (2026-07-04), update the 'amount'/'value' fields below to match the CURRENT on-chain balance exactly, otherwise the sweep() amount will not equal the recover() value.",
+    "txBuilderVersion": "1.16.5"
+  },
+  "transactions": [
+    {
+      "to": "0x45B1Ee1E9E8E9FF8CE6bBbd55B430Cab4b25e06d",
+      "value": "0",
+      "data": null,
+      "contractMethod": {
+        "inputs": [
+          { "name": "to", "type": "address", "internalType": "address" },
+          { "name": "amount", "type": "uint256", "internalType": "uint256" }
+        ],
+        "name": "sweep",
+        "payable": false
+      },
+      "contractInputsValues": {
+        "to": "0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA",
+        "amount": "87488533050353348537"
+      }
+    },
+    {
+      "to": "0xF1Aac85a5F964564e472BF1E0628c536b01809e0",
+      "value": "0",
+      "data": null,
+      "contractMethod": {
+        "inputs": [
+          { "name": "to", "type": "address", "internalType": "address" },
+          { "name": "amount", "type": "uint256", "internalType": "uint256" }
+        ],
+        "name": "sweep",
+        "payable": false
+      },
+      "contractInputsValues": {
+        "to": "0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA",
+        "amount": "349954132201413394194"
+      }
+    },
+    {
+      "to": "0x3b0e57DBd9F80dB7963aa80A1167A224eD5E2b91",
+      "value": "87488533050353348537",
+      "data": null,
+      "contractMethod": {
+        "inputs": [
+          { "name": "vault", "type": "address", "internalType": "address payable" },
+          { "name": "token", "type": "address", "internalType": "address" }
+        ],
+        "name": "recover",
+        "payable": true
+      },
+      "contractInputsValues": {
+        "vault": "0x45B1Ee1E9E8E9FF8CE6bBbd55B430Cab4b25e06d",
+        "token": "0x0236787a1bAaEeD46a123fa264A2355eed11d151"
+      }
+    },
+    {
+      "to": "0x3b0e57DBd9F80dB7963aa80A1167A224eD5E2b91",
+      "value": "349954132201413394194",
+      "data": null,
+      "contractMethod": {
+        "inputs": [
+          { "name": "vault", "type": "address", "internalType": "address payable" },
+          { "name": "token", "type": "address", "internalType": "address" }
+        ],
+        "name": "recover",
+        "payable": true
+      },
+      "contractInputsValues": {
+        "vault": "0xF1Aac85a5F964564e472BF1E0628c536b01809e0",
+        "token": "0x0236787a1bAaEeD46a123fa264A2355eed11d151"
+      }
+    }
+  ]
+}

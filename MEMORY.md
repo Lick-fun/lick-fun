@@ -60,9 +60,22 @@
 3. Run the one-shot reconcile: `PRIVATE_KEY=<multisig-signer-key> node script/reconcile-vaults.mjs` (or use the multisig's Transaction Builder with the calldata from `contracts/script/ReconcileVaults.s.sol`).
 4. Watch the Railway keeper logs for the first real `execute()` call within ~1 minute.
 
+### Update 2026-07-04 — VaultRecouper deployed to mainnet
+
+- Fixed a syntax error in `script/reconcile-vaults.mjs` (unbalanced template literal + duplicate `const lpBal`) that was blocking the user's first attempt to run it.
+- Fixed a missing `=` in `script/.env` (`RECOUPER_ADDR0x...` instead of `RECOUPER_ADDR=0x...`).
+- **`VaultRecouper` deployed to Monad mainnet:** `0x3b0e57DBd9F80dB7963aa80A1167A224eD5E2b91` (tx `0xcccb42804a1dea619a4fcf06ff1319492d0be86a769985b50b995a56528abe73`). Verified via bytecode inspection — `recover(address,address)` selector present, contract live.
+- Confirmed the deployer wallet (`0xB99d37f0B57d8ce9b67b2372cC0E17D3577aEAAb`) is **not** the vault owner — only the multisig Safe (`0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA`, 344-byte contract) can call `sweep()`. This means `reconcile-vaults.mjs` cannot be run directly with a hot wallet key; it must be executed via the Safe (either by having a Safe owner sign a raw tx with the script's logic, or via Safe Transaction Builder).
+- **Generated `script/safe-batch-reconcile.json`** — a ready-to-import Safe Transaction Builder batch with all 4 calls (sweep BB → sweep LP → recover BB → recover LP) pre-filled with live on-chain balances as of 2026-07-04: BuybackBurn 87.49 MON, LPSupport 349.95 MON (balances keep growing from ongoing trades — must be re-verified as current before executing).
+- Cleaned up all temporary `_investigate*.mjs` / `_check*.mjs` / `_verify*.mjs` scripts (untracked, not committed).
+
+**Next step for user:** Import `script/safe-batch-reconcile.json` into the Safe Transaction Builder app (app.safe.global, connect to the multisig), double-check the `amount`/`value` fields match the *current* vault balances (they grow continuously), and execute the batch with the required multisig signatures. Once confirmed, `pendingBurn(founder)` and `pendingLP(founder)` will both exceed the 50 MON threshold and the Railway keeper will call `execute()` automatically within ~60 seconds.
+
 ## Git History
 - Commit `24875ab` (2026-07-03 morning) — Investigation findings logged.
-- Commit `(pending)` — Fix files added: VaultRecouper + reconcile scripts.
+- Commit `113c906` — VaultRecouper.sol + reconcile scripts added.
+- Commit `(pending)` — Bug fixes to reconcile-vaults.mjs/.env, VaultRecouper deployed to mainnet, Safe batch JSON added.
+
 
 
 ---

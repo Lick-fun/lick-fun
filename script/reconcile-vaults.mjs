@@ -14,16 +14,7 @@
 // and the Railway keeper will trigger execute() automatically on its next 60s
 // poll cycle.
 
-import {
-  createPublicClient,
-  createWalletClient,
-  http,
-  parseAbi,
-  parseEventLogs,
-  keccak256,
-  toBytes,
-  getContract,
-} from "viem";
+import { createPublicClient, createWalletClient, http, parseAbi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { defineChain } from "viem";
 import * as dotenv from "dotenv";
@@ -73,14 +64,15 @@ const RECOVER_ABI = parseAbi(["function recover(address payable vault, address t
 
 async function main() {
   console.log(`Signer: ${account.address}`);
-  console.log(`BB vault:  ${BB_VAULT}  (bal=${(Number(await publicClient.getBalance({ address: BB_VAULT })) / 1e18} MON)`);
-  console.log(`LP vault:  ${LP_VAULT}  (bal=${(Number(await publicClient.getBalance({ address: LP_VAULT })) / 1e18} MON)`);
-  console.log(`Founder:   ${FOUNDER}`);
-  console.log(`Recouper:  ${RECOUPER}`);
-  console.log("");
 
   const bbBal = await publicClient.getBalance({ address: BB_VAULT });
   const lpBal = await publicClient.getBalance({ address: LP_VAULT });
+
+  console.log(`BB vault:  ${BB_VAULT}  (bal=${Number(bbBal) / 1e18} MON)`);
+  console.log(`LP vault:  ${LP_VAULT}  (bal=${Number(lpBal) / 1e18} MON)`);
+  console.log(`Founder:   ${FOUNDER}`);
+  console.log(`Recouper:  ${RECOUPER}`);
+  console.log("");
 
   // Step 1: sweep both vaults to signer (works because signer is the multisig
   // or a hot wallet authorised by it).
@@ -105,8 +97,8 @@ async function main() {
   console.log("    tx:", sweepLP);
 
   // Step 2: re-deposit via VaultRecouper with correct token attribution.
-  // We split 100% to founder for both vaults (BB share 20% + LP share 80% per
-  // LIGHT preset).
+  // We attribute 100% to founder for both vaults (this is a one-shot bridge
+  // since only the Founder token has accrued fees so far).
   console.log("[3/4] Re-attributing BB balance to founder via VaultRecouper...");
   const recBB = await walletClient.writeContract({
     address: RECOUPER,
