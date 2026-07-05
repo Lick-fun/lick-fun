@@ -87,7 +87,19 @@ const monadMainnet = defineChain({
 const GRADUATION_ROUTER_ABI = parseAbi([
   "function migrateLiquidity(address token) external returns (address pair)",
   "function tokenToPair(address token) external view returns (address)",
+  // Custom errors — included so viem can decode reverts with human-readable
+  // names instead of raw undecodable selectors (e.g. 0xd92e233d).
+  "error NotGraduated()",
+  "error AlreadyMigrated()",
+  "error ZeroAddress()",
 ]);
+
+// Minimal ABI for verifying a token actually belongs to Lick.fun's own
+// Factory before attempting migration. See isLickFunToken() below for why.
+const FACTORY_LOOKUP_ABI = parseAbi([
+  "function tokenToCurve(address token) external view returns (address)",
+]);
+
 
 const VAULT_BUYBACK_ABI = parseAbi([
   "function pendingBurn(address token) external view returns (uint256)",
@@ -187,8 +199,48 @@ const vaultAttempted = new Set<string>(); // key = `${vault}-${token}`
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Verify that `token` was actually created by Lick.fun's own Factory before
+ * attempting migration.
+ *
+ * WHY THIS EXISTS: CurveGraduate(address indexed token, address indexed pool)
+ * is a generic-sounding event signature. Other bonding-curve launchpads on
+ * Monad happen to emit an event with the exact same signature/topic hash from
+ * their own (unrelated) contracts. Because poll() scans logs chain-wide with
+ * no `address` filter (to catch every Lick.fun BondingCurve without knowing
+ * their addresses in advance), it can pick up a foreign platform's graduation
+ * event by coincidence. Attempting to migrate such a token via
+ * GraduationRouter.migrateLiquidity() always reverts with ZeroAddress()
+ * because Factory.tokenToCurve(token) is unset for it — this is the exact
+ * failure seen in production for token 0x0a917fCC...0389d7777 ("Salmonad"),
+ * which turned out to belong to a different launchpad entirely (confirmed via
+ * `cast run` trace: it uses setIsGraduated()/Uniswap-V3-style CLMM migration,
+ * not Lick.fun's BondingCurve/LickPair flow).
+ *
+ * Filtering on Factory.tokenToCurve() here stops the keeper from ever
+ * sending a doomed transaction (and spamming error logs) for tokens that
+ * aren't actually part of the Lick.fun ecosystem.
+ */
+async function isLickFunToken(token: `0x${string}`): Promise<boolean> {
+  if (!FACTORY_ADDR) return true; // can't verify — fall back to old behavior
+  try {
+    const curve = await publicClient.readContract({
+      address: FACTORY_ADDR,
+      abi: FACTORY_LOOKUP_ABI,
+      functionName: "tokenToCurve",
+      args: [token],
+    });
+    return curve !== "0x0000000000000000000000000000000000000000";
+  } catch {
+    // If the lookup itself fails, don't block migration attempts — treat as
+    // unknown/true so we don't silently mask a real RPC problem.
+    return true;
+  }
+}
+
 async function isMigrated(token: string): Promise<boolean> {
   try {
+
     const pair = await publicClient.readContract({
       address: GRADUATION_ROUTER!,
       abi: GRADUATION_ROUTER_ABI,
@@ -415,7 +467,17 @@ async function poll(): Promise<void> {
       const token = args.token;
       if (!token) continue;
       console.log(`[keeper] CurveGraduate: token=${token} in block ${log.blockNumber}`);
-      migrate(token).catch((e) => console.error("[keeper] migrate error:", e));
+      isLickFunToken(token)
+        .then((isOurs) => {
+          if (!isOurs) {
+            console.log(
+              `[keeper] ${token} — not a Lick.fun token (Factory.tokenToCurve is zero), skipping migration attempt`
+            );
+            return;
+          }
+          return migrate(token);
+        })
+        .catch((e) => console.error("[keeper] migrate error:", e));
     }
 
     lastBlock = latestBlock;
