@@ -71,10 +71,53 @@
 
 **Next step for user:** Import `script/safe-batch-reconcile.json` into the Safe Transaction Builder app (app.safe.global, connect to the multisig), double-check the `amount`/`value` fields match the *current* vault balances (they grow continuously), and execute the batch with the required multisig signatures. Once confirmed, `pendingBurn(founder)` and `pendingLP(founder)` will both exceed the 50 MON threshold and the Railway keeper will call `execute()` automatically within ~60 seconds.
 
+### Update 2026-07-04 (later) — Safe batch executed, but `execute()` reverts. Root cause: deployed tokens have no `burn(uint256)` function.
+
+- User executed the Safe batch successfully. After it confirmed, the Railway keeper immediately tried `VaultBuybackBurn.execute(founder)` and got `The contract function "execute" reverted.` (raw revert data was empty `0x`).
+- **Root cause (confirmed via bytecode inspection of all 3 launched tokens):** the deployed `LickToken` contracts on mainnet were deployed *before* the audit added the `burn(uint256)` function. None of the 3 currently-launched tokens have a `burn(uint256)` selector (`0x42966c68`) in their bytecode. `VaultBuybackBurn.execute()` correctly buys tokens from the curve, then calls `ILickToken(token).burn(tokensBurned)` — which reverts with empty data because the function doesn't exist (and pure OpenZeppelin ERC20 has no fallback). This affects **all 3 launched tokens**, not just the founder one.
+- **LPSupport revert is NOT a bug** — it reverts with `NotGraduated()` (selector `0xd66173a5`) because the founder curve has only 22,583 MON of the 100,000 MON graduation threshold. The 349.95 MON is safe in `pendingLP[founder]` and will execute automatically once the curve graduates naturally.
+- **The fix:** deploy a new `VaultBuybackBurn` variant that burns via `IERC20(token).transfer(0x...dead, amount)` instead of calling `token.burn()`. `transfer()` is part of the standard ERC20 interface and exists on every token, so this works for any token — current pre-fix tokens AND any future tokens launched through the platform. Same economic effect (tokens permanently removed from circulating supply). Then:
+  1. Deploy new vault.
+  2. Multisig calls `FeeRouter.setVaults(newLP, newBB)` to re-point the FeeRouter (this is freely re-callable, no lock).
+  3. Sweep the old `VaultBuybackBurn` balance to the multisig, then re-deposit via `VaultRecouper.recover(newBB, founder)` to migrate the 87 MON over.
+  4. Update Railway env var `VAULT_BUYBACK_ADDR` to the new address.
+  5. The keeper will then call `execute()` on the new vault and it will succeed.
+
+**Files to create/modify for the fix (next chat window should pick this up):**
+- `contracts/src/VaultBuybackBurnV2.sol` (new) — same as `VaultBuybackBurn.sol` but replace `ILickToken(token).burn(tokensBurned)` with `IERC20(token).safeTransfer(0x...dead, tokensBurned)`. Keep all other logic identical (slippage check, threshold, receiveForToken, sweep, etc.).
+- `contracts/script/DeployVaultBuybackBurnV2.s.sol` (new) — forge deploy script.
+- `script/safe-batch-v2-migrate.json` (new) — Safe Transaction Builder batch: (a) `FeeRouter.setVaults(LP_VAULT, NEW_BB_VAULT)`, (b) `VaultBuybackBurn.sweep(safe, currentBalance)`, (c) `VaultRecouper.recover(NEW_BB_VAULT, founder)` with that amount.
+- `script/.env` — add `VAULT_BUYBACK_V2_ADDR=0x...` after deploy.
+- `script/graduation-keeper.ts` — no code change needed; just update the Railway env var `VAULT_BUYBACK_ADDR` to the new address.
+- `MEMORY.md` — update with new vault address + migration tx hashes.
+
+**Important context for the next chat window:**
+- All 3 currently-launched tokens (`0x0236787a1bAaEeD46a123fa264A2355eed11d151` founder, `0x801a16813823559Fb3825e1076bd2A252Bd18C09`, `0x46C26cA65f0b3E54C300F819cc73351141152D4a`) have the pre-fix bytecode (no `burn()`). The new vault must work with these AND any future tokens.
+- `FeeRouter.setVaults()` is freely re-callable (no lock) — confirmed in source. So re-pointing is safe.
+- `Factory.feeRouter` and `BondingCurve.feeRouter` are set-once — cannot be re-pointed. But since `FeeRouter.setVaults()` is re-callable, the vaults can be swapped without touching the curves.
+- The `VaultRecouper` contract is already deployed at `0x3b0e57DBd9F80dB7963aa80A1167A224eD5E2b91` and works for any vault that has `receiveForToken(address)` — the new V2 vault should keep this entrypoint so `VaultRecouper` continues to work for migration.
+- The multisig Safe is `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA`. The deployer/hot wallet `0xB99d37f0B57d8ce9b67b2372cC0E17D3577aEAAb` is NOT the owner — only the Safe can call `sweep()` and `setVaults()`.
+- The Railway keeper service has env vars `VAULT_BUYBACK_ADDR` and `VAULT_LP_ADDR` set. After deploying V2, update `VAULT_BUYBACK_ADDR` to the new address and redeploy the Railway service.
+- The `VaultLPSupport` vault is fine as-is — it doesn't call `token.burn()`, it just adds liquidity to the DEX pair. It only works post-graduation, which is expected behavior.
+
 ## Git History
 - Commit `24875ab` (2026-07-03 morning) — Investigation findings logged.
 - Commit `113c906` — VaultRecouper.sol + reconcile scripts added.
-- Commit `(pending)` — Bug fixes to reconcile-vaults.mjs/.env, VaultRecouper deployed to mainnet, Safe batch JSON added.
+- Commit `b17f137` — Bug fixes to reconcile-vaults.mjs/.env, VaultRecouper deployed to mainnet, Safe batch JSON added.
+
+### Update 2026-07-05 — VaultBuybackBurnV2 deployed to mainnet (burn-to-dead-address fix)
+
+- **Root cause confirmed:** All 3 currently-launched tokens (`0x0236787a1bAaEeD46a123fa264A2355eed11d151` founder, `0x801a16813823559Fb3825e1076bd2A252Bd18C09`, `0x46C26cA65f0b3E54C300F819cc73351141152D4a`) were deployed BEFORE the audit added `burn(uint256)` to `LickToken`. None of them have the `burn(uint256)` selector (`0x42966c68`) in their bytecode. `VaultBuybackBurn.execute()` correctly buys tokens from the curve, then calls `ILickToken(token).burn(tokensBurned)` which reverts with empty data because the function doesn't exist (and pure OpenZeppelin ERC20 has no fallback). This affects ALL 3 launched tokens, not just the founder one.
+- **LPSupport revert is NOT a bug** — it reverts with `NotGraduated()` (selector `0xd66173a5`) because the founder curve has only 22,583 MON of the 100,000 MON graduation threshold. The 351.64 MON is safe in `pendingLP[founder]` and will execute automatically once the curve graduates naturally.
+- **Fix implemented:** `VaultBuybackBurnV2` — same as V1 but uses `IERC20(token).safeTransfer(0x...dEaD, tokensBought)` instead of `token.burn(tokensBought)`. `transfer()` is part of the standard ERC20 interface and exists on every token, so this works for any token — current pre-fix tokens AND any future tokens launched through the platform. Same economic effect (tokens permanently removed from circulating supply).
+- **`VaultBuybackBurnV2` deployed to Monad mainnet:** `0xd22bEf54aD5baeA2C21a80B91E38C5B67Cbb1822` (tx `0xea301823dd6464afde8ee5150e0f2350e6bc4b55bfa2eaa0bd65521f3c3e9e66`). Verified on-chain: owner = multisig ✓, BURN_ADDRESS = 0x...dEaD ✓, all required selectors present ✓, factory/graduationRouter/lickRouter wired correctly ✓. Simulated `execute()` correctly reverts with `BelowThreshold` (selector `0xae274200`) when pendingBurn is 0.
+- **Constructor args used:** owner=`0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` (multisig), lickRouter=`0xd0cc6c69162eb0635a7d423aeb2086f1821ca844`, factory=`0x9845c5625d9f9C48e17956940485aAAAD168aA10`, graduationRouter=`0xb2Dc164Ac4eCDDA7Ea2D4115bC122463c65460b2`.
+- **Generated `script/safe-batch-v2-migrate.json`** — ready-to-import Safe Transaction Builder batch with 3 calls: (a) `FeeRouter.setVaults(LP_VAULT, V2_BB_VAULT)` to re-point the FeeRouter, (b) `VaultBuybackBurn.sweep(safe, 87.91 MON)` to drain the old V1 vault, (c) `VaultRecouper.recover(V2_BB_VAULT, founder)` with 87.91 MON to re-deposit into V2 attributed to the founder token. Balances must be re-verified as current before executing since fees accrue continuously.
+- **Updated `script/.env`** with `VAULT_BUYBACK_V2_ADDR=0xd22bEf54aD5baeA2C21a80B91E38C5B67Cbb1822`. After the Safe batch executes, the user must update the Railway service's `VAULT_BUYBACK_ADDR` env var to the V2 address and redeploy the Railway service.
+
+**Next step for user:** Import `script/safe-batch-v2-migrate.json` into the Safe Transaction Builder app (app.safe.global, connect to the multisig), double-check the `amount`/`value` fields match the *current* vault balances (they grow continuously), and execute the batch with the required multisig signatures. After it confirms, update the Railway service's `VAULT_BUYBACK_ADDR` env var to `0xd22bEf54aD5baeA2C21a80B91E38C5B67Cbb1822` and redeploy. The keeper will then call `execute()` on V2 and the buyback+burn will succeed — tokens will be transferred to `0x...dEaD` permanently.
+
+
 
 
 
