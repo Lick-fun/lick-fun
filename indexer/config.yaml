@@ -58,8 +58,6 @@ chains:
   - id: 143
     hypersync_config:
       url: https://monad.hypersync.xyz
-    rpc:
-      url: ${RPC_URL}
     start_block: 83961211
     contracts:
       - name: Factory
