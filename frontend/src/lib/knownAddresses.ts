@@ -16,7 +16,10 @@ export const KNOWN_ADDRESS_LABELS: Record<string, string> = {
   "0xf1aac85a5f964564e472bf1e0628c536b01809e0": "💧 LP Support",
   // VaultLPSupport v1 (deprecated)
   "0x69240beca90d25e2d50ca443d8ecaaab69cce183": "💧 LP Support",
+  // Bonus Buyback and Burn
+  "0x95c7cb05a2ab71f46bad2537cbea1d2362c5bb05": "🎁 Bonus Buyback and Burn",
 };
+
 
 /**
  * Returns true if the given address is a known contract (vault, router, etc.)
