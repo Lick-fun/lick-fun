@@ -72,7 +72,10 @@ chains:
       - name: GraduationRouter
         address: "0xb2Dc164Ac4eCDDA7Ea2D4115bC122463c65460b2"
       - name: VaultBuybackBurn
-        address: "0x45B1Ee1E9E8E9FF8CE6bBbd55B430Cab4b25e06d"
+        address:
+          - "0x45B1Ee1E9E8E9FF8CE6bBbd55B430Cab4b25e06d" # V1 (deprecated 2026-07-05 — historical events only)
+          - "0xd22bEf54aD5baeA2C21a80B91E38C5B67Cbb1822" # V2 (active — burn-to-dead-address)
+
       - name: VaultLPSupport
         address: "0xF1Aac85a5F964564e472BF1E0628c536b01809e0"
 
