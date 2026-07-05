@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     canonical: "https://lickfun.xyz",
   },
   icons: {
-    icon: "/logo-transparent.png",
+    icon: "/tokens/founder-token.png",
   },
 
   openGraph: {
