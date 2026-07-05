@@ -24,11 +24,26 @@ Re-checked live on-chain state on Monad mainnet before this session's frontend c
 
 ## Git History (this session)
 - Commit `8e599e9` — VaultBuybackBurnV2 deployed + migration batch + MEMORY.md update.
-- Commit `(pending)` — frontend: label V2 vault address as "Buyback and Burn" in Recent Trades, make non-clickable.
+- Commit `c08cb17` — frontend: label V2 vault address as "Buyback and Burn" in Recent Trades, make non-clickable.
+
+## 🎉 CONFIRMED SUCCESS — Migration executed, first V2 burn completed
+
+User executed the Safe migration batch. Re-verified on-chain immediately after:
+
+- `FeeRouter.buybackBurnVault` → `0xd22bEf54aD5baeA2C21a80B91E38C5B67Cbb1822` (**V2 — migration confirmed** ✓)
+- V1 vault balance: **0 MON** (fully drained by the `sweep()` call)
+- V2 vault balance: 0.1758 MON (fresh trickle of new trade fees already accumulating post-migration)
+- V2 `pendingBurn(founder)` = **0 MON** — confirms the keeper successfully called `execute()` on V2 (the mapping resets to 0 after a completed buyback+burn cycle; it was ~87.9 MON immediately after the migration, now back to 0)
+- Dead address (`0x...dEaD`) founder token balance: **11,343,665.77 tokens** — increased from the pre-migration baseline, confirming freshly-bought tokens from the V2 buyback were successfully transferred to the burn address
+
+**The fix is fully validated end-to-end on mainnet: buyback → burn-to-dead-address works correctly with the pre-audit-fix founder token, and will work identically for the other 2 launched tokens and any future token launched through the platform** (since it only relies on the standard ERC20 `transfer()` function, not the newer `burn()` function).
+
+**Nothing further required from either side right now** — the system is self-sustaining. As new trade fees accumulate in V2 past the 50 MON threshold per token, the Railway keeper will automatically call `execute()` and burn again, with no manual intervention needed.
 
 ---
 
 # Session Memory — 2026-07-03
+
 
 
 ## Investigation: Founder Token Buyback & Burn Vault
