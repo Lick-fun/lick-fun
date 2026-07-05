@@ -1,4 +1,34 @@
+# Session Memory — 2026-07-05 (newest) — Fix: token pages showing "??? Unknown Token" browser tab title
+
+## Task: Diagnose and fix browser tab showing "??? Unknown Token" on all token pages
+
+User reported that after the recent indexer/SEO changes, every token trading page's browser tab title showed "??? Unknown Token" instead of the real token name/symbol (including the founder token page).
+
+### Root cause
+The Envio indexer **intentionally** stores empty `name`/`symbol` strings for every `Token` entity — `context.client.readContract` is not available in Envio Cloud deployments (see `indexer/src/EventHandlers.ts` comment). The client-side token page (`frontend/src/app/token/[id]/page.tsx`) already correctly works around this via `useTokenMeta()` in `frontend/src/lib/hooks/useData.ts`, which does an on-chain `name()`/`symbol()` read via wagmi whenever the indexer values are blank.
+
+However, the SEO/GEO commit from earlier this session (`4f3b911`) added server-rendered `generateMetadata()` functions that read `token.name`/`token.symbol` **directly from the indexer GraphQL response with no on-chain fallback**:
+- `frontend/src/app/token/[id]/layout.tsx` — `const name = token.name || "Unnamed Token"; const symbol = token.symbol || "???";`
+- `frontend/src/app/api/og/token/[id]/route.tsx` — same pattern (`"Unknown Token"` / `"???"`)
+
+Since indexer name/symbol are always empty strings, these always fell back to the placeholder text. Next.js App Router's `<title>` tag comes exclusively from `generateMetadata()` (server-rendered) — the client-side page's later RPC-resolved name/symbol has **no effect on `document.title`**. Same issue affected the dynamic OG/share image.
+
+### Fix
+- **`frontend/src/lib/server/resolveTokenMeta.ts` (new)** — Server-side helper using a plain `viem` `createPublicClient` (no wagmi/React dependency, mirrors the existing pattern in `frontend/src/app/api/trades/[curve]/route.ts`). Returns indexer name/symbol as-is if both are non-empty; otherwise reads `name()`/`symbol()` directly from the ERC-20 contract via RPC, falling back to a truncated address / `"???"` if the RPC call also fails (never throws).
+- **`frontend/src/app/token/[id]/layout.tsx`** — `generateMetadata()` now calls `resolveTokenMeta(tokenId, token.name, token.symbol)` instead of using the raw indexer fields directly, so the `<title>`, meta description, and OG/Twitter tags use the real on-chain name/symbol.
+- **`frontend/src/app/api/og/token/[id]/route.tsx`** — Same fix applied so the dynamic OG share image also shows the real name/symbol instead of "Unknown Token"/"???".
+
+**Verified:** `npx tsc --noEmit -p frontend/tsconfig.json` passes with zero errors.
+
+**Lesson for future server-side Envio consumers:** Any server component/route that needs a token's `name`/`symbol` for user-facing output (title tags, OG images, etc.) must NOT trust the indexer's `Token.name`/`Token.symbol` fields directly — they are always empty strings by design. Always resolve through `resolveTokenMeta()` (or an equivalent on-chain fallback) rather than assuming client-side hooks like `useTokenMeta()` will "fix" it, since client components can't influence server-rendered `<title>` metadata.
+
+## Git History (this session)
+- Commit `(pending)` — Fix "??? Unknown Token" tab title: add resolveTokenMeta server helper, wire into token layout + OG image route.
+
+---
+
 # Session Memory — 2026-07-05 (latest) — SEO/GEO optimization for Lickfun.xyz
+
 
 ## Task: Full SEO + Generative Engine Optimization (GEO) pass
 

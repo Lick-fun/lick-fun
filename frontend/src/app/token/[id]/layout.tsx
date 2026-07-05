@@ -3,7 +3,9 @@ import { getGraphQLClient } from "@/lib/graphql/client";
 import { QUERY_TOKEN, type TokenEntity } from "@/lib/graphql/queries";
 import { getTokenPrice, getGraduationProgress, formatMon } from "@/lib/bondingCurve";
 import { readMetadataIndex } from "@/lib/server/tokenMetadataStore";
+import { resolveTokenMeta } from "@/lib/server/resolveTokenMeta";
 import { ipfsToHttp } from "@/lib/ipfs";
+
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lickfun.xyz";
 
@@ -93,9 +95,9 @@ export async function generateMetadata({
     };
   }
 
-  const name = token.name || "Unnamed Token";
-  const symbol = token.symbol || "???";
+  const { name, symbol } = await resolveTokenMeta(tokenId, token.name, token.symbol);
   const { monPerToken, marketCapMon } = getTokenPrice(token.realMon, token.soldTokens);
+
   const progress = getGraduationProgress(token.realMon);
   const statusLabel = token.graduated
     ? "Graduated to DEX"

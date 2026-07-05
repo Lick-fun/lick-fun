@@ -2,6 +2,8 @@ import { ImageResponse } from "next/og";
 import { getGraphQLClient } from "@/lib/graphql/client";
 import { QUERY_TOKEN, type TokenEntity } from "@/lib/graphql/queries";
 import { getTokenPrice, getGraduationProgress, formatMon } from "@/lib/bondingCurve";
+import { resolveTokenMeta } from "@/lib/server/resolveTokenMeta";
+
 
 export const runtime = "edge";
 
@@ -49,11 +51,15 @@ export async function GET(
   const { id } = await params;
   const token = await getToken(id);
 
-  const name = token?.name || "Unknown Token";
-  const symbol = token?.symbol || "???";
+  const { name, symbol } = await resolveTokenMeta(
+    id.toLowerCase(),
+    token?.name,
+    token?.symbol
+  );
   const { monPerToken, marketCapMon } = token
     ? getTokenPrice(token.realMon, token.soldTokens)
     : { monPerToken: 0, marketCapMon: 0 };
+
   const progress = token ? getGraduationProgress(token.realMon) : 0;
   const marketCap = formatMon(BigInt(Math.round(marketCapMon * 1e18)));
   const graduated = token?.graduated ?? false;
