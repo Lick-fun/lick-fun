@@ -3,34 +3,36 @@
     "type": "event",
     "name": "Deposited",
     "inputs": [
-      { "name": "token", "type": "address", "indexed": true },
-      { "name": "sender", "type": "address", "indexed": true },
-      { "name": "amount", "type": "uint256", "indexed": false }
-    ]
+      { "name": "token", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "sender", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "amount", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
   },
   {
     "type": "event",
     "name": "Executed",
     "inputs": [
-      { "name": "token", "type": "address", "indexed": true },
-      { "name": "monSpent", "type": "uint256", "indexed": false },
-      { "name": "tokensBurned", "type": "uint256", "indexed": false }
-    ]
+      { "name": "token", "type": "address", "indexed": true, "internalType": "address" },
+      { "name": "monSpent", "type": "uint256", "indexed": false, "internalType": "uint256" },
+      { "name": "tokensBurned", "type": "uint256", "indexed": false, "internalType": "uint256" }
+    ],
+    "anonymous": false
   },
   {
     "type": "function",
     "name": "pendingBurn",
-    "inputs": [{ "name": "token", "type": "address" }],
-    "outputs": [{ "name": "", "type": "uint256" }],
+    "inputs": [{ "name": "token", "type": "address", "internalType": "address" }],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
     "stateMutability": "view"
   },
   {
     "type": "function",
     "name": "execute",
     "inputs": [
-      { "name": "token", "type": "address" },
-      { "name": "curve", "type": "address" },
-      { "name": "graduated", "type": "bool" }
+      { "name": "token", "type": "address", "internalType": "address" },
+      { "name": "curve", "type": "address", "internalType": "address" },
+      { "name": "graduated", "type": "bool", "internalType": "bool" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
