@@ -1,4 +1,4 @@
-﻿# Lickfun.xyz
+# Lickfun.xyz
 
 > A meme lake on liquidity fun. Social-first token launchpad on Monad with earned creator reputation.
 
@@ -263,7 +263,7 @@ ProfileRegistry            Wallet linking (0.1 MON bond, checked refund, anchor 
 | + | Phase 3c/d: USD MC on all cards, social links on profiles | ✅ done |
 | + | **Mainnet security audit** — 29 findings, all fixed, 164 tests green | ✅ done |
 | + | **Mainnet deploy** (chain 143, block 83961211, Safe multisig treasury) | ✅ **LIVE** |
-| + | Envio indexer → mainnet (chain 143, block 83961211, endpoint c6a3f92) | ✅ done |
+| + | Envio indexer → mainnet (chain 143, block 83961211, endpoint a49668b) | ✅ done |
 | + | Founder token LICK created · fees verified to Safe · banner live | ✅ done |
 | + | P0 security: upload-token + register-metadata EIP-191 auth | ✅ done |
 | + | Rate limiting middleware on all API routes | ✅ done |
