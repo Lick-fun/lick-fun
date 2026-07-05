@@ -25,7 +25,7 @@ import {
   formatTxCount,
 } from "@/lib/format";
 import { FounderTokenBanner } from "@/components/home/FounderTokenBanner";
-import { KNOWN_ADDRESS_LABELS } from "@/lib/knownAddresses";
+import { KNOWN_ADDRESS_LABELS, isKnownAddress } from "@/lib/knownAddresses";
 
 type SortOption = "lastTrade" | "largestMC" | "newestCreated" | "highestReputation";
 
@@ -211,15 +211,17 @@ export default function HomePage() {
                   );
                   const amountLabel = `${monAmt} MON of ${tokenLabel}`;
                   const traderDisplay = formatTraderAddress(trade.trader);
+                  // Automated vault addresses (buyback/burn, LP support) aren't
+                  // real "traders" — render as a non-clickable pill instead of
+                  // a Link so clicking doesn't navigate to the token page.
+                  const traderIsKnownVault = isKnownAddress(trade.trader);
 
-                  return (
-                    <Link
-                      key={`${dup}-${trade.id}`}
-                      href={`/token/${trade.token_id}`}
-                      className={`flex items-center gap-2 px-3 shrink-0 w-[211px] h-[46px] rounded-pill no-underline cursor-pointer ${
-                        trade.isBuy ? "pill-buy" : "pill-sell"
-                      }`}
-                    >
+                  const pillClassName = `flex items-center gap-2 px-3 shrink-0 w-[211px] h-[46px] rounded-pill no-underline ${
+                    trade.isBuy ? "pill-buy" : "pill-sell"
+                  } ${traderIsKnownVault ? "cursor-default" : "cursor-pointer"}`;
+
+                  const pillContent = (
+                    <>
                       <TokenAvatar
                         tokenAddress={trade.token_id}
                         tokenName={tokenName}
@@ -242,6 +244,24 @@ export default function HomePage() {
                           {trade.isBuy ? "Bought" : "Sold"}
                         </span>
                       </div>
+                    </>
+                  );
+
+                  if (traderIsKnownVault) {
+                    return (
+                      <div key={`${dup}-${trade.id}`} className={pillClassName}>
+                        {pillContent}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={`${dup}-${trade.id}`}
+                      href={`/token/${trade.token_id}`}
+                      className={pillClassName}
+                    >
+                      {pillContent}
                     </Link>
                   );
                 })}

@@ -1,4 +1,35 @@
+# Session Memory — 2026-07-05 (later) — Frontend: label V2 vault in Recent Trades + on-chain migration status check
+
+## Frontend change: Buyback & Burn vault address now shows friendly label, not clickable
+
+- **Files changed:**
+  - `frontend/src/lib/knownAddresses.ts` — added the new `VaultBuybackBurnV2` address (`0xd22bEf54aD5baeA2C21a80B91E38C5B67Cbb1822`) to `KNOWN_ADDRESS_LABELS` mapped to `"🔥 Buyback and Burn"`. Fixed a misleading comment (the old V1 entry was mislabeled "v2 (active)" when V1 is actually the broken/deprecated one — relabeled as v1/v0 deprecated, V2 as the active one). Added a new exported helper `isKnownAddress(addr)` that returns true for any address in the map.
+  - `frontend/src/app/page.tsx` — the homepage "Recent Trades" marquee ticker previously wrapped every trade pill in a `<Link href="/token/[id]">` unconditionally. Now checks `isKnownAddress(trade.trader)` first: if the trader is a known automated vault (Buyback & Burn or LP Support, any version), the pill renders as a plain non-clickable `<div>` (with `cursor-default`) instead of a `<Link>` — so clicking it does nothing. Real user trades are unaffected and still navigate to the token page as before.
+- **Why:** The V2 buyback vault will soon start appearing as a "trader" in the Recent Trades feed once the Safe migration batch executes and the keeper starts calling `execute()` on it. Without this change it would show as a raw truncated address (e.g. `0xd22b...1822`) and be clickable like a normal trader, which is confusing since it's an automated contract, not a real wallet. This mirrors the exact pattern already used for V1's address and for `CreatorBadge.tsx` (which independently already reads from `KNOWN_ADDRESS_LABELS` and disables click-through for known addresses — so the token detail page's trade history table picks up the same fix automatically, no changes needed there).
+- **Verified:** `npx tsc -p tsconfig.json --noEmit` passes clean, no type errors.
+
+## On-chain verification — migration batch NOT yet executed (as of this session)
+
+Re-checked live on-chain state on Monad mainnet before this session's frontend change:
+- `FeeRouter.buybackBurnVault` still points to **V1** (`0x45B1...06d`) — the Safe migration batch (`script/safe-batch-v2-migrate.json`) has **not** been executed yet.
+- V1 vault balance: **87.910533 MON** (`87910533050353348537` wei) — this is an **exact match** to the amounts already hardcoded in `safe-batch-v2-migrate.json` (both the `sweep` and `recover` calls). No drift since the file was generated — the batch file does NOT need to be regenerated, it's ready to execute as-is.
+- V1 `pendingBurn(founder)` = 87.49 MON (already populated from the *first* reconcile batch executed earlier this session, `safe-batch-reconcile.json`) — but V1 can never successfully `execute()` since it calls the nonexistent `token.burn()`.
+- V2 vault (`0xd22b...1822`) balance = 0, `pendingBurn(founder)` = 0 — confirms V2 hasn't received any funds yet, the migration batch is still outstanding.
+- LP vault: 351.64 MON, `pendingLP(founder)` = 349.95 MON — untouched, correct, waiting for the founder curve to graduate naturally.
+
+**Outstanding steps for the user (unchanged from previous update, still pending):**
+1. Execute `script/safe-batch-v2-migrate.json` via Safe Transaction Builder (app.safe.global, multisig `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA`) — re-points FeeRouter to V2, sweeps V1, re-deposits into V2 attributed to founder token.
+2. Update Railway `VAULT_BUYBACK_ADDR` env var to `0xd22bEf54aD5baeA2C21a80B91E38C5B67Cbb1822` and redeploy.
+3. Watch keeper logs for successful `execute()` call on V2 (tokens transferred to `0x...dEaD`).
+
+## Git History (this session)
+- Commit `8e599e9` — VaultBuybackBurnV2 deployed + migration batch + MEMORY.md update.
+- Commit `(pending)` — frontend: label V2 vault address as "Buyback and Burn" in Recent Trades, make non-clickable.
+
+---
+
 # Session Memory — 2026-07-03
+
 
 ## Investigation: Founder Token Buyback & Burn Vault
 
