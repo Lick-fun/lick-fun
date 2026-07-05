@@ -1,0 +1,22 @@
+{
+  "name": "lick-fun-telegram-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lickfun.fun Telegram bot — welcome/verification gate + Lickfun-branded buy alerts for the founder coin and other Lickfun tokens",
+  "type": "module",
+  "scripts": {
+    "start": "exec tsx src/index.ts",
+    "dev": "tsx --watch src/index.ts",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "graphql-request": "^7.1.0",
+    "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

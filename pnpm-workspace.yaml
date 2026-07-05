@@ -6,5 +6,5 @@ allowBuilds:
   esbuild: true
   keccak: true
   sharp: true
-  unrs-resolver: set this to true or false
+  unrs-resolver: true
   utf-8-validate: true

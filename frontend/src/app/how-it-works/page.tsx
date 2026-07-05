@@ -11,6 +11,8 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+
 
 export const metadata: Metadata = {
   title: "How It Works — Lickfun.xyz",
@@ -31,9 +33,66 @@ export const metadata: Metadata = {
   },
 };
 
+const faqs = [
+  {
+    question: "What is Lickfun.xyz?",
+    answer:
+      "Lickfun.xyz is a social-first token launchpad on the Monad blockchain. Anyone can launch a token for a flat 1 MON fee, trade it instantly on a bonding curve, and watch it graduate to a real DEX pool once it raises 100,000 MON.",
+  },
+  {
+    question: "How does the bonding curve work?",
+    answer:
+      "Every token starts on a bonding curve — a pricing rule where the price rises automatically as more people buy. There's no order book; buys and sells settle instantly against the curve. Early buyers get the lowest price, and you can sell back to the curve for MON at any time.",
+  },
+  {
+    question: "What happens when a token graduates?",
+    answer:
+      "When a token's bonding curve raises 100,000 MON, it graduates: liquidity moves to a real Uniswap-style DEX pool and the LP tokens are permanently burned (sent to a dead address). No one, including the creator, can ever withdraw that liquidity.",
+  },
+  {
+    question: "How are snipers and bots prevented from ruining launches?",
+    answer:
+      "New token launches carry a decaying anti-snipe penalty — up to 80% in the very first block, fading down to 0% within the first few blocks. This gives real buyers a fair chance instead of being front-run by automated sniper bots.",
+  },
+  {
+    question: "What fees does Lickfun.xyz charge?",
+    answer:
+      "Every trade carries a flat 2% fee, split evenly: 1% goes to the token's creator and 1% goes to the platform. Token creation itself costs a flat 1 MON fee. There are no hidden charges.",
+  },
+  {
+    question: "How does the reputation system work?",
+    answer:
+      "Every wallet that creates tokens earns a reputation score from 0 to 100 based on its track record: tokens launched, tokens graduated, honesty of pre-buys, and whether it has ever rugged. Scores group into three tiers — New (0–29), Established (30–69), and Trusted (70–100) — and creators can earn achievement badges for milestones.",
+  },
+  {
+    question: "Can a token creator rug pull on Lickfun.xyz?",
+    answer:
+      "No. Liquidity is burned (not merely locked) at graduation, there are no admin keys that let anyone drain funds or change the rules, and any rug-like behavior tanks a creator's public reputation score permanently.",
+  },
+];
+
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: faqs.map((faq) => ({
+    "@type": "Question",
+    name: faq.question,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: faq.answer,
+    },
+  })),
+};
+
 export default function AboutPage() {
   return (
     <div className="bg-figma-bg min-h-screen px-5 pb-20">
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+
       {/* Page Header */}
       <div className="pt-8 mb-12 text-center max-w-3xl mx-auto">
         <h1 className="text-figma-3xl text-figma-white font-bold mb-3">
@@ -49,11 +108,14 @@ export default function AboutPage() {
       {/* What is Lickfun.xyz */}
       <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
         <div className="flex items-center gap-3 mb-4">
-          <img
+          <Image
             src="/logo-transparent.png"
-            alt="Lickfun.xyz"
+            alt="Lickfun.xyz logo"
+            width={40}
+            height={40}
             className="w-10 h-10 rounded-card object-cover shrink-0"
           />
+
           <h2 className="text-figma-2xl text-figma-white font-bold">What is Lickfun.xyz?</h2>
         </div>
         <p className="text-figma-md text-figma-muted leading-relaxed mb-4">
@@ -353,8 +415,29 @@ export default function AboutPage() {
         </p>
       </section>
 
+      {/* FAQ — explicit Q&A pairs for AI/answer-engine extraction */}
+      <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <Shield className="w-7 h-7 text-figma-green" />
+          <h2 className="text-figma-2xl text-figma-white font-bold">Frequently Asked Questions</h2>
+        </div>
+        <div className="space-y-6">
+          {faqs.map((faq) => (
+            <div key={faq.question}>
+              <h3 className="text-figma-md text-figma-white font-semibold mb-2">
+                {faq.question}
+              </h3>
+              <p className="text-figma-sm text-figma-muted leading-relaxed">
+                {faq.answer}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="text-center mb-20">
+
         <h2 className="text-figma-2xl text-figma-white font-bold mb-4">Ready to explore?</h2>
         <p className="text-figma-md text-figma-muted mb-6">
           Browse trending tokens, check out the markets, or launch your own.

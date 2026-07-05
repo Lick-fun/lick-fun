@@ -1,4 +1,39 @@
+# Session Memory — 2026-07-05 (latest) — SEO/GEO optimization for Lickfun.xyz
+
+## Task: Full SEO + Generative Engine Optimization (GEO) pass
+
+User asked for up-to-date SEO best practices research (with emphasis on AI crawlers/AI answer engines) followed by implementation across the Next.js 15 App Router frontend.
+
+### Files added/changed
+- `frontend/src/app/sitemap.ts` (new) — Dynamic `MetadataRoute.Sitemap` combining static routes (`/`, `/discover`, `/create`, `/markets`, `/how-it-works`) with every indexed token (`/token/[id]`) and profile (`/profile/[address]`) page, sourced live from the Envio GraphQL indexer. Capped at 5000 tokens / 2000 profiles. Fails soft (falls back to static routes only) if the indexer is unreachable. Uses minimal `SitemapTokenRow`/`SitemapProfileRow` interfaces (string fields only, since only `Number(createdAt)` and boolean `graduated` are used — no BigInt arithmetic needed here).
+- `frontend/src/lib/bondingCurve.ts` (new) — Server-safe (no `"use client"`) pure bonding-curve math extracted from `wagmi/contracts.ts`: `getTokenPrice(realMon, soldTokens)`, `getGraduationProgress(realMon)`, `formatMon(wei)`, `formatTokens(wei)`.
+- `frontend/src/app/token/[id]/layout.tsx` (new) — `generateMetadata()` producing dynamic title/description/canonical/OG/Twitter tags per token (price, market cap, graduation status pulled live from the indexer + bonding curve math), plus a `BreadcrumbList` JSON-LD script in the layout body.
+- `frontend/src/app/api/og/token/[id]/route.tsx` (new) — Edge-runtime dynamic OG image (`next/og` `ImageResponse`, 1200×630) rendering token symbol/name/price/market cap/graduation status with Lickfun.xyz branding.
+- `frontend/src/app/profile/[address]/layout.tsx` (new) — `generateMetadata()` for profile pages (reputation stats, token count, volume) + `BreadcrumbList` JSON-LD. Reads off-chain display name/avatar from `frontend/src/data/profile-metadata.json`.
+- `frontend/src/app/discover/layout.tsx`, `frontend/src/app/markets/layout.tsx`, `frontend/src/app/create/layout.tsx` (new) — Static per-page `metadata` exports (unique title/description/canonical/OG/Twitter).
+- `frontend/src/app/layout.tsx` — Added `alternates.canonical`, plus sitewide `Organization` + `WebSite` (with `SearchAction`) JSON-LD.
+- `frontend/src/app/how-it-works/page.tsx` — Added a 7-question visible FAQ section + matching `FAQPage` JSON-LD (for AI answer-engine extraction/rich results). Replaced raw `<img>` logo with `next/image`.
+- `frontend/public/robots.txt` — Added explicit `Allow: /` rules for AI crawlers: GPTBot, ChatGPT-User, OAI-SearchBot, ClaudeBot, Claude-Web, anthropic-ai, PerplexityBot, Perplexity-User, Google-Extended, GoogleOther, Applebot-Extended, Bytespider, CCBot, Meta-ExternalAgent, cohere-ai. Kept `Disallow: /api/` + `Allow: /api/og/` + `Sitemap:` reference.
+- `frontend/public/llms.txt` — Expanded with a Key Facts section, per-page-type descriptions (including the token/profile URL patterns), and machine-readable endpoints, per the emerging `llms.txt` convention for LLM/AI-agent site discovery.
+
+### Bug found + fixed after initial implementation
+User hit a runtime error on the token page: `Cannot mix BigInt and other types, use explicit conversions` in `getTokenPrice()` called from `token/[id]/layout.tsx`'s `generateMetadata()`.
+
+**Root cause:** Envio's GraphQL API serializes all bigint-typed scalar fields (`realMon`, `soldTokens`, `virtualMon`, `createdAt`, `totalBuyVolume`, etc.) as JSON strings, not native numbers/bigints. The existing client-side code (`frontend/src/lib/hooks/useData.ts`) already has `toBigIntToken`/`toBigIntTrade`/`toBigIntProfile` converters that explicitly `BigInt(raw.field)` each field before use — but my new server-side files unsafely cast the raw GraphQL JSON response straight to `TokenEntity`/`ProfileEntity` (which declare `bigint` fields) without actually converting, so `VIRTUAL_TOKENS - soldTokens` mixed `bigint` and `string` and threw.
+
+**Fix:** Added local `toBigIntToken()` / `toBigIntProfile()` converters (mirroring the `useData.ts` pattern) to all three affected files — `token/[id]/layout.tsx`, `api/og/token/[id]/route.tsx`, `profile/[address]/layout.tsx` — changing their GraphQL response interfaces to `Record<string, unknown> | null` and explicitly calling `BigInt(raw.field as string)` on every bigint field before use. Also tightened `sitemap.ts`'s types to `string` fields (it wasn't actually crashing since it only used `Number()`, but the types previously claimed `bigint`/`TokenEntity` incorrectly).
+
+**Verified:** `npx tsc --noEmit -p frontend/tsconfig.json` passes with zero errors after the fix.
+
+**Lesson for future server-side Envio GraphQL consumers:** Always treat raw GraphQL JSON responses as having `string` (not `bigint`) for any field typed `bigint` in `TokenEntity`/`ProfileEntity`/`TradeEntity` in `frontend/src/lib/graphql/queries.ts`, and run it through the appropriate `toBigInt*` converter (or a local equivalent) before doing any BigInt arithmetic — this applies both client-side (already handled in `useData.ts`) and server-side (any future `generateMetadata`, route handler, or server component that queries the indexer directly).
+
+## Git History (this session)
+- Commit `(pending)` — Full SEO/GEO implementation + BigInt bug fix.
+
+---
+
 # Session Memory — 2026-07-05 (later) — Frontend: label V2 vault in Recent Trades + on-chain migration status check
+
 
 ## Frontend change: Buyback & Burn vault address now shows friendly label, not clickable
 

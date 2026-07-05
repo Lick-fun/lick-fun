@@ -2,16 +2,30 @@
 
 > Social-first token launchpad on Monad. Launch meme tokens, trade on a bonding curve, earn on-chain reputation, and watch strong projects graduate to a real DEX.
 
-Lickfun.xyz runs on Monad. Tokens launch with a flat 1 MON fee, trade along a bonding curve, and graduate to a Uniswap-style DEX pool at 69,000 MON market cap. Reputation is earned through on-chain behavior — not hype.
+Lickfun.xyz runs on the Monad blockchain. Tokens launch with a flat 1 MON fee, trade along a constant-product bonding curve, and graduate to a Uniswap-style DEX pool once the curve raises 100,000 MON. Liquidity is burned (not locked) at graduation, so it is permanently unwithdrawable. Every trade carries a 2% fee split 1%/1% between the token's creator and the platform. New token launches are protected from sniper bots by a decaying penalty (up to 80% in the first block, fading to 0% within a few blocks). Every wallet that creates tokens builds a public, on-chain-derived reputation score (0–100) and can earn achievement badges (e.g. Triple Graduate, Diamond Hands, Never Rugged).
+
+## Key Facts
+
+- Chain: Monad
+- Token creation fee: 1 MON (flat)
+- Trading fee: 2% per trade (1% creator, 1% platform)
+- Graduation threshold: 100,000 MON raised
+- Liquidity handling: burned permanently at graduation, no admin keys
+- Reputation tiers: New (0–29), Established (30–69), Trusted (70–100)
+- Anti-snipe protection: penalty decays from 80% to 0% over the first few blocks after launch
 
 ## Key Pages
 
-- [Home](https://lickfun.xyz/): Browse trending and new tokens
-- [Discover](https://lickfun.xyz/discover): Search and filter all tokens
-- [Create Token](https://lickfun.xyz/create): Launch a new meme token on Monad
-- [How It Works](https://lickfun.xyz/how-it-works): Bonding curve mechanics, graduation, reputation system
-- [Prediction Markets](https://lickfun.xyz/markets): Bet on token outcomes
+- [Home](https://lickfun.xyz/): Browse trending and newly launched tokens with live prices and market caps
+- [Discover](https://lickfun.xyz/discover): Search and filter all tokens by status (live/graduated) and sort by volume, progress, or recency
+- [Create Token](https://lickfun.xyz/create): Launch a new meme token on Monad for a flat 1 MON fee
+- [How It Works](https://lickfun.xyz/how-it-works): Full explanation of bonding curve mechanics, graduation, fees, sniper protection, and the reputation system (includes FAQ)
+- [Prediction Markets](https://lickfun.xyz/markets): Bet on whether specific tokens will graduate or hit milestones
+- Individual token pages at `https://lickfun.xyz/token/{tokenAddress}`: live price, bonding-curve progress, trade history, holders, and creator reputation for each token
+- Individual profile pages at `https://lickfun.xyz/profile/{walletAddress}`: a creator/trader's reputation score, badges, created tokens, and trading history
 
-## Optional
+## Optional / Machine-Readable
 
-- [Token Metadata API](https://lickfun.xyz/api/token-metadata): On-chain token metadata endpoint
+- [Token Metadata API](https://lickfun.xyz/api/token-metadata): paginated JSON list of all tokens with name, symbol, description, image, and social links
+- [Single Token Metadata API](https://lickfun.xyz/api/token-metadata/{tokenAddress}): OpenSea-style metadata JSON for one token
+- [Sitemap](https://lickfun.xyz/sitemap.xml): full list of indexable pages including every token and profile
