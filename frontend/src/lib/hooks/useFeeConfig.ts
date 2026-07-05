@@ -5,6 +5,7 @@ import { FeeRouterABI, FEE_ROUTER_ADDRESS } from "@/lib/wagmi/contracts";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { getGraphQLClient } from "@/lib/graphql/client";
 import { QUERY_FEE_EVENTS_BY_TOKEN, QUERY_VAULT_EXECUTIONS_BY_TOKEN } from "@/lib/graphql/queries";
+import { getFeeCorrectionsForToken } from "@/lib/knownFeeCorrections";
 
 /**
  * Reads the on-chain FeeConfig for a specific token from FeeRouter.
@@ -52,6 +53,10 @@ export function useFeeConfig(tokenAddress: string | undefined) {
 /**
  * Fetches all FeeEvents for a single token and aggregates totals.
  * Returns { totalAmount, creatorShare, lpShare, buybackShare, executionCount, lastExecuted }
+ *
+ * Note: also folds in any known indexer-gap corrections (see knownFeeCorrections.ts)
+ * for confirmed on-chain FeeRouted events that the indexer failed to capture, so the
+ * displayed totals match on-chain reality even when the indexer has gaps.
  */
 export function useFeeEvents(tokenId: string | undefined) {
   return useTanstackQuery({
@@ -85,12 +90,28 @@ export function useFeeEvents(tokenId: string | undefined) {
         if (ts > lastTimestamp) lastTimestamp = ts;
       }
 
+      // ── Apply known indexer-gap corrections ──────────────────────────────
+      // Some confirmed on-chain FeeRouted events are missing from the indexer
+      // (see knownFeeCorrections.ts for root cause). Fold them in here so
+      // displayed totals match on-chain reality. Safe to remove once the
+      // indexer is re-synced to include these tx hashes natively.
+      const corrections = getFeeCorrectionsForToken((tokenId as string).toLowerCase());
+      let executionCount = events.length;
+      for (const c of corrections) {
+        totalAmount += c.totalAmount;
+        creatorShare += c.creatorShare;
+        lpShare += c.lpShare;
+        buybackShare += c.buybackShare;
+        executionCount += 1;
+        if (c.blockTimestamp > lastTimestamp) lastTimestamp = c.blockTimestamp;
+      }
+
       return {
         totalAmount,
         creatorShare,
         lpShare,
         buybackShare,
-        executionCount: events.length,
+        executionCount,
         lastExecuted: lastTimestamp > 0n ? new Date(Number(lastTimestamp) * 1000) : null,
       };
     },
@@ -102,6 +123,14 @@ export function useFeeEvents(tokenId: string | undefined) {
  * Per-vault-type aggregate of actual automated vault executions for a token.
  * "buyback": count + total MON spent + total tokens burned + last executed.
  * "lp":      count + total MON added + total LP burned + last executed.
+ *
+ * This reflects REAL automated vault execute() calls (the ground truth of what
+ * was actually bought back and burned / added as liquidity) — as opposed to
+ * useFeeEvents' totals, which reflect fees routed FROM TRADES only. These two
+ * numbers can legitimately diverge: e.g. a one-time manual reconciliation
+ * deposit (via VaultRecouper, used historically to fix a broken vault) adds
+ * to a vault's balance and gets included in a subsequent execute(), but never
+ * emits a FeeRouted event — so it shows up here but not in useFeeEvents.
  */
 export interface VaultExecutionSummary {
   count: number;

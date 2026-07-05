@@ -1015,10 +1015,11 @@ export function reputationColor(score: number): string {
 /* OHLC Price Bar types & hook (powers the TradingView Lightweight Charts chart)    */
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
-export type ChartResolution = "1" | "5" | "15" | "60" | "240" | "1D" | "1W" | "1M";
+export type ChartResolution = "30S" | "1" | "5" | "15" | "60" | "240" | "1D" | "1W" | "1M";
 
 /** Resolution label → seconds per candle */
 const RESOLUTION_SECONDS: Record<ChartResolution, number> = {
+  "30S": 30,
   "1": 60,
   "5": 300,
   "15": 900,
@@ -1029,6 +1030,7 @@ const RESOLUTION_SECONDS: Record<ChartResolution, number> = {
   "1M": 2_592_000,
 };
 
+
 export interface OHLCBar {
   /** Unix timestamp (seconds) — start of the candle bucket */
   time: number;
@@ -1036,9 +1038,14 @@ export interface OHLCBar {
   high: number;
   low: number;
   close: number;
-  /** MON volume for the candle */
+  /** Total MON volume for the candle (buy + sell) */
   volume: number;
+  /** MON volume from buy trades only */
+  buyVolume: number;
+  /** MON volume from sell trades only */
+  sellVolume: number;
 }
+
 
 /**
  * Derives the effective traded price in MON per token from a single trade.
@@ -1056,7 +1063,14 @@ function tradePrice(trade: TradeEntity): number {
 
 /**
  * Aggregates an array of trades (sorted ASC by blockTimestamp) into OHLC candles.
- * Each candle covers exactly `bucketSecs` seconds.
+ * Each candle covers exactly `bucketSecs` seconds. Only buckets that actually
+ * contain a trade produce a candle — empty periods are NOT forward-filled,
+ * since fabricating flat candles for illiquid tokens misrepresents trading
+ * activity (looks like constant ticking when nothing happened).
+ *
+ * The chart component is responsible for spacing real candles evenly on
+ * screen (index-based x-axis) so gaps between infrequent trades don't appear
+ * as either "dead space" or a "picket fence" of fake candles.
  */
 function buildOHLCBars(trades: TradeEntity[], bucketSecs: number): OHLCBar[] {
   if (trades.length === 0) return [];
@@ -1073,6 +1087,8 @@ function buildOHLCBars(trades: TradeEntity[], bucketSecs: number): OHLCBar[] {
     const vol = trade.isBuy
       ? Number(trade.amountIn) / 1e18   // MON in
       : Number(trade.amountOut) / 1e18; // MON out
+    const buyVol = trade.isBuy ? vol : 0;
+    const sellVol = trade.isBuy ? 0 : vol;
 
     const existing = bars.get(bucketTime);
     if (!existing) {
@@ -1083,17 +1099,23 @@ function buildOHLCBars(trades: TradeEntity[], bucketSecs: number): OHLCBar[] {
         low: price,
         close: price,
         volume: vol,
+        buyVolume: buyVol,
+        sellVolume: sellVol,
       });
     } else {
       existing.high = Math.max(existing.high, price);
       existing.low = Math.min(existing.low, price);
       existing.close = price;
       existing.volume += vol;
+      existing.buyVolume += buyVol;
+      existing.sellVolume += sellVol;
     }
   }
 
   return Array.from(bars.values()).sort((a, b) => a.time - b.time);
 }
+
+
 
 /**
  * Fetches trades for a token (up to 1000, ASC) and aggregates them into OHLC

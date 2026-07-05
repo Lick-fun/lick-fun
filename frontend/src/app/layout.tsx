@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Sora } from "next/font/google";
+
 import "./globals.css";
 import { Providers } from "./providers";
 import { Header } from "@/components/layout/Header";
@@ -14,6 +15,15 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 });
+
+// Used by the token detail price chart toolbar/header to match the
+// TradingView-style Figma design (Sora ExtraBold for labels/buttons).
+const sora = Sora({
+  subsets: ["latin"],
+  variable: "--font-sora",
+  weight: ["300", "400", "600", "700", "800"],
+});
+
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://lickfun.xyz"),
@@ -112,7 +122,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-figma-bg text-figma-white`}
+        className={`${inter.variable} ${jetbrainsMono.variable} ${sora.variable} font-sans antialiased bg-figma-bg text-figma-white`}
+
       >
         <script
           type="application/ld+json"

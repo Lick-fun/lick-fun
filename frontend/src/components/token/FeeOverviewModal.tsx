@@ -119,6 +119,14 @@ interface FeeSlotProps {
   /** Result line for executions, e.g. "998.43K LICK burned" or "1.2 LP burned". */
   resultLabel?: string;
   resultValue?: string;
+  /**
+   * Actual MON spent across vault execute() calls (ground truth from VaultExecution
+   * events). Shown separately from totalMon (which reflects fees routed from
+   * trades) since the two can legitimately diverge — e.g. one-time manual
+   * reconciliation deposits add to a vault's spendable balance without ever
+   * emitting a FeeRouted event.
+   */
+  actualSpentMon?: string;
   /** Optional note shown at the bottom. */
   vaultNote?: string;
 }
@@ -137,6 +145,7 @@ function FeeSlot({
   lastExecuted,
   resultLabel,
   resultValue,
+  actualSpentMon,
   vaultNote,
 }: FeeSlotProps) {
   return (
@@ -158,7 +167,7 @@ function FeeSlot({
           </div>
         </div>
         <div className="text-right">
-          <div className="text-sm font-bold text-figma-white font-mono">{totalMon}</div>
+          <div className="text-sm font-bold text-figma-white font-mono">{actualSpentMon ?? totalMon}</div>
           {totalUsd && <div className="text-[10px] text-figma-muted font-mono">{totalUsd}</div>}
         </div>
       </div>
@@ -168,10 +177,23 @@ function FeeSlot({
 
       {/* Detail rows */}
       <div className="space-y-1.5 text-[11px]">
-        <div className="flex justify-between text-figma-muted">
-          <span>Total Accumulated</span>
-          <span className="font-mono text-figma-white">{totalMon}</span>
-        </div>
+        {actualSpentMon ? (
+          <>
+            <div className="flex justify-between text-figma-muted">
+              <span>Actually Spent</span>
+              <span className="font-mono text-figma-white">{actualSpentMon}</span>
+            </div>
+            <div className="flex justify-between text-figma-muted">
+              <span>Fees Routed From Trades</span>
+              <span className="font-mono text-figma-white">{totalMon}</span>
+            </div>
+          </>
+        ) : (
+          <div className="flex justify-between text-figma-muted">
+            <span>Total Accumulated</span>
+            <span className="font-mono text-figma-white">{totalMon}</span>
+          </div>
+        )}
         {claimAddress && (
           <div className="flex justify-between text-figma-muted">
             <span>Recipient</span>
@@ -262,6 +284,14 @@ export function FeeOverviewModal({ tokenId, tokenSymbol, monUsdPrice, onClose }:
     if (giftPct > 0) segs.push({ pct: giftPct, color: "#9B6FFF" }); // soft purple
     return segs;
   }, [lpPct, creatorPct, burnPct, giftPct]);
+
+  // Actual spent totals (ground truth from VaultExecution events) — used to
+  // display the true amount bought-back-and-burned / added-as-liquidity,
+  // which can legitimately exceed the fee-routed total (see useFeeConfig.ts).
+  const lpActualSpent =
+    vaultExec && vaultExec.lp.count > 0 ? formatMon(vaultExec.lp.totalMon) : undefined;
+  const buybackActualSpent =
+    vaultExec && vaultExec.buyback.count > 0 ? formatMon(vaultExec.buyback.totalMon) : undefined;
 
   return (
     <div
@@ -354,7 +384,12 @@ export function FeeOverviewModal({ tokenId, tokenSymbol, monUsdPrice, onClose }:
                 subtitle="Auto-adds liquidity at 50 MON."
                 percentage={lpPct}
                 totalMon={feeData ? formatMon(feeData.lpShare) : "—"}
-                totalUsd={feeData && monUsdPrice ? formatUsd(feeData.lpShare, monUsdPrice) : undefined}
+                totalUsd={
+                  feeData && monUsdPrice
+                    ? formatUsd(vaultExec && vaultExec.lp.count > 0 ? vaultExec.lp.totalMon : feeData.lpShare, monUsdPrice)
+                    : undefined
+                }
+                actualSpentMon={lpActualSpent}
                 executionCount={vaultExec?.lp.count}
                 lastExecuted={vaultExec?.lp.lastExecuted}
                 resultLabel={vaultExec && vaultExec.lp.count > 0 ? "LP Burned" : undefined}
@@ -384,12 +419,17 @@ export function FeeOverviewModal({ tokenId, tokenSymbol, monUsdPrice, onClose }:
                 subtitle="Auto-buys & burns at 50 MON."
                 percentage={burnPct}
                 totalMon={feeData ? formatMon(feeData.buybackShare) : "—"}
-                totalUsd={feeData && monUsdPrice ? formatUsd(feeData.buybackShare, monUsdPrice) : undefined}
+                totalUsd={
+                  feeData && monUsdPrice
+                    ? formatUsd(vaultExec && vaultExec.buyback.count > 0 ? vaultExec.buyback.totalMon : feeData.buybackShare, monUsdPrice)
+                    : undefined
+                }
+                actualSpentMon={buybackActualSpent}
                 executionCount={vaultExec?.buyback.count}
                 lastExecuted={vaultExec?.buyback.lastExecuted}
                 resultLabel={vaultExec && vaultExec.buyback.count > 0 ? `${tokenSymbol} Burned` : undefined}
                 resultValue={vaultExec && vaultExec.buyback.count > 0 ? formatTokens(vaultExec.buyback.totalResult) : undefined}
-                vaultNote="MON accumulates per-token; once 50 MON is reached, tokens are automatically bought back and burned, reducing supply."
+                vaultNote="MON accumulates per-token; once 50 MON is reached, tokens are automatically bought back and burned, reducing supply. 'Actually Spent' reflects real on-chain vault executions and may occasionally exceed 'Fees Routed From Trades' due to one-time manual reconciliations of stranded vault balances."
               />
             )}
 

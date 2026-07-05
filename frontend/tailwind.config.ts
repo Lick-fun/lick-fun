@@ -57,7 +57,9 @@ const config: Config = {
       fontFamily: {
         sans:  ["var(--font-sans)", "system-ui", "sans-serif"],
         mono:  ["var(--font-mono)", "monospace"],
+        sora:  ["var(--font-sora)", "system-ui", "sans-serif"],
       },
+
       fontSize: {
         /* Figma-sourced text sizes (used across the design) */
         "figma-xs":  ["10px", { lineHeight: "1.3" }],

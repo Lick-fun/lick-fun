@@ -25,25 +25,33 @@ import type {
   IPriceLine,
 } from "lightweight-charts";
 
-/* ── Design token colours ─────────────────────────────────────────────────── */
+/* ── Design tokens — pulled from Figma "Trading View Chart (Community)" ──────
+ * file (uZWT8dMBh9JRlXXJOPnHMz): dark #191919 canvas, subtle #212121 grid,
+ * light-gray #E0E0E0 text, teal #28A79B accent (bullish / buy), red #E10000
+ * (bearish / sell), Sora ExtraBold typography for all chart chrome.
+ * ─────────────────────────────────────────────────────────────────────────── */
 const C = {
-  bg: "#0d0d0d",
-  surface: "#111111",
-  grid: "#161616",        // subtler gridlines
-  border: "#222222",
-  textMuted: "#5A6272",
-  green: "#2CC054",       // original Lickfun green for candles
-  greenBright: "#70E000",
-  red: "#EF4444",         // original Lickfun red for candles
-  connectLine: "rgba(44,192,84,0.5)",  // thin line joining candle gaps
-  sma: "#F0B90B",         // SMA line colour (amber — visible on dark bg)
-  lastPrice: "#70E000",   // last-price dashed line
-  volGreen: "rgba(44,192,84,0.25)",
-  volRed: "rgba(239,68,68,0.25)",
+  bg: "#191919",
+  grid: "#212121",
+  border: "#242424",
+  text: "#E0E0E0",
+  textMuted: "rgba(224, 224, 224, 0.55)",
+  teal: "#28A79B",       // bullish candles, buy volume, OHLC values, active accents
+  red: "#E10000",        // bearish candles, sell volume
+  sma: "#F0B90B",         // SMA line colour (amber — stays legible on dark bg)
+
+  lastPrice: "#28A79B",
+  volGreenBg: "#101C0E",  // buy-volume pill background
+  volRedBg: "#1C0E0E",    // sell-volume pill background
+  volGreen: "rgba(40, 167, 155, 0.25)",
+  volRed: "rgba(225, 16, 0, 0.25)",
 } as const;
+
+const CHART_FONT = "'Sora', sans-serif";
 
 /* ── Timeframe groups ─────────────────────────────────────────────────────── */
 const INTRADAY: { label: string; value: ChartResolution }[] = [
+  { label: "30s", value: "30S" },
   { label: "1m", value: "1" },
   { label: "5m", value: "5" },
   { label: "15m", value: "15" },
@@ -72,6 +80,8 @@ interface OHLCInfo {
   low: number;
   close: number;
   volume: number;
+  buyVolume: number;
+  sellVolume: number;
   change: number; // % change open→close
 }
 
@@ -90,6 +100,53 @@ function formatVol(n: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toFixed(2);
 }
+
+/**
+ * Buckets with only a single trade have open === high === low === close —
+ * zero range, which lightweight-charts renders as an invisible sliver (no
+ * body, no wick). Pad the high/low by a tiny fraction of price so every
+ * candle renders as a small but clearly visible colored tick, matching how
+ * most trading platforms display low-liquidity single-print candles.
+ * Multi-trade candles (which already have real range) are left untouched.
+ */
+const FLAT_CANDLE_PAD_PCT = 0.0015; // ±0.15%
+function padFlatCandle(open: number, high: number, low: number, close: number) {
+  if (high !== low) return { open, high, low, close };
+  const pad = Math.max(high * FLAT_CANDLE_PAD_PCT, Number.EPSILON);
+  return { open, high: high + pad, low: low - pad, close };
+}
+
+/**
+ * Formats a bar's real Unix timestamp for the time axis / crosshair label.
+ * Used instead of lightweight-charts' built-in time formatting because we
+ * plot candles at sequential integer indices (see index-based spacing note
+ * below), not their real timestamps.
+ */
+function formatBarTime(unixSeconds: number): string {
+  const d = new Date(unixSeconds * 1000);
+  return d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+/**
+ * Index-based candle spacing.
+ *
+ * lightweight-charts positions candles on the x-axis using their literal
+ * "time" value. For illiquid tokens where trades are infrequent, that means
+ * either large dead gaps between real candles (if we plot at real
+ * timestamps) or a "picket fence" of fabricated flat candles (if we
+ * forward-fill empty buckets — tried this, looked terrible and misrepresents
+ * activity). The standard fix used by real trading platforms for sparse
+ * markets is to plot each REAL candle at a sequential integer index
+ * (0, 1, 2, ...) instead of its timestamp, so candles always sit snugly next
+ * to each other regardless of how much real time passed between trades.
+ * The actual timestamp is preserved in `bars` (by array position) and looked
+ * up for axis labels / crosshair tooltips via formatBarTime().
+ */
+function indexTime(i: number): Time {
+  return i as unknown as Time;
+}
+
+
 
 interface PriceChartProps {
   bars: OHLCBar[];
@@ -115,8 +172,8 @@ export function PriceChart({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const connectLineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const lineSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+
   const barSeriesRef = useRef<ISeriesApi<"Bar"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const smaSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
@@ -124,7 +181,8 @@ export function PriceChart({
   const wheelHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
   const barsRef = useRef<OHLCBar[]>(bars);
 
-  const [chartType, setChartType] = useState<ChartType>("candle");
+  const [chartType, setChartType] = useState<ChartType>("line");
+
   const [quoteMode, setQuoteMode] = useState<QuoteMode>("USD");
   const [displayMode, setDisplayMode] = useState<DisplayMode>("mcap");
   const [logScale, setLogScale] = useState(false);
@@ -136,6 +194,14 @@ export function PriceChart({
   const chartReadyRef = useRef(false);
   // Only fitContent on the first data load — preserve user zoom/pan on live updates
   const hasInitialFitRef = useRef(false);
+  // Tracks which resolution the chart's current zoom/pan viewport was fitted
+  // for. Index-based x-axis spacing (see indexTime()) means each resolution
+  // has a totally different index range (e.g. 5m might have 3 bars while 1H
+  // has 40) — without forcing a refit on resolution change, switching
+  // timeframes leaves the viewport zoomed into a tiny/stale slice of the new
+  // data, which looks like "only one candle is showing".
+  const lastFitResolutionRef = useRef<ChartResolution | null>(null);
+
 
   // USD conversion multiplier
   const usdMult = quoteMode === "USD" && monUsdPrice ? monUsdPrice : 1;
@@ -151,13 +217,16 @@ export function PriceChart({
     barsRef.current = bars;
   }, [bars]);
 
-  /* ── SMA computation ──────────────────────────────────────────────────── */
+  /* ── SMA computation (index-based time) ─────────────────────────────────
+   * Computed over the real candle sequence only — no forward-filled fake
+   * candles to skew the average.
+   */
   const computeSma = useCallback((b: OHLCBar[], period: number, mult: number): SingleValueData<Time>[] => {
     const result: SingleValueData<Time>[] = [];
     for (let i = period - 1; i < b.length; i++) {
       let sum = 0;
       for (let j = 0; j < period; j++) sum += b[i - j].close;
-      result.push({ time: b[i].time as Time, value: (sum / period) * mult });
+      result.push({ time: indexTime(i), value: (sum / period) * mult });
     }
     return result;
   }, []);
@@ -168,51 +237,46 @@ export function PriceChart({
     const mult = valueMult;
 
     if (candleSeriesRef.current) {
-      const data: CandlestickData<Time>[] = b.map((bar) => ({
-        time: bar.time as Time,
-        open: bar.open * mult,
-        high: bar.high * mult,
-        low: bar.low * mult,
-        close: bar.close * mult,
-      }));
+      const data: CandlestickData<Time>[] = b.map((bar, i) => {
+        const padded = padFlatCandle(
+          bar.open * mult,
+          bar.high * mult,
+          bar.low * mult,
+          bar.close * mult
+        );
+        return { time: indexTime(i), ...padded };
+      });
       candleSeriesRef.current.setData(data);
     }
 
     if (lineSeriesRef.current) {
-      const data: SingleValueData<Time>[] = b.map((bar) => ({
-        time: bar.time as Time,
+      const data: SingleValueData<Time>[] = b.map((bar, i) => ({
+        time: indexTime(i),
         value: bar.close * mult,
       }));
       lineSeriesRef.current.setData(data);
     }
 
     if (barSeriesRef.current) {
-      const data: BarData<Time>[] = b.map((bar) => ({
-        time: bar.time as Time,
-        open: bar.open * mult,
-        high: bar.high * mult,
-        low: bar.low * mult,
-        close: bar.close * mult,
-      }));
+      const data: BarData<Time>[] = b.map((bar, i) => {
+        const padded = padFlatCandle(
+          bar.open * mult,
+          bar.high * mult,
+          bar.low * mult,
+          bar.close * mult
+        );
+        return { time: indexTime(i), ...padded };
+      });
       barSeriesRef.current.setData(data);
     }
 
     if (volumeSeriesRef.current) {
-      const volData = b.map((bar) => ({
-        time: bar.time as Time,
+      const volData = b.map((bar, i) => ({
+        time: indexTime(i),
         value: bar.volume,
         color: bar.close >= bar.open ? C.volGreen : C.volRed,
       }));
       volumeSeriesRef.current.setData(volData);
-    }
-
-    // Connecting line (joins sparse candles — always tracks close price)
-    if (connectLineSeriesRef.current) {
-      const connectData: SingleValueData<Time>[] = b.map((bar) => ({
-        time: bar.time as Time,
-        value: bar.close * mult,
-      }));
-      connectLineSeriesRef.current.setData(connectData);
     }
 
     // SMA (9-period)
@@ -228,6 +292,7 @@ export function PriceChart({
       }
     }
   }, [valueMult, computeSma]);
+
 
   /* ── Create chart on mount ─────────────────────────────────────────────── */
   useEffect(() => {
@@ -266,7 +331,7 @@ export function PriceChart({
           background: { color: C.bg },
           textColor: C.textMuted,
           fontSize: 11,
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: CHART_FONT,
         },
         grid: {
           vertLines: { color: C.grid, style: LineStyle.Solid },
@@ -275,16 +340,16 @@ export function PriceChart({
         crosshair: {
           mode: 1, // CrosshairMode.Normal
           vertLine: {
-            color: "#444",
+            color: "#3a3a3a",
             width: 1,
             style: LineStyle.Dashed,
-            labelBackgroundColor: "#222",
+            labelBackgroundColor: C.border,
           },
           horzLine: {
-            color: "#444",
+            color: "#3a3a3a",
             width: 1,
             style: LineStyle.Dashed,
-            labelBackgroundColor: "#222",
+            labelBackgroundColor: C.border,
           },
         },
         rightPriceScale: {
@@ -302,7 +367,17 @@ export function PriceChart({
           rightOffset: 5,
           fixLeftEdge: false,
           fixRightEdge: false,
+          // Bars are plotted at sequential integer indices (see indexTime()),
+          // not real timestamps, so lightweight-charts' default time
+          // formatting is meaningless here. Resolve the index back to the
+          // real trade timestamp via barsRef and format it ourselves.
+          tickMarkFormatter: (time: Time) => {
+            const idx = time as unknown as number;
+            const bar = barsRef.current[idx];
+            return bar ? formatBarTime(bar.time) : "";
+          },
         },
+
         // Mouse wheel over chart = time-scale zoom (NOT pan/scroll).
         // Mouse wheel over right price axis = price-scale zoom (handled by
         // the axis itself when mouseWheel scale is enabled).
@@ -324,26 +399,13 @@ export function PriceChart({
 
       chartRef.current = chart;
 
-      // ── Connecting line — drawn BEHIND candles to join sparse gaps ──
-      // Renders at close price so gaps between infrequent candles are bridged
-      // (nad.fun style). Added first so it sits below candles in z-order.
-      const connectLine = chart.addSeries(LineSeries, {
-        color: C.connectLine,
-        lineWidth: 1,
-        priceScaleId: "right",
-        crosshairMarkerVisible: false,
-        priceLineVisible: false,
-        lastValueVisible: false,
-        lineStyle: 0, // Solid
-      });
-      connectLineSeriesRef.current = connectLine;
-
       // ── Candle series (main) ──
+
       const candles = chart.addSeries(CandlestickSeries, {
-        upColor: C.green,
+        upColor: C.teal,
         downColor: C.red,
         borderVisible: false,
-        wickUpColor: C.green,
+        wickUpColor: C.teal,
         wickDownColor: C.red,
         priceScaleId: "right",
         priceLineVisible: false,
@@ -375,7 +437,7 @@ export function PriceChart({
 
       // ── Line series (hidden by default) ──
       const line = chart.addSeries(LineSeries, {
-        color: C.green,
+        color: C.teal,
         lineWidth: 2,
         priceScaleId: "right",
         visible: false,
@@ -386,7 +448,7 @@ export function PriceChart({
 
       // ── Bar series (hidden by default) ──
       const bars2 = chart.addSeries(BarSeries, {
-        upColor: C.green,
+        upColor: C.teal,
         downColor: C.red,
         priceScaleId: "right",
         visible: false,
@@ -410,13 +472,17 @@ export function PriceChart({
       volumeSeriesRef.current = volume;
 
       // ── Crosshair listener → update OHLC header ──
+      // param.time is the sequential index (indexTime()), not a real
+      // timestamp — look the bar up by array position.
       chart.subscribeCrosshairMove((param: MouseEventParams<Time>) => {
-        if (!param.time || !candleSeriesRef.current) {
+        if (param.time === undefined || !candleSeriesRef.current) {
           setOhlcInfo(null);
           return;
         }
-        const b = barsRef.current.find((bar) => bar.time === (param.time as unknown as number));
+        const idx = param.time as unknown as number;
+        const b = barsRef.current[idx];
         if (!b) return;
+
         const mult = valueMultRef.current;
         const change = b.open !== 0 ? ((b.close - b.open) / b.open) * 100 : 0;
         setOhlcInfo({
@@ -425,6 +491,8 @@ export function PriceChart({
           low: b.low * mult,
           close: b.close * mult,
           volume: b.volume,
+          buyVolume: b.buyVolume,
+          sellVolume: b.sellVolume,
           change,
         });
       });
@@ -476,7 +544,9 @@ export function PriceChart({
         applyBarsToChart(barsRef.current);
         chart.timeScale().fitContent();
         hasInitialFitRef.current = true;
+        lastFitResolutionRef.current = resolution;
       }
+
 
       if (container) resizeObserver.observe(container);
     })();
@@ -496,28 +566,40 @@ export function PriceChart({
       volumeSeriesRef.current = null;
       chartReadyRef.current = false;
       hasInitialFitRef.current = false;
-      connectLineSeriesRef.current = null;
       smaSeriesRef.current = null;
+
       lastPriceLineRef.current = null;
       setChartReady(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // only on mount
 
-  /* ── Update data when bars / valueMult change ─────────────────────────── */
+  /* ── Update data when bars / valueMult / resolution change ────────────────
+   * Refit the viewport whenever:
+   *   - this is the very first data load, OR
+   *   - the timeframe (resolution) changed since the last fit.
+   * Index-based x-axis spacing means each resolution has a completely
+   * different index range, so switching timeframes without refitting leaves
+   * the chart zoomed into a stale/tiny slice of the new data (looks like
+   * "only one candle showing"). Live polling updates on the SAME resolution
+   * still preserve the user's zoom/pan as before.
+   */
   useEffect(() => {
     if (!chartReady) return;
     // Re-enable autoScale on every fresh data load so the chart fits the new
     // resolution correctly (user wheel-zoom on axis is per-session only)
     chartRef.current?.priceScale("right").setAutoScale(true);
     applyBarsToChart(bars);
-    // Only fitContent on the first data load — preserve user zoom/pan on live updates
-    if (bars.length > 0 && !hasInitialFitRef.current) {
+
+    const resolutionChanged = lastFitResolutionRef.current !== resolution;
+    if (bars.length > 0 && (!hasInitialFitRef.current || resolutionChanged)) {
       chartRef.current?.timeScale().fitContent();
       hasInitialFitRef.current = true;
+      lastFitResolutionRef.current = resolution;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bars, chartReady, valueMult]);
+  }, [bars, chartReady, valueMult, resolution]);
+
 
   /* ── Switch chart type visibility ────────────────────────────────────── */
   useEffect(() => {
@@ -568,62 +650,90 @@ export function PriceChart({
         low: lastBar.low * valueMult,
         close: lastBar.close * valueMult,
         volume: lastBar.volume,
+        buyVolume: lastBar.buyVolume,
+        sellVolume: lastBar.sellVolume,
         change: lastBar.open !== 0 ? ((lastBar.close - lastBar.open) / lastBar.open) * 100 : 0,
       }
     : null);
 
   const isEmpty = !isLoading && bars.length === 0;
   const quoteSymbol = quoteMode === "USD" ? "$" : "MON";
+  const resolutionLabel =
+    [...INTRADAY, ...DAILY].find((r) => r.value === resolution)?.label ?? resolution;
+  // Real data sparsity, not a bug: this timeframe simply doesn't have many
+  // real trades yet. Show a subtle hint pointing users to a longer interval
+  // rather than silently showing a near-empty chart.
+  const SPARSE_BAR_THRESHOLD = 5;
+  const isSparse = !isLoading && bars.length > 0 && bars.length < SPARSE_BAR_THRESHOLD;
+
 
   return (
     <div
       ref={wrapperRef}
       className={cn(
-        "flex flex-col gap-0",
-        isFullscreen && "fixed inset-0 z-50 bg-[#0d0d0d] p-3"
+        "flex flex-col gap-0 font-sora",
+        isFullscreen && "fixed inset-0 z-50 p-3"
       )}
+      style={{ background: isFullscreen ? C.bg : undefined }}
     >
-      {/* ── Top toolbar: token label + OHLC + right-side controls ──────── */}
-      <div className="flex items-center gap-1 flex-wrap mb-0.5 px-0.5">
+      {/* ── Top toolbar: timeframe buttons + right-side controls ────────── */}
+      <div className="flex items-center gap-1 flex-wrap mb-1.5 px-0.5">
         {/* Token label */}
-        <span className="text-figma-white text-xs font-bold font-mono mr-1">
+        <span
+          className="text-xs font-extrabold mr-1"
+          style={{ color: C.text }}
+        >
           {tokenSymbol || "—"}
           {tokenName && (
-            <span className="text-figma-muted font-normal ml-1">· {tokenName}</span>
+            <span className="font-normal ml-1" style={{ color: C.textMuted }}>
+              · {tokenName}
+            </span>
           )}
         </span>
 
-        {/* Timeframe buttons sit inline in top bar */}
+        {/* Timeframe buttons */}
         <div className="flex items-center gap-0.5">
           {INTRADAY.map((r) => (
             <button
               key={r.value}
               onClick={() => setResolution(r.value)}
-              className={cn(
-                "px-2 py-1 rounded text-[11px] font-bold transition-colors",
+              className="px-2 py-1 rounded text-[11px] font-extrabold transition-colors"
+              style={
                 resolution === r.value
-                  ? "bg-figma-green/20 text-figma-green"
-                  : "text-figma-muted hover:text-figma-white hover:bg-white/5"
-              )}
+                  ? { backgroundColor: "rgba(40,167,155,0.18)", color: C.teal }
+                  : { color: C.textMuted }
+              }
+              onMouseEnter={(e) => {
+                if (resolution !== r.value) e.currentTarget.style.color = C.text;
+              }}
+              onMouseLeave={(e) => {
+                if (resolution !== r.value) e.currentTarget.style.color = C.textMuted;
+              }}
             >
               {r.label}
             </button>
           ))}
         </div>
 
-        <span className="text-white/10 mx-0.5 select-none">|</span>
+        <span className="mx-0.5 select-none" style={{ color: "rgba(224,224,224,0.12)" }}>|</span>
 
         <div className="flex items-center gap-0.5">
           {DAILY.map((r) => (
             <button
               key={r.value}
               onClick={() => setResolution(r.value)}
-              className={cn(
-                "px-2 py-1 rounded text-[11px] font-bold transition-colors",
+              className="px-2 py-1 rounded text-[11px] font-extrabold transition-colors"
+              style={
                 resolution === r.value
-                  ? "bg-figma-green/20 text-figma-green"
-                  : "text-figma-muted hover:text-figma-white hover:bg-white/5"
-              )}
+                  ? { backgroundColor: "rgba(40,167,155,0.18)", color: C.teal }
+                  : { color: C.textMuted }
+              }
+              onMouseEnter={(e) => {
+                if (resolution !== r.value) e.currentTarget.style.color = C.text;
+              }}
+              onMouseLeave={(e) => {
+                if (resolution !== r.value) e.currentTarget.style.color = C.textMuted;
+              }}
             >
               {r.label}
             </button>
@@ -636,61 +746,55 @@ export function PriceChart({
           <button
             onClick={() => setChartType("candle")}
             title="Candlestick"
-            className={cn(
-              "p-1 rounded transition-colors",
-              chartType === "candle" ? "text-figma-green" : "text-figma-muted hover:text-figma-white"
-            )}
+            className="p-1 rounded transition-colors"
+            style={{ color: chartType === "candle" ? C.teal : C.textMuted }}
           >
             <CandlestickChart className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setChartType("bar")}
             title="Bar"
-            className={cn(
-              "p-1 rounded transition-colors",
-              chartType === "bar" ? "text-figma-green" : "text-figma-muted hover:text-figma-white"
-            )}
+            className="p-1 rounded transition-colors"
+            style={{ color: chartType === "bar" ? C.teal : C.textMuted }}
           >
             <BarChart2 className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setChartType("line")}
             title="Line"
-            className={cn(
-              "p-1 rounded transition-colors",
-              chartType === "line" ? "text-figma-green" : "text-figma-muted hover:text-figma-white"
-            )}
+            className="p-1 rounded transition-colors"
+            style={{ color: chartType === "line" ? C.teal : C.textMuted }}
           >
             <TrendingUp className="w-3.5 h-3.5" />
           </button>
 
-          <div className="w-px h-3 bg-figma-border mx-0.5" />
+          <div className="w-px h-3 mx-0.5" style={{ backgroundColor: C.border }} />
 
           {/* SMA toggle */}
           <button
             onClick={() => setShowSma((v) => !v)}
             title="Toggle SMA 9"
-            className={cn(
-              "px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors border",
+            className="px-1.5 py-0.5 rounded text-[10px] font-extrabold transition-colors border"
+            style={
               showSma
-                ? "bg-[#F0B90B]/20 text-[#F0B90B] border-[#F0B90B]/40"
-                : "text-figma-muted border-transparent hover:text-figma-white hover:border-white/10"
-            )}
+                ? { backgroundColor: "rgba(240,185,11,0.15)", color: "#F0B90B", borderColor: "rgba(240,185,11,0.4)" }
+                : { color: C.textMuted, borderColor: "transparent" }
+            }
           >
             SMA
           </button>
 
-          <div className="w-px h-3 bg-figma-border mx-0.5" />
+          <div className="w-px h-3 mx-0.5" style={{ backgroundColor: C.border }} />
 
           {/* MCap / Price toggle */}
           <button
             onClick={() => setDisplayMode((m) => (m === "price" ? "mcap" : "price"))}
-            className={cn(
-              "px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors",
+            className="px-1.5 py-0.5 rounded text-[10px] font-extrabold transition-colors border"
+            style={
               displayMode === "mcap"
-                ? "bg-figma-green/20 text-figma-green border border-figma-green/40"
-                : "text-figma-muted hover:text-figma-white border border-transparent hover:border-white/10"
-            )}
+                ? { backgroundColor: "rgba(40,167,155,0.18)", color: C.teal, borderColor: "rgba(40,167,155,0.4)" }
+                : { color: C.textMuted, borderColor: "transparent" }
+            }
             title="Toggle between Price and Market Cap"
           >
             {displayMode === "price" ? "MCap" : "Price"}
@@ -700,12 +804,12 @@ export function PriceChart({
           {monUsdPrice && (
             <button
               onClick={() => setQuoteMode((m) => (m === "MON" ? "USD" : "MON"))}
-              className={cn(
-                "px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors",
+              className="px-1.5 py-0.5 rounded text-[10px] font-extrabold transition-colors border"
+              style={
                 quoteMode === "USD"
-                  ? "bg-figma-green/20 text-figma-green border border-figma-green/40"
-                  : "text-figma-muted hover:text-figma-white border border-transparent hover:border-white/10"
-              )}
+                  ? { backgroundColor: "rgba(40,167,155,0.18)", color: C.teal, borderColor: "rgba(40,167,155,0.4)" }
+                  : { color: C.textMuted, borderColor: "transparent" }
+              }
               title="Toggle MON / USD quote"
             >
               {quoteMode}
@@ -716,12 +820,12 @@ export function PriceChart({
           <button
             onClick={() => setLogScale((v) => !v)}
             title="Toggle log scale"
-            className={cn(
-              "px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors border",
+            className="px-1.5 py-0.5 rounded text-[10px] font-extrabold transition-colors border"
+            style={
               logScale
-                ? "bg-figma-green/20 text-figma-green border-figma-green/40"
-                : "text-figma-muted border-transparent hover:text-figma-white hover:border-white/10"
-            )}
+                ? { backgroundColor: "rgba(40,167,155,0.18)", color: C.teal, borderColor: "rgba(40,167,155,0.4)" }
+                : { color: C.textMuted, borderColor: "transparent" }
+            }
           >
             <LogIn className="w-3 h-3" />
           </button>
@@ -730,29 +834,13 @@ export function PriceChart({
           <button
             onClick={() => setIsFullscreen((v) => !v)}
             title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-            className="p-1 rounded text-figma-muted hover:text-figma-white transition-colors"
+            className="p-1 rounded transition-colors"
+            style={{ color: C.textMuted }}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
-
-      {/* ── OHLC header ──────────────────────────────────────────────────── */}
-      {displayOHLC && (
-        <div className="flex items-center gap-2.5 text-[11px] font-mono px-0.5 mb-0.5 flex-wrap leading-tight">
-          <span className="text-[#5A6272]">O <span className="text-white">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.open)}</span></span>
-          <span className="text-[#5A6272]">H <span className="text-[#26a69a]">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.high)}</span></span>
-          <span className="text-[#5A6272]">L <span className="text-[#ef5350]">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.low)}</span></span>
-          <span className="text-[#5A6272]">C <span className="text-white">{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.close)}</span></span>
-          <span className={cn("font-semibold", displayOHLC.change >= 0 ? "text-[#26a69a]" : "text-[#ef5350]")}>
-            {displayOHLC.change >= 0 ? "+" : ""}{displayOHLC.change.toFixed(2)}%
-          </span>
-          {showSma && (
-            <span className="text-[#5A6272]">SMA <span className="text-[#F0B90B]">9</span></span>
-          )}
-          <span className="text-[#5A6272] ml-auto">Vol <span className="text-white">{formatVol(displayOHLC.volume)} MON</span></span>
-        </div>
-      )}
 
       {/* ── Chart container ───────────────────────────────────────────────── */}
       <div className="relative rounded-lg overflow-hidden">
@@ -765,28 +853,79 @@ export function PriceChart({
           }}
         />
 
+        {/* ── OHLC + Volume legend — overlaid top-left on the chart pane,
+             mirroring the Figma "Trading View Chart" reference design ──── */}
+        {displayOHLC && (
+          <div className="absolute top-2 left-2 z-10 pointer-events-none select-none">
+            <div className="flex items-center gap-2 flex-wrap text-[12px] font-extrabold" style={{ color: C.text }}>
+              <span>{tokenSymbol || "—"}/{quoteMode}</span>
+              <span className="text-[11px]" style={{ color: C.textMuted }}>{resolutionLabel}</span>
+              {showSma && chartType === "candle" && (
+                <span className="text-[11px]" style={{ color: C.textMuted }}>SMA 9</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2.5 text-[11px] font-extrabold mt-0.5 flex-wrap leading-tight">
+              <span style={{ color: C.textMuted }}>O <span style={{ color: C.teal }}>{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.open)}</span></span>
+              <span style={{ color: C.textMuted }}>H <span style={{ color: C.teal }}>{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.high)}</span></span>
+              <span style={{ color: C.textMuted }}>L <span style={{ color: C.teal }}>{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.low)}</span></span>
+              <span style={{ color: C.textMuted }}>C <span style={{ color: C.teal }}>{quoteMode === "USD" ? "$" : ""}{formatPrice(displayOHLC.close)}</span></span>
+              <span className="font-extrabold" style={{ color: displayOHLC.change >= 0 ? C.teal : C.red }}>
+                {displayOHLC.change >= 0 ? "+" : ""}{displayOHLC.change.toFixed(2)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-[11px] font-extrabold" style={{ color: C.textMuted }}>Volume</span>
+              <span
+                className="px-2 py-0.5 rounded text-[10px] font-extrabold"
+                style={{ backgroundColor: C.volGreenBg, color: C.teal }}
+              >
+                {formatVol(displayOHLC.buyVolume)}
+              </span>
+              <span
+                className="px-2 py-0.5 rounded text-[10px] font-extrabold"
+                style={{ backgroundColor: C.volRedBg, color: C.red }}
+              >
+                {formatVol(displayOHLC.sellVolume)}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Loading overlay */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-            <span className="text-figma-muted text-sm animate-pulse">Loading chart…</span>
+            <span className="text-sm animate-pulse" style={{ color: C.textMuted }}>Loading chart…</span>
           </div>
         )}
 
         {/* Empty state overlay */}
         {isEmpty && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-            <span className="text-figma-muted text-sm">No trade data yet</span>
+            <span className="text-sm" style={{ color: C.textMuted }}>No trade data yet</span>
           </div>
         )}
       </div>
 
+      {/* ── Sparse-data hint — shown when this timeframe has very few real
+           candles (real data, not a bug). Points users to a longer interval
+           for a fuller view instead of leaving them staring at 1-2 candles. ── */}
+      {isSparse && (
+        <div
+          className="px-2 py-1 mt-1 rounded text-[10px] font-semibold"
+          style={{ color: C.textMuted, backgroundColor: "rgba(224,224,224,0.06)" }}
+        >
+          Limited trades at {resolutionLabel} — try a longer interval (1H, 4H, 1D) for a fuller view
+        </div>
+      )}
+
       {/* ── Bottom bar: scale mode label + lickfun.xyz watermark ────────── */}
-      <div className="flex items-center justify-between text-[10px] text-[#5A6272] px-0.5 mt-1">
-        <span className="font-mono">
+
+      <div className="flex items-center justify-between text-[10px] px-0.5 mt-1" style={{ color: C.textMuted }}>
+        <span className="font-extrabold">
           {displayMode === "mcap" ? "MCap" : "Price"} / {quoteSymbol}
-          {logScale && <span className="ml-2 text-figma-green font-bold">log</span>}
+          {logScale && <span className="ml-2 font-extrabold" style={{ color: C.teal }}>log</span>}
         </span>
-        <span className="opacity-30 font-mono">lickfun.xyz</span>
+        <span className="opacity-40 font-extrabold">lickfun.xyz</span>
       </div>
     </div>
   );
