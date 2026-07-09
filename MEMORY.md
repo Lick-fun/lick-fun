@@ -1,3 +1,41 @@
+# Session Memory — 2026-07-09 (newest) — Second reconcile batch: recurring untracked-vault-MON fix, now 4 tokens
+
+## Task: Diagnose "founder token burn function isn't working" — generate the next reconcile batch
+
+Continuation of the 2026-07-03/04/05 buyback-and-burn saga (see below). The root cause (live `FeeRouter` predates the `receiveForToken()` audit fix and can never be replaced — `Factory.feeRouter` is set-once) means the V1→V2 migration executed on 2026-07-05 was **not** a permanent fix — it only reconciled the funds accumulated *up to that point*. Every trade fee since then has kept landing in the vaults via the broken raw-send path, silently growing the untracked balance again. This is a **recurring maintenance task**, not a one-time fix, for as long as this FeeRouter is live.
+
+### Findings this session (verified fresh on-chain, not reused from prior chat)
+- **4 tokens now launched** (not 3): Founder (`0x0236...d151`), `0x801a...18C09` (no fee activity yet), Token4 (`0x7f56...61c7`), BLOB (`0x46c2...52d4a`).
+- Re-verified V2 vault config is correct and safe to execute against: owner = multisig Safe, factory/graduationRouter/lickRouter all correctly wired, 5% max slippage.
+- Re-verified all 4 tokens are still pre-graduation (Founder realMon 42,940 / 100,000 threshold — nowhere near the 1% `NearGraduation` safety cutoff), so `VaultBuybackBurnV2.execute()` will take the safe "buy on curve → transfer to dead address" path, not the DEX-swap path. No revert conditions apply.
+- Confirmed `VaultRecouper` (`0x3b0e...2b91`) is still live with matching bytecode.
+- **BB vault**: balance 121.865615572600394514 MON, all of it untracked (0 across all `pendingBurn` mappings). Wei-exact split since the last reconcile (block 85683063): Founder 121.655615572600394514, Token4 0.15, BLOB 0.06.
+- **LP vault**: balance 838.274594491814972292 MON. 349.954132201413394194 already correctly attributed to Founder's `pendingLP` from the last reconcile; the remaining 488.320462290401578098 MON is untracked (Founder 488.310462290401578098, BLOB 0.01, Token4 0). Balance − untracked exactly equals the already-attributed amount — confirms the accounting model is correct with no drift/bugs.
+
+### New tooling: `script/generate-reconcile-batch.mjs`
+Generalizes the ad-hoc reconcile process from a one-off manual script into a repeatable generator:
+- Re-queries live on-chain state every run (never trusts stale numbers).
+- For each vault, finds its own last `Deposited` event (i.e. the last time it was reconciled) and sums `FeeRouted.<share>` events strictly after that block, **per token** — this is the exact untracked amount.
+- Emits a ready-to-import Safe Transaction Builder JSON: `sweep(safe, sumUntracked)` followed by one `VaultRecouper.recover(vault, token)` call per token with nonzero untracked amount (properly split across all tokens, not lumped into Founder like the very first reconcile batch was).
+- Automatically skips a vault entirely if there's nothing untracked.
+- Output: timestamped `safe-batch-reconcile-<ts>.json` — this session's run produced **`script/safe-batch-reconcile-2.json`** (renamed from the timestamped default), containing 7 transactions (3 for BB vault: 1 sweep + 3 recovers; 4 for LP vault: 1 sweep + 3 recovers — Token4 skipped, 0 untracked).
+- Can be re-run any time in the future to generate the next reconcile batch — this is now the standing procedure instead of writing a fresh script each time.
+
+**Double-check before execution:** Independently re-verified the batch amounts with a fresh, separate on-chain read (new script, latest block 86634371, 2026-07-09T13:43:21Z) immediately before handing off — BB vault balance, LP vault balance, and all `pendingBurn`/`pendingLP` values matched the batch's assumptions exactly (0 drift). Also re-ran `generate-reconcile-batch.mjs` a second time independently and got byte-for-byte identical wei amounts, confirming no new trades landed on these vaults in the intervening minutes.
+
+### ✅ CONFIRMED SUCCESS — batch executed, buyback and burn achieved
+User imported `script/safe-batch-reconcile-2.json` into the Safe Transaction Builder and executed all 7 transactions. `pendingBurn(founder)` crossed the 50 MON threshold and the Railway keeper fired `execute()` — buyback + burn completed successfully.
+
+**No environment variable or Railway redeploy was needed for this step.** This reconcile batch only moved MON that was already sitting in the existing V2/LP vaults (via `sweep()`) and re-deposited it back into those *same* vaults (via `VaultRecouper.recover()`) with corrected per-token attribution — it did not change which contract addresses are in use. `VAULT_BUYBACK_ADDR` and `VAULT_LP_ADDR` were already correctly set from the 2026-07-05 V1→V2 migration and required no changes. Env var updates are only needed when a *new* contract is deployed (as happened during that V1→V2 migration) — not for routine balance reconciliation.
+
+### Temporary diagnostic scripts cleaned up
+`script/_diagnose.mjs`, `_diagnose2.mjs`, `_diagnose_lp.mjs`, `_verify_execute.mjs`, `_selectors.mjs`, `_recheck.mjs` were created this session purely to verify live on-chain state before/after generating the batch — all deleted after `generate-reconcile-batch.mjs` was written to supersede them permanently. Also updated `script/README.md` with a new "Vault reconciliation (recurring maintenance)" section documenting `generate-reconcile-batch.mjs` as the standing procedure, plus an updated mainnet contract address table (VaultBuybackBurnV2, VaultLPSupport, VaultRecouper, multisig Safe).
+
+## Git History (this session)
+- Commit `(pending)` — Add `script/generate-reconcile-batch.mjs` (recurring reconcile generator) + `script/safe-batch-reconcile-2.json` (second reconcile batch, 4-token split, executed successfully) + `script/README.md` vault-reconciliation docs + MEMORY.md update.
+
+---
+
 # Session Memory — 2026-07-05 (newest) — Fix: token pages showing "??? Unknown Token" browser tab title
 
 ## Task: Diagnose and fix browser tab showing "??? Unknown Token" on all token pages

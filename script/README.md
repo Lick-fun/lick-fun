@@ -140,11 +140,70 @@ Monitor with `pm2 logs lick-keeper` or your cloud provider's log viewer.
 
 ---
 
+## Vault reconciliation (recurring maintenance)
+
+The live `FeeRouter` (`0x5BBe528936E627d33DE36f10d9DB946089b9E903`) predates the
+`receiveForToken(address)` audit fix and can **never be replaced**
+(`Factory.feeRouter` is set-once). It raw-sends every trade fee straight to
+`VaultBuybackBurnV2` / `VaultLPSupport`'s bare `receive()`, which does **not**
+populate the per-token `pendingBurn`/`pendingLP` mapping the keeper's
+`execute()` threshold check relies on. So MON keeps silently accumulating in
+both vaults' aggregate balance without ever being attributed to a specific
+token — the keeper can't see it and `execute()` will never fire for that
+token until it's manually reconciled.
+
+**This means the reconcile step must be repeated periodically for as long as
+this FeeRouter is deployed** (it is not a one-time fix).
+
+### Regenerating the reconcile batch
+
+```bash
+node script/generate-reconcile-batch.mjs
+```
+
+This script (`script/generate-reconcile-batch.mjs`):
+1. Re-queries live on-chain state (never trusts stale numbers).
+2. For each vault (BB and LP), finds the vault's own last `Deposited` event
+   (i.e. the last time it was reconciled) and sums `FeeRouted.<share>`
+   events **strictly after** that block, per token — this is exactly the
+   untracked wei amount sitting in that vault's balance.
+3. Emits a ready-to-import Safe Transaction Builder JSON batch:
+   `sweep(safe, totalUntracked)` followed by one
+   `VaultRecouper.recover(vault, token)` call per token with a nonzero
+   untracked amount (correctly split across however many tokens have
+   accrued fees — not lumped into a single token).
+4. Automatically skips a vault entirely if nothing is untracked.
+
+Output: a timestamped `safe-batch-reconcile-<ts>.json` in `script/`. Rename
+it to something memorable (e.g. `safe-batch-reconcile-3.json`) and import it
+into the Safe Transaction Builder (app.safe.global, multisig
+`0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA`). **Re-verify amounts are still
+current immediately before executing** — if meaningful time has passed since
+generation, just re-run the script again rather than trusting old numbers.
+
+### After executing the batch
+
+No environment variable or Railway config changes are needed — the batch only
+moves MON that's already sitting in the existing vaults back into those same
+vaults with corrected per-token attribution; it does not change which
+contract addresses are in use. Once the batch confirms, any token whose
+`pendingBurn`/`pendingLP` crosses the 50 MON `EXECUTION_THRESHOLD` will have
+its buyback+burn (or LP add, once graduated) fired automatically by the
+Railway keeper within its next ~60s poll cycle — no manual action needed
+beyond executing the Safe batch.
+
+---
+
 ## Mainnet contract addresses
 
 | Contract | Address |
 |---|---|
 | GraduationRouter | `0xb2Dc164Ac4eCDDA7Ea2D4115bC122463c65460b2` |
 | Factory | `0x9845c5625d9f9C48e17956940485aAAAD168aA10` |
+| VaultBuybackBurnV2 | `0xd22bEf54aD5baeA2C21a80B91E38C5B67Cbb1822` |
+| VaultLPSupport | `0xF1Aac85a5F964564e472BF1E0628c536b01809e0` |
+| VaultRecouper | `0x3b0e57DBd9F80dB7963aa80A1167A224eD5E2b91` |
+| Multisig Safe | `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` |
 | Chain | Monad Mainnet (143) |
 | Deploy block | 83961211 |
+
