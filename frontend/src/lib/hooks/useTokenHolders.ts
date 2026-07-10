@@ -18,6 +18,7 @@ export interface TokenHolder {
   pctOfSupply: number; // 0–100
   valueMonFormatted: number; // balance × current price in MON
   valueUsd: number | null; // null if monUsdPrice unavailable
+  isLp?: boolean; // true if this holder is the DEX liquidity pool
 }
 
 /* ─────────────────────────────────────────────────────────────── */
@@ -64,7 +65,8 @@ export function useTokenHolders(
   soldTokens: bigint | undefined,
   realMon: bigint | undefined,
   monUsdPrice?: number | null,
-  extraTraders?: string[]
+  extraTraders?: string[],
+  pairAddress?: string | null
 ) {
   const enabled = !!tokenId;
   const tokenLower = tokenId.toLowerCase();
@@ -89,14 +91,17 @@ export function useTokenHolders(
 
   const traders = useMemo(() => {
     const fromIndexer = tradersQuery.data ?? [];
-    if (!extraTraders || extraTraders.length === 0) return fromIndexer;
     const seen = new Set<string>();
     for (const addr of fromIndexer) seen.add(addr);
-    for (const addr of extraTraders) {
-      if (addr) seen.add(addr.toLowerCase());
+    if (extraTraders) {
+      for (const addr of extraTraders) {
+        if (addr) seen.add(addr.toLowerCase());
+      }
     }
+    // Include the DEX pair address (liquidity pool) if the token has graduated
+    if (pairAddress) seen.add(pairAddress.toLowerCase());
     return Array.from(seen);
-  }, [tradersQuery.data, extraTraders]);
+  }, [tradersQuery.data, extraTraders, pairAddress]);
 
   // Step 2: Multicall totalSupply + balanceOf for every unique trader
   const balanceContracts = useMemo(
@@ -151,13 +156,16 @@ export function useTokenHolders(
       const valueMonFormatted = balanceFormatted * price;
       const valueUsd = monUsdPrice != null ? valueMonFormatted * monUsdPrice : null;
 
+      const addr = traders[i];
+      const isLp = !!pairAddress && addr.toLowerCase() === pairAddress.toLowerCase();
       result.push({
-        address: traders[i],
+        address: addr,
         balance,
         balanceFormatted,
         pctOfSupply,
         valueMonFormatted,
         valueUsd,
+        isLp,
       });
     }
 

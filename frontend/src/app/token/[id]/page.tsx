@@ -81,7 +81,8 @@ export default function TokenDetailPage() {
     token?.soldTokens,
     token?.realMon,
     monUsdPrice,
-    extraTraderAddresses
+    extraTraderAddresses,
+    pairAddress ?? null
   );
 
   // Activity tab: "trades" | "holders"
@@ -91,6 +92,11 @@ export default function TokenDetailPage() {
   const [tradePage, setTradePage] = useState(0);
   const tradePageCount = Math.max(1, Math.ceil(trades.length / TRADES_PER_PAGE));
   const pagedTrades = trades.slice(tradePage * TRADES_PER_PAGE, (tradePage + 1) * TRADES_PER_PAGE);
+  // Holders pagination
+  const HOLDERS_PER_PAGE = 10;
+  const [holderPage, setHolderPage] = useState(0);
+  const holderPageCount = Math.max(1, Math.ceil(holders.length / HOLDERS_PER_PAGE));
+  const pagedHolders = holders.slice(holderPage * HOLDERS_PER_PAGE, (holderPage + 1) * HOLDERS_PER_PAGE);
 
   // Price flash effect
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
@@ -425,6 +431,28 @@ export default function TokenDetailPage() {
                 <p className="text-xs text-figma-muted py-8 text-center">No holders found.</p>
               ) : (
                 <div className="overflow-x-auto">
+                  {/* Pagination row — sits above the table header */}
+                  {holderPageCount > 1 && (
+                    <div className="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-figma-surface/30">
+                      <button
+                        onClick={() => setHolderPage((p) => Math.max(0, p - 1))}
+                        disabled={holderPage === 0}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold text-figma-muted hover:text-figma-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        ← Prev
+                      </button>
+                      <span className="text-[10px] text-figma-muted font-mono">
+                        {holderPage + 1} / {holderPageCount}
+                      </span>
+                      <button
+                        onClick={() => setHolderPage((p) => Math.min(holderPageCount - 1, p + 1))}
+                        disabled={holderPage >= holderPageCount - 1}
+                        className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold text-figma-muted hover:text-figma-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  )}
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-figma-muted border-b border-figma-surface/50">
@@ -436,26 +464,35 @@ export default function TokenDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {holders.map((holder, i) => {
+                      {pagedHolders.map((holder, i) => {
                         const isDevHolder = !!creatorAddress && holder.address.toLowerCase() === creatorAddress.toLowerCase();
+                        const globalIndex = holderPage * HOLDERS_PER_PAGE + i + 1;
                         return (
                           <tr
                             key={holder.address}
                             className={cn(
                               "border-b border-figma-surface/30 hover:bg-figma-surface/20 transition-colors",
-                              isDevHolder && "bg-yellow-500/5"
+                              isDevHolder && "bg-yellow-500/5",
+                              holder.isLp && "bg-blue-500/5"
                             )}
                           >
-                            <td className="px-3 sm:px-4 py-2.5 text-figma-muted font-mono">{i + 1}</td>
+                            <td className="px-3 sm:px-4 py-2.5 text-figma-muted font-mono">{globalIndex}</td>
                             <td className="px-3 sm:px-4 py-2.5">
-                              <div className="flex items-center gap-1.5">
-                                <CreatorBadge address={holder.address} />
-                                {isDevHolder && (
-                                  <span className="px-1 py-0.5 rounded text-[9px] font-bold bg-yellow-500/20 text-yellow-400">
-                                    Dev
-                                  </span>
-                                )}
-                              </div>
+                              {holder.isLp ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm">🌊</span>
+                                  <span className="text-figma-white font-semibold text-[11px]">Liquidity Pool</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5">
+                                  <CreatorBadge address={holder.address} />
+                                  {isDevHolder && (
+                                    <span className="px-1 py-0.5 rounded text-[9px] font-bold bg-yellow-500/20 text-yellow-400">
+                                      Dev
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td className="px-3 sm:px-4 py-2.5 text-right font-mono text-figma-white">
                               {holder.balanceFormatted >= 1_000_000
