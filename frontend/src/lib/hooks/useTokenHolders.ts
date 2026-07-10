@@ -170,7 +170,7 @@ export function useTokenHolders(
     }
 
     return result.sort((a, b) => (b.balance > a.balance ? 1 : -1));
-  }, [balanceResults, traders, soldTokens, realMon, monUsdPrice]);
+  }, [balanceResults, traders, soldTokens, realMon, monUsdPrice, pairAddress]);
 
   return {
     holders,
