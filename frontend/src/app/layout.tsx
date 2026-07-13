@@ -5,6 +5,8 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { Footer } from "@/components/layout/Footer";
+import { Analytics } from "@/components/layout/Analytics";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -130,12 +132,14 @@ export default function RootLayout({
           // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <Analytics />
         <Providers>
 
           <div className="flex flex-col h-screen overflow-hidden bg-figma-bg">
             <Header />
-            <main className="flex-1 overflow-y-auto scrollbar-thin pb-20 lg:pb-0">
-              {children}
+            <main className="flex-1 overflow-y-auto scrollbar-thin pb-20 lg:pb-0 flex flex-col">
+              <div className="flex-1">{children}</div>
+              <Footer />
             </main>
             <BottomNav />
           </div>

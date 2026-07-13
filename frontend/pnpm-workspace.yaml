@@ -1,4 +1,5 @@
 allowBuilds:
+  '@sentry/cli': false
   bufferutil: set this to true or false
   keccak: set this to true or false
   sharp: set this to true or false

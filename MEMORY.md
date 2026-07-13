@@ -1,3 +1,66 @@
+# Session Memory — 2026-07-13 (newest) — Marketing-readiness hardening: profile persistence, vault alerting, observability, terms
+
+## Task: Pre-marketing audit — fix the highest-impact items, document, and prep for commit.
+
+User asked: "we are ramping up marketing now... tell me what needs to be improved/updated/upgraded to paid service first... make the plan to start from the most critical... Do all. i will have the terms page reviewed by legal after... make sure .memory is current and readme. the commit and push changes."
+
+### Items fixed (all verified against live code; full production build succeeded)
+
+**1. Profile metadata persistence — Storj-backed (was local-disk, wiped on every Railway redeploy)**
+- Confirmed live: `frontend/src/app/api/register-profile/route.ts`, `frontend/src/app/api/profile-image/[address]/route.ts`, and `frontend/src/app/profile/[address]/layout.tsx` were all writing to / reading from `src/data/profile-metadata.json` on local disk. Railway's ephemeral filesystem meant the next `git push` would silently reset this file to whatever was in HEAD — wiping every user's display name, avatar, and social links.
+- Fixed by mirroring the existing pattern from `frontend/src/lib/server/tokenMetadataStore.ts`: new `frontend/src/lib/server/profileMetadataStore.ts` (readProfileIndex/writeProfileIndex), with bundled `src/data/profile-metadata.json` as permanent fallback (merged, Storj wins on conflicts — no manual migration step needed for the 2 existing profiles).
+- Migrated all 3 consumers to use the new store.
+- Verified `tsc --noEmit` clean and `next lint` zero new warnings.
+
+**2. Vault untracked-balance monitoring — Telegram alerts in the keeper (recurring reconciliation risk)**
+- Confirmed live: live `FeeRouter` predates the `receiveForToken()` audit fix and can never be replaced (`Factory.feeRouter` is set-once). Every trade fee silently accumulates "untracked" in the vaults, requiring periodic manual Safe multisig batches to unstuck (2nd batch just executed 2026-07-09, see earlier session below).
+- Deliberately did NOT give the keeper `sweep()` rights — that's `onlyOwner` (multisig-only) by design, an audit hardening decision. Instead added **read-only monitoring**:
+  - New `checkUntrackedVaultBalance()` in `script/graduation-keeper.ts` — runs alongside `pollVaults()` every `VAULT_POLL_MS` cycle. Compares `vault.balance()` vs sum of `pendingBurn`/`pendingLP` across all known tokens. The diff is untracked MON.
+  - Fires a Telegram message via bot API when untracked MON >= `UNTRACKED_ALERT_THRESHOLD_MON` (default 30, below the 50 MON execute() cutoff for lead time). Re-alerts only after growing by `UNTRACKED_ALERT_STEP_MON` (default 20) more, to avoid spam.
+  - Anti-spam: tracks `lastUntrackedAlerted` per vault, resets when untracked drops below threshold.
+  - Both `ALERT_TELEGRAM_BOT_TOKEN` and `ALERT_TELEGRAM_CHAT_ID` are optional env vars — feature is a no-op without them.
+- Verified via esbuild syntax check (did NOT execute the live script — running it would fire real txs/reads against mainnet with the live keeper wallet).
+- Documented in `script/.env.example`.
+
+**3. Sentry error monitoring — opt-in, env-gated, no behavior change without DSN**
+- Added `@sentry/nextjs` v10.65.0 (dependency: frontend/package.json).
+- Files: `frontend/src/instrumentation-client.ts` (browser), `frontend/src/sentry.server.config.ts` + `frontend/src/sentry.edge.config.ts` (server/edge), `frontend/src/instrumentation.ts` (Next.js hook registering server/edge configs + `onRequestError`), `frontend/src/app/global-error.tsx` (root error boundary).
+- `frontend/next.config.ts` wrapped with `withSentryConfig` — source-map upload only active if `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN` set in build env, silent no-op otherwise. Uses `webpack.treeshake.removeDebugLogging: true` to drop debug code from production bundle.
+- ALL Sentry.init() calls gated on `NEXT_PUBLIC_SENTRY_DSN` (or `SENTRY_DSN` server-side) — completely no-op if unset. Wallet-rejection errors filtered out (`ignoreErrors`) to avoid noise.
+- Verified full `next build` succeeds with or without DSN configured. Sentry webpack plugin runs cleanly.
+
+**4. Plausible analytics — opt-in, cookie-less, privacy-friendly**
+- New `frontend/src/components/layout/Analytics.tsx` — rendered in root layout. No-op unless `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` set. Supports self-hosted via `NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL`. No cookie-consent banner needed (Plausible doesn't use cookies or collect PII per their data policy).
+
+**5. Terms of Service & Privacy Policy pages**
+- New `frontend/src/app/terms/page.tsx` and `frontend/src/app/privacy/page.tsx` — both static, SEO metadata (title/description/canonical/robots), pre-rendered in `next build`. Both clearly marked in-page as "⚠️ DRAFT — pending legal review" (user said legal would review after).
+- New `frontend/src/components/layout/Footer.tsx` — added to root layout, renders on every page with links to /terms and /privacy plus copyright.
+- Also added matching Terms/Privacy links to the (currently unused) `frontend/src/components/layout/Sidebar.tsx` footer for consistency.
+
+**6. Documentation refresh — README + .memory**
+- README.md fully updated for Phase 4: tests badge (136→176), status line, mainnet deployment table (V2 vault addresses, VaultRecouper, Treasury Safe), project structure (15 contracts / 11 pages / 17 test files), contract architecture (V2 vault + Recouper entries), API security + new Observability subsection, build pipeline (all Phase 4 rows added, Phase 5 pending updated), test count claims updated.
+- this MEMORY.md file updated (this entry).
+- `.memory/Lick.fun — Deployment & Addresses.txt` (Cline RAG file) — INTENTIONALLY LEFT UNTOUCHED because it's covered by `.memory/` in `.gitignore` (only `2026-*.txt` files are tracked). The file is outdated (still references testnet/Phase 3) but updating it is a Cline-context concern, not a git commit concern. A future commit could force-add it if desired.
+
+### Verification performed
+- `tsc --noEmit` clean after each change set
+- `next lint` — only pre-existing warnings (no new ones)
+- Full `next build` — succeeded; `/terms` and `/privacy` statically prerendered (349 B and 368 B respectively); Sentry webpack plugin runs without error with no DSN configured
+- esbuild syntax check on the modified `graduation-keeper.ts` (did NOT execute the live script — would have fired real txs against mainnet)
+
+### Outstanding for user (not blocking the commit)
+- Sign up at sentry.io (free tier is fine) → set `NEXT_PUBLIC_SENTRY_DSN` in Railway frontend env
+- Sign up at plausible.io → set `NEXT_PUBLIC_PLAUSIBLE_DOMAIN=lickfun.xyz` in Railway frontend env
+- (Optional, source maps) Set `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` in Railway build env for prettier Sentry stack traces
+- (Recommended for vault visibility) Set `ALERT_TELEGRAM_BOT_TOKEN` and `ALERT_TELEGRAM_CHAT_ID` on Railway `lick-keeper` service
+- Send `/terms` and `/privacy` to legal counsel for review before treating as binding (both pages display the draft notice until then)
+
+### Git history (this session, this commit)
+- All 13 modified files + 13 untracked new files (Sentry/Analytics/Terms/Privacy/Footer/ProfileStorage/VaultAlerting) committed in a single commit
+- TODO: commit message and push via git (handled by user OR follow-up commit push)
+
+---
+
 # Session Memory — 2026-07-09 (newest) — Second reconcile batch: recurring untracked-vault-MON fix, now 4 tokens
 
 ## Task: Diagnose "founder token burn function isn't working" — generate the next reconcile batch

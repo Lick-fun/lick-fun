@@ -2,9 +2,11 @@
  * POST /api/register-profile
  * Body: { walletAddress, signature, message, displayName?, avatarUri?, xUrl?, websiteUrl?, telegramUrl? }
  *
- * Stores a mapping of walletAddress → profile metadata in a lightweight
- * JSON file on disk. The actual avatar content lives on Storj forever regardless
- * of whether this server is running.
+ * Stores a mapping of walletAddress → profile metadata in a Storj-backed JSON
+ * index (see lib/server/profileMetadataStore.ts). Both the avatar image and
+ * this index live on Storj forever, so profile data survives Railway
+ * redeploys (Railway containers have an ephemeral filesystem — local disk
+ * writes are reset to the last git commit on every deploy).
  *
  * Requires a valid EIP-191 signature proving the wallet owns the profile.
  * At least one updatable field must be provided.
@@ -12,21 +14,8 @@
  */
 
 import { type NextRequest, NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import path from "path";
 import { verifyMessage } from "viem";
-
-const DATA_FILE = path.join(process.cwd(), "src", "data", "profile-metadata.json");
-
-type ProfileEntry = {
-  displayName: string;
-  avatarUri: string;
-  xUrl: string;
-  websiteUrl: string;
-  telegramUrl: string;
-  updatedAt: number;
-};
-type ProfileStore = Record<string, ProfileEntry>;
+import { readProfileIndex, writeProfileIndex } from "@/lib/server/profileMetadataStore";
 
 // Light URL validation — accepts only http(s) URLs, returns empty string on failure
 function normalizeUrl(value: string | undefined): string {
@@ -40,24 +29,6 @@ function normalizeUrl(value: string | undefined): string {
   } catch {
     return "";
   }
-}
-
-async function readStore(): Promise<ProfileStore> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(raw) as ProfileStore;
-  } catch {
-    return {};
-  }
-}
-
-async function writeStore(store: ProfileStore): Promise<void> {
-  await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
-  const tmpFile = `${DATA_FILE}.tmp`;
-  // Atomic write: write to temp file first, then rename — prevents corruption
-  // if the process is interrupted mid-write.
-  await fs.writeFile(tmpFile, JSON.stringify(store, null, 2), "utf-8");
-  await fs.rename(tmpFile, DATA_FILE);
 }
 
 export async function POST(req: NextRequest) {
@@ -133,7 +104,7 @@ export async function POST(req: NextRequest) {
     }
 
     const normalised = walletAddress.toLowerCase();
-    const store = await readStore();
+    const store = await readProfileIndex();
     const existing = store[normalised] ?? {
       displayName: "",
       avatarUri: "",
@@ -176,7 +147,7 @@ export async function POST(req: NextRequest) {
       updatedAt: Date.now(),
     };
 
-    await writeStore(store);
+    await writeProfileIndex(store);
 
     return NextResponse.json({ ok: true, walletAddress: normalised });
   } catch (err) {

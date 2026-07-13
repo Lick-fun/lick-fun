@@ -1,0 +1,123 @@
+# 2026-07-13 — Marketing-readiness hardening session
+# For Cline: context for any future chat that opens on this repo.
+
+=============================================================================
+CONTEXT
+=============================================================================
+User is ramping up marketing. Asked: "what needs to be improved/updated/
+upgraded to paid service first... Do all. i will have the terms page
+reviewed by legal after... make sure .memory is current and readme.
+the commit and push changes."
+
+Items fixed in this session (all verified against live code; full prod
+build succeeded):
+
+1. **Profile metadata persistence** — was writing to local disk which
+   Railway wipes on every redeploy. Migrated 3 consumers to a new
+   Storj-backed `lib/server/profileMetadataStore.ts` mirroring the
+   token metadata pattern. Bundled `src/data/profile-metadata.json`
+   kept as fallback/seed (2 existing profiles covered).
+
+2. **Vault untracked-balance Telegram alerting** in
+   `script/graduation-keeper.ts`. New `checkUntrackedVaultBalance()`
+   compares vault balance vs tracked per-token mapping, fires a
+   Telegram alert when untracked MON crosses 30 (configurable).
+   Deliberately READ-ONLY — sweep() is onlyOwner (multisig) by
+   design, an audit hardening that should not be weakened. No-op
+   unless ALERT_TELEGRAM_BOT_TOKEN + ALERT_TELEGRAM_CHAT_ID are set.
+
+3. **Sentry error monitoring** (@sentry/nextjs v10). Wired in all
+   three runtimes (client/server/edge) with env-gated init —
+   completely no-op if NEXT_PUBLIC_SENTRY_DSN is unset. Root error
+   boundary at app/global-error.tsx. withSentryConfig() in
+   next.config.ts handles source-map upload (also env-gated).
+   Wallet-rejection errors filtered out to avoid noise.
+
+4. **Plausible analytics** — single <Analytics /> component in
+   root layout, cookie-less, no-op unless
+   NEXT_PUBLIC_PLAUSIBLE_DOMAIN is set.
+
+5. **Terms of Service + Privacy Policy pages** at /terms and
+   /privacy, both statically pre-rendered. New site-wide <Footer />
+   added to root layout with links to both. Both pages clearly
+   marked "DRAFT — pending legal review" until counsel signs off.
+
+6. **README.md** fully refreshed for Phase 4: V2 vault addresses,
+   V2 architecture (VaultBuybackBurnV2 + VaultRecouper), Phase 4
+   build-pipeline rows, updated test counts (176/15 contracts/11
+   pages), new Observability subsection under Security.
+
+=============================================================================
+VERIFICATION PERFORMED
+=============================================================================
+- `tsc --noEmit` clean after each change set
+- `next lint` — only pre-existing warnings (no new ones)
+- Full `next build` — succeeded; /terms and /privacy statically
+  prerendered; Sentry webpack plugin runs without error with no
+  DSN configured
+- esbuild syntax check on the modified graduation-keeper.ts (did
+  NOT execute the live script — would have fired real txs against
+  mainnet with the live keeper wallet)
+- All 6 new pages/files have no BOM (verified bytes 0x23 0x20 0x4C
+  / 0x53 as first bytes)
+
+=============================================================================
+CURRENT MAINNET ADDRESSES (2026-07-13)
+=============================================================================
+Factory         0x9845c5625d9f9C48e17956940485aAAAD168aA10
+FeeRouter       0x5BBe528936E627d33DE36f10d9DB946089b9E903  (set-once per curve, cannot replace)
+GradRouter      0xb2Dc164Ac4eCDDA7Ea2D4115bC122463c65460b2
+Prediction      0xe9200097cA7d7a48D87ce249B671c36ccB406776
+LickFactory     0xee3A05b788f375C34cF4d6EC63Ef3872D87b62c8
+LickRouter      0xD0cC6C69162eb0635A7d423aEb2086F1821cA844
+VaultLP V2      0xF1Aac85a5F964564e472BF1E0628c536b01809e0  (active, executes at 50 MON)
+VaultBB V2      0xd22bEf54aD5baeA2C21a80B91E38C5B67Cbb1822  (active, burn-to-dead)
+VaultRecouper   0x3b0e57DBd9F80dB7963aa80A1167A224eD5E2b91  (helper, permissionless)
+Treasury Safe   0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA
+Founder token   0x0236787a1baaeed46a123fa264a2355eed11d151
+Deploy block    83961211
+
+Live tokens (4): Founder (LICK), 0x801a1681..., 0x7f56b092..., 0x46C26cA6... (all pre-graduation)
+
+=============================================================================
+STILL OUTSTANDING (post-commit, user to do)
+=============================================================================
+- Sign up at sentry.io → set NEXT_PUBLIC_SENTRY_DSN in Railway frontend env
+- Sign up at plausible.io → set NEXT_PUBLIC_PLAUSIBLE_DOMAIN=lickfun.xyz
+- Optional source maps: SENTRY_ORG/PROJECT/AUTH_TOKEN in Railway build env
+- Recommended: ALERT_TELEGRAM_BOT_TOKEN + ALERT_TELEGRAM_CHAT_ID on
+  the Railway lick-keeper service for vault reconciliation alerts
+- Send /terms and /privacy to legal counsel for review (both pages
+  display a draft notice until then)
+- (Still pending from earlier sessions) ProfileRegistry + VestingController
+  mainnet deploy — listed as Phase 5 in README
+
+=============================================================================
+NEW + MODIFIED FILES THIS SESSION
+=============================================================================
+New:
+  frontend/src/lib/server/profileMetadataStore.ts
+  frontend/src/app/global-error.tsx
+  frontend/src/app/terms/page.tsx
+  frontend/src/app/privacy/page.tsx
+  frontend/src/components/layout/Footer.tsx
+  frontend/src/components/layout/Analytics.tsx
+  frontend/src/instrumentation.ts
+  frontend/src/instrumentation-client.ts
+  frontend/src/sentry.server.config.ts
+  frontend/src/sentry.edge.config.ts
+Modified:
+  README.md
+  MEMORY.md
+  frontend/.env.example           (Sentry + Plausible env vars documented)
+  frontend/next.config.ts         (withSentryConfig wrapper, treeshake config)
+  frontend/package.json           (+ @sentry/nextjs)
+  frontend/pnpm-lock.yaml
+  frontend/pnpm-workspace.yaml
+  frontend/src/app/layout.tsx     (<Analytics /> + <Footer /> wired in)
+  frontend/src/app/api/register-profile/route.ts           (Storj-backed)
+  frontend/src/app/api/profile-image/[address]/route.ts    (Storj-backed)
+  frontend/src/app/profile/[address]/layout.tsx             (Storj-backed)
+  frontend/src/components/layout/Sidebar.tsx               (Terms/Privacy links)
+  script/.env.example             (Telegram alert env vars documented)
+  script/graduation-keeper.ts     (checkUntrackedVaultBalance, sendTelegramAlert, env vars)

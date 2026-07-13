@@ -6,11 +6,9 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.27-blue)](https://soliditylang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
-[![Tests](https://img.shields.io/badge/Tests-136%20Forge%20•%2058%20Vitest-green)](.)
+[![Tests](https://img.shields.io/badge/Tests-176%20Forge%20•%2058%20Vitest-green)](.)
 
-**Status:** 🟢 **Live on Monad mainnet (chain 143)** · 29-finding security audit completed + all fixes applied · 164 Forge tests green · Envio HyperSync indexer · Phase 3 shipped — custom fee config for all users (Nad.fun-style toggle-card UI with 4 destinations: Buyback & Burn / LP Support / Creator / Gift), tier gating removed, new `FeeRouter.applyCustomConfig()` + `Factory.createTokenWithCustomConfig()` · Phase 2 FeeRouter + reputation-gated tier system · Profile & reputation live on frontend · Token creation requires image + social links · PriceChart — volume histogram pane, OHLC crosshair header, chart type toggle (candle/bar/line), MCap/Price toggle, USD/MON quote toggle, log scale, fullscreen, 1W/1M timeframes · Token detail page redesigned (nad.fun-inspired 2-column layout) · Prediction Markets page — token name/symbol/price/MC/progress on every card, stats bar, sort controls, YES/NO pool split bar, parimutuel payout, status badges · USD market cap display (CoinGecko feed) · Founder token banner · Profile custom name + avatar (wallet-signed) · Ticker full-width auto-scrolling · Phase 3b — removed 10% auto dev allocation (100% supply to curve, creators buy their own tokens via dev pre-buy), TradePanel slippage control · Phase 3c — USD MC on every token card · Phase 3d — Social links on profiles · **Mainnet launched 2026-06-27** — all 29 audit findings fixed, recoverable vaults, Safe multisig treasury, real GraduationPool, deterministic pair anti-manipulation (skim), full regression + fuzz test suite (164 tests)<!-- Phase 3 shipped — USD market cap display (CoinGecko feed), founder token banner, profile custom name + avatar (wallet-signed), ticker redesigned as full-width auto-scrolling marquee, charts default to MCap + USD, 24h % change bug fixed, token names now display in ticker + markets via GraphQL join, About page rewritten in buyer-friendly language · Phase 3b shipped — removed 10% auto dev allocation (100% supply to curve, creators buy their own tokens via dev pre-buy), TradePanel slippage control (default 10%, clickable with 1%/5%/10% presets + custom input), MAX button on dev buy reserves 10 MON for creation fee, sell MAX button uses formatEther to avoid 1-wei rounding bug, global CSS hides number input spinners · Phase 3c shipped — USD MC on every token card (home trending + grid, discover grid) via shared `lib/format.ts` helpers, bonding bar default `progress = 0` (was misleading `65`), discover cards now show live price + 24h change matching homepage, trending card fixed (removed fixed `h-[343px]` height that was clipping MC/VOL/bonding bar via `overflow-hidden`, added token name + ticker, added bonding curve progress bar with purple gradient) · **Phase 3g shipped** — Profile page overhaul: token holdings (bought, not created) with live USD value + P&L, Portfolio Summary card (MON balance + total value + P&L), Tokens Created now shows USD MC + creator fees distributed per token, Activity tabs (All/Buys/Sells/Creates), max-width increased to 960px
-
----
+**Status:** 🟢 **Live on Monad mainnet (chain 143)** · 29-finding mainnet security audit completed + all fixes applied (164 → 176 Forge tests) · Phase 3 — custom fee config for all users · **Phase 4 hardening (2026-07-13)** — V2 buyback-and-burn vault live (burn-to-dead-address, works with every ERC-20), vault auto-execution at 50 MON threshold with 5% on-chain slippage cap, untracked-vault-balance Telegram alerting in the keeper, Storj-backed profile metadata (survives Railway redeploys), Sentry error monitoring + Plausible analytics opt-in (env-gated, no-op without DSN), `/terms` and `/privacy` pages (legal-review pending). 4 tokens live, fees verified to Safe multisig treasury `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` (block 83961211).
 
 ## Overview
 
@@ -94,12 +92,13 @@ Connected wallet → click Profile in nav → see live trading stats, reputation
 | PredictionMarket | `0xe9200097cA7d7a48D87ce249B671c36ccB406776` |
 | LickFactory (DEX) | `0xee3A05b788f375C34cF4d6EC63Ef3872D87b62c8` |
 | LickRouter | `0xD0cC6C69162eb0635A7d423aEb2086F1821cA844` |
-| VaultLPSupport | `0x69240beca90d25e2D50ca443D8ECaaAB69cCe183` |
-| VaultBuybackBurn | `0xe64d7d3E2d714f23B38bc00E1c185875C2b4D1D1` |
+| VaultLPSupport (v2, active) | `0xF1Aac85a5F964564e472BF1E0628c536b01809e0` |
+| VaultBuybackBurn (v2, active — burn-to-dead-address) | `0xd22bEf54aD5baeA2C21a80B91E38C5B67Cbb1822` |
+| VaultRecouper (helper) | `0x3b0e57DBd9F80dB7963aa80A1167A224eD5E2b91` |
 | GraduationPool | `0x33e576E95F0d6f6B214F602ec5022Ffed0Eae389` |
 | WMON | `0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A` |
-
-RPC: https://rpc.monad.xyz
+| Treasury (Safe multisig) | `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` |
+RPC: https://rpc.monad.xyz (frontend) / Alchemy PAYG dedicated endpoint (keeper + /api/trades)
 
 ## Previous: Testnet Deployment (Monad chain 10143)
 
@@ -134,17 +133,21 @@ RPC: https://testnet-rpc.monad.xyz
 
 ```
 lick-fun/
-├── contracts/          Foundry project (14 Solidity contracts, 164 tests)
-│   ├── src/            14 contracts (Factory, BondingCurve, FeeRouter, etc.)
-│   ├── script/         Deploy scripts (DeployMainnet.s.sol — mainnet; DeployVestingAndFactory.s.sol — testnet)
-│   └── test/           15 test files, 164 Forge tests (incl. AuditFixes.t.sol)
-├── frontend/           Next.js 15.5 (9 pages, wagmi, RainbowKit)
-│   ├── src/app/        Routes: / /create /discover /how-it-works /markets /profile/[address] /token/[id]
-│   └── src/components/ UI + layout + reputation + token (TradePanel, PriceChart, CurveChart)
+├── contracts/          Foundry project (15 Solidity contracts, 176 tests)
+│   ├── src/            15 contracts (Factory, BondingCurve, FeeRouter, VaultBuybackBurnV2, VaultRecouper, …)
+│   ├── script/         Deploy scripts (DeployMainnet.s.sol — mainnet; DeployVestingAndFactory.s.sol — testnet; ReconcileVaults.s.sol)
+│   └── test/           17 test files, 176 Forge tests (incl. AuditFixes.t.sol, VaultsV2.t.sol)
+├── frontend/           Next.js 15.5 (11 pages, wagmi, RainbowKit)
+│   ├── src/app/        Routes: / /create /discover /how-it-works /markets /profile/[address] /token/[id] /terms /privacy
+│   ├── src/instrumentation*  Sentry + instrumentation hooks (env-gated, no-op without DSN)
+│   └── src/components/ UI + layout + reputation + token (TradePanel, PriceChart, CurveChart, Footer, Analytics)
 ├── indexer/            Envio HyperIndex v3 config + handlers (5 entities)
 ├── reputation/         Off-chain TypeScript scoring engine (10 badges, 3 tiers, Merkle anchor)
-├── .memory/            RAG reference files (8 .txt files for Cline)
+├── .memory/            RAG reference files for Cline (latest 2026-* session notes tracked)
 └── script/             Utility scripts
+    ├── graduation-keeper.ts            Polls CurveGraduate, auto-migrates graduated tokens, auto-executes vaults at 50 MON threshold
+    ├── generate-reconcile-batch.mjs    Recurring Safe-batch generator for stranded-vault-MON reconciliation
+    └── reconcile-vaults.mjs            One-shot Safe-batch generator
 ```
 
 ---
@@ -174,7 +177,7 @@ cd frontend && pnpm install && pnpm dev   # → http://localhost:3010
 
 # Contracts (Forge)
 cd contracts && forge build
-forge test   # 164 tests, all green
+forge test   # 176 tests, all green
 
 # Indexer
 cd indexer && pnpm install && pnpm dev
@@ -205,8 +208,9 @@ Factory (owner = Safe multisig, transferOwnership)
 ├── LickToken              Pure ERC-20, 1B supply per token
 ├── BondingCurve           CPMM, 2% fee, anti-sniping, graduation at 100K MON
 ├── FeeRouter              Preset + custom splits, onlyFactoryOrOwner config, pull-payment fallback
-├── VaultLPSupport         LP support vault (owner-sweep, immutable Safe owner)
-├── VaultBuybackBurn       Buyback & burn vault (owner-sweep, immutable Safe owner)
+├── VaultLPSupport         LP support vault v2 (owner-sweep, immutable Safe owner, 5% slippage, executes at 50 MON/token)
+├── VaultBuybackBurnV2     Buyback & burn vault v2 (burn-to-dead-address — works with any ERC20, replaces V1 which required non-existent token.burn())
+├── VaultRecouper          Permissionless helper — re-attributes raw-sent vault MON to per-token mapping
 ├── VestingController      Dev allocation (0d vest, Phase 2 — not wired on mainnet)
 └── GraduationRouter       Migration: skim donations → assert reserves → LP burned to 0xdead
     ├── LickFactory        CREATE2 V2 factory (router-locked after deploy)
@@ -237,12 +241,19 @@ ProfileRegistry            Wallet linking (0.1 MON bond, checked refund, anchor 
   - **M-01–M-07** Router lock, CREATE2 guard, SafeERC20, config gating, withdrawLP guard, multisig treasury, checked refund
   - **L-01–L-08** MIN_LIQUIDITY to 0xdead, skim(), checked LP burn, stranded-MON sweep, ctor guards, anchor rotation, receive() restriction
 
-164 Forge tests · 58 vitest tests · All green · 164 includes 15 audit regression + fuzz tests (`test/AuditFixes.t.sol`)
+176 Forge tests · 58 vitest tests · All green · 164 includes 15 audit regression + fuzz tests (`test/AuditFixes.t.sol`)
 
 ### API security
 - `upload-token` + `register-metadata` require EIP-191 wallet signature (prevents bucket spam + metadata overwrite)
 - Rate limiting middleware on all 6 `/api/*` routes (10 req/min uploads, 20 req/min writes, 60 req/min default)
 - `upload-profile` + `register-profile` already required EIP-191 from launch
+- File-upload validation: 5 MB cap, MIME + extension allowlist, atomic JSON writes
+- All Storj indexes are key-deduped; profile metadata uses per-wallet signature-gated writes
+
+### Observability (opt-in, env-gated — no behavior change without configuration)
+- **Sentry** — `@sentry/nextjs` wired with browser/server/edge configs and an `instrumentation.ts` hook. No-op unless `NEXT_PUBLIC_SENTRY_DSN` is set. Wallet-rejection errors filtered to avoid noise.
+- **Plausible analytics** — cookie-less, privacy-friendly, in root layout. No-op unless `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` is set.
+- **Vault reconciliation alerts** — graduation keeper posts a Telegram message when a vault's untracked balance (raw `balance()` minus tracked per-token mapping) crosses 30 MON. See `script/graduation-keeper.ts` + `script/.env.example` (`ALERT_TELEGRAM_BOT_TOKEN` / `ALERT_TELEGRAM_CHAT_ID`).
 
 ---
 
@@ -270,9 +281,17 @@ ProfileRegistry            Wallet linking (0.1 MON bond, checked refund, anchor 
 | + | LiquidityMigrated indexer handler (pairAddress on Token) | ✅ done |
 | + | OG + Twitter card meta tags · mainnet explorer links · friendly errors | ✅ done |
 | + | Graduation keeper live (auto-migrates graduated curves, 6s poll) | ✅ done |
-| -> | ProfileRegistry + VestingController mainnet deploy (Phase 4) | pending |
-
-164 Forge tests · 58 vitest tests · 14 contracts · 9 pages · All green
+| + | V2 buyback-and-burn vault (burn-to-dead-address, ERC20-compatible) | ✅ done |
+| + | V1→V2 vault migration (FeeRouter re-pointed, ~87 MON migrated) | ✅ done |
+| + | Vault keeper auto-execution at 50 MON/token (BB + LP, 5% slippage cap) | ✅ done |
+| + | Recurring vault-reconcile batch generator (`script/generate-reconcile-batch.mjs`) | ✅ done |
+| + | Profile metadata migrated to Storj-backed index (survives Railway redeploys) | ✅ done |
+| + | Sentry error monitoring opt-in (env-gated, no-op without DSN) | ✅ done |
+| + | Plausible analytics opt-in (cookie-less, no-op without DOMAIN) | ✅ done |
+| + | `/terms` and `/privacy` pages (legal-review pending) | ✅ done |
+| + | V2 buyback burns confirmed end-to-end (founder token 11.3M+ tokens sent to `0x…dEaD`) | ✅ done |
+| -> | ProfileRegistry + VestingController mainnet deploy (Phase 5) | pending |
+176 Forge tests · 58 vitest tests · 15 contracts · 11 pages · All green
 
 ---
 
