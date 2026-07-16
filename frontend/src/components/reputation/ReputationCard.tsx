@@ -41,7 +41,7 @@ export function ReputationCard({ result, className }: ReputationCardProps) {
             Milestone Badges
           </span>
           <span className="text-figma-sm text-figma-muted font-medium">
-            {result.badges.length} / 10 earned
+            {result.badges.length} / 12 earned
           </span>
         </div>
         <BadgeGrid earned={result.badges} />

@@ -1,0 +1,73 @@
+# Session — 2026-07-16 — Reputation consistency fix
+
+## Task
+Investigate whether reputation is working properly for all profiles, then fix.
+
+## Investigation findings (verified against pushed main via GitHub)
+11 issues found. Most severe:
+1. Two divergent reputation engines (legacy linear `computeReputation` on token page
+   vs sigmoid `useReputation` on profile page) → different scores/badges for same creator.
+2. Homepage "Highest Reputation" sort actually sorted by volume (mislabeled).
+3. Trader-only profiles (majority of users) got NO reputation — indexer only creates
+   a Profile row on Factory.TokenCreated, and useReputation returned null when !profile.
+4. layout.tsx still read profile metadata from local disk (Storj migration missed it).
+5. medianGradVolume was per-profile → fVol ≈ 1.0 for any creator with ≥1 graduation.
+6. prebuyHonestyRate hardcoded 1.0 → "Pre-buy Honest" badge auto-awarded to everyone.
+7. rugEvents/linkedWallets/verifiedTenureDays all hardcoded empty/0 → "Never Rug"
+   auto-awarded, rug penalty (w_rug=10.0) dead weight.
+8. ReputationCard "/ 10 earned" but 12 badges (dead code — cosmetic only).
+10. anchor.ts uses SHA-256 + placeholder selector (Stage 6 not deployed).
+11. No batch scoring / daily anchor cron wired (README claimed it existed).
+
+## Fixes applied (all recommendations — formula kept "locked", only badge logic + integration fixed)
+
+### Phase A — Consistency
+- DELETED legacy `computeReputation` + dead Badge/Tier types/helpers from useData.ts.
+  Re-exported `Tier` from @/lib/reputation for backward compat (components/ui/Badge.tsx).
+- Token page (/token/[id]): switched from `computeReputation(creatorProfile)` to
+  `useReputation(creatorAddress)`. Render: `reputation.score` → `Math.round(reputation.reputation)`.
+  Both pages now show the SAME score for the same creator.
+- Homepage: renamed sort "highestReputation" → "highestVolume", label "Highest Reputation"
+  → "Highest Volume" (was volume-sorted under a misleading label).
+- ReputationCard: `/ 10 earned` → `/ 12 earned` (component is dead code but fixed anyway).
+
+### Phase B — Trader-only profiles
+- useReputation: when profile is null but trades exist, synthesizes minimal ScoringInputs
+  (accountAgeDays from earliest trade timestamp, tokenCount/graduatedCount=0). Trader-only
+  wallets now get a Starter-tier score + relevant badges instead of nothing.
+
+### Phase C — Storj metadata
+- layout.tsx getProfileMeta: replaced `fs.readFile(DATA_FILE)` with `readProfileIndex()`
+  from profileMetadataStore.ts. OG/Twitter meta tags now read from Storj (survives
+  Railway redeploys) instead of stale bundled JSON.
+
+### Phase D — Scoring integrity
+- medianGradVolume: changed from per-profile computation to fixed 100k MON graduation
+  threshold (stable global normalization, no extra network call).
+- prebuyHonestyRate: changed return from 1.0 → 0.0 (no unearned bonus, badge not auto-awarded).
+- "Never Rug" + "Pre-buy Honest" badges filtered out post-computation (can't verify when
+  their signals aren't indexed).
+
+## Deferred (Phase E — Stage 6)
+- anchor.ts: swap SHA-256 → keccak256, real function selector, wire daily batch cron +
+  ProfileRegistry on-chain anchor. Not in scope for this fix.
+
+## Verification
+- `pnpm build` (frontend) — clean, 16/16 pages, only pre-existing lint warnings.
+- `npx vitest run` (reputation/) — 61/61 pass.
+- `get_errors` across entire frontend/src — 0 errors.
+
+## Files modified (6 code + 4 docs)
+**Code:**
+- frontend/src/lib/hooks/useData.ts — deleted legacy computeReputation + dead helpers
+- frontend/src/lib/hooks/useReputation.ts — trader synth, global median, badge filtering
+- frontend/src/app/token/[id]/page.tsx — switched to useReputation
+- frontend/src/app/page.tsx — renamed sort
+- frontend/src/app/profile/[address]/layout.tsx — Storj migration
+- frontend/src/components/reputation/ReputationCard.tsx — denominator fix
+
+**Docs:**
+- README.md — status line, reputation section, badges table (12, suppression noted), project structure
+- PROFILE_README.md — reputation description, test count, anchor status
+- .memory/Lick.fun — Reputation System.txt — header, badges, frontend integration section
+- .memory/2026-07-16 — Reputation consistency fix.txt (this file)

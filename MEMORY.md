@@ -125,6 +125,7 @@ User asked: "we are ramping up marketing now... tell me what needs to be improve
 - Fixed by mirroring the existing pattern from `frontend/src/lib/server/tokenMetadataStore.ts`: new `frontend/src/lib/server/profileMetadataStore.ts` (readProfileIndex/writeProfileIndex), with bundled `src/data/profile-metadata.json` as permanent fallback (merged, Storj wins on conflicts — no manual migration step needed for the 2 existing profiles).
 - Migrated all 3 consumers to use the new store.
 - Verified `tsc --noEmit` clean and `next lint` zero new warnings.
+- **CORRECTION 2026-07-16:** `layout.tsx`'s `getProfileMeta()` was NOT actually migrated — it still used `fs.readFile` on local disk (likely reverted by the v0 UI merge, or never done). Fixed for real this session: now calls `readProfileIndex()` from `profileMetadataStore.ts`. The API routes (`register-profile`, `profile-image`) were correctly migrated previously; only `layout.tsx` was missed.
 
 **2. Vault untracked-balance monitoring — Telegram alerts in the keeper (recurring reconciliation risk)**
 - Confirmed live: live `FeeRouter` predates the `receiveForToken()` audit fix and can never be replaced (`Factory.feeRouter` is set-once). Every trade fee silently accumulates "untracked" in the vaults, requiring periodic manual Safe multisig batches to unstuck (2nd batch just executed 2026-07-09, see earlier session below).
@@ -254,7 +255,7 @@ User asked for up-to-date SEO best practices research (with emphasis on AI crawl
 - `frontend/src/lib/bondingCurve.ts` (new) — Server-safe (no `"use client"`) pure bonding-curve math extracted from `wagmi/contracts.ts`: `getTokenPrice(realMon, soldTokens)`, `getGraduationProgress(realMon)`, `formatMon(wei)`, `formatTokens(wei)`.
 - `frontend/src/app/token/[id]/layout.tsx` (new) — `generateMetadata()` producing dynamic title/description/canonical/OG/Twitter tags per token (price, market cap, graduation status pulled live from the indexer + bonding curve math), plus a `BreadcrumbList` JSON-LD script in the layout body.
 - `frontend/src/app/api/og/token/[id]/route.tsx` (new) — Edge-runtime dynamic OG image (`next/og` `ImageResponse`, 1200×630) rendering token symbol/name/price/market cap/graduation status with Lickfun.xyz branding.
-- `frontend/src/app/profile/[address]/layout.tsx` (new) — `generateMetadata()` for profile pages (reputation stats, token count, volume) + `BreadcrumbList` JSON-LD. Reads off-chain display name/avatar from `frontend/src/data/profile-metadata.json`.
+- `frontend/src/app/profile/[address]/layout.tsx` (new) — `generateMetadata()` for profile pages (reputation stats, token count, volume) + `BreadcrumbList` JSON-LD. Reads off-chain display name/avatar from Storj via `readProfileIndex()` (was local `src/data/profile-metadata.json` — fixed 2026-07-16).
 - `frontend/src/app/discover/layout.tsx`, `frontend/src/app/markets/layout.tsx`, `frontend/src/app/create/layout.tsx` (new) — Static per-page `metadata` exports (unique title/description/canonical/OG/Twitter).
 - `frontend/src/app/layout.tsx` — Added `alternates.canonical`, plus sitewide `Organization` + `WebSite` (with `SearchAction`) JSON-LD.
 - `frontend/src/app/how-it-works/page.tsx` — Added a 7-question visible FAQ section + matching `FAQPage` JSON-LD (for AI answer-engine extraction/rich results). Replaced raw `<img>` logo with `next/image`.

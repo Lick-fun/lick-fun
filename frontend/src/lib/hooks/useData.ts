@@ -954,67 +954,13 @@ export function useMarket(tokenId: string): {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
-/* Reputation computation (client-side, mirrors reputation/src/ + tiers.ts)         */
-/* ────────────────────────────────────────────────────���─────────────────────────── */
+/* Reputation — re-export Tier from the canonical engine for backward compat.       */
+/* The legacy linear computeReputation() has been removed; all callers now use      */
+/* useReputation() (frontend/src/lib/hooks/useReputation.ts) which wraps the        */
+/* sigmoid scoring engine in frontend/src/lib/reputation/.                          */
+/* ──────────────────────────────────────────────────────────────────────────────── */
 
-export type Badge =
-  | "First Token"
-  | "Triple Graduate"
-  | "Deca Graduate"
-  | "Locked & Honest — 180d"
-  | "Locked & Honest — 365d"
-  | "Never Rug"
-  | "Pre-buy Honest"
-  | "Volume Maker"
-  | "Verified Founder"
-  | "OG";
-
-export type Tier = "Starter" | "Established" | "Verified";
-
-const VOLUME_MAKER_THRESHOLD = 100_000n * 10n ** 18n;
-const OG_MIN_GRADS = 3;
-
-export function computeReputation(profile: ProfileEntity): {
-  score: number;
-  tier: Tier;
-  badges: Badge[];
-} {
-  const now = BigInt(Math.floor(Date.now() / 1000));
-  const DAY = 86400n;
-  const accountAgeDays = Number((now - profile.createdAt) / DAY);
-
-  const gradRate =
-    profile.tokenCount > 0 ? profile.graduatedCount / profile.tokenCount : 0;
-  const volumeScore = Number(profile.totalBuyVolume) / 1e18;
-
-  let rawScore =
-    Math.min(profile.tokenCount * 3, 20) +
-    Math.min(profile.graduatedCount * 5, 30) +
-    gradRate * 25 +
-    Math.min(volumeScore / 5000, 20) +
-    Math.min(accountAgeDays / 10, 5);
-
-  rawScore = Math.min(Math.max(Math.round(rawScore), 0), 100);
-
-  let tier: Tier = "Starter";
-  if (rawScore >= 70) tier = "Verified";
-  else if (rawScore >= 30) tier = "Established";
-
-  const badges: Badge[] = [];
-  if (profile.tokenCount >= 1) badges.push("First Token");
-  if (profile.graduatedCount >= 3) badges.push("Triple Graduate");
-  if (profile.graduatedCount >= 10) badges.push("Deca Graduate");
-  if (accountAgeDays >= 30) badges.push("Never Rug");
-  if (accountAgeDays >= 180) badges.push("Locked & Honest — 180d");
-  if (accountAgeDays >= 365) badges.push("Locked & Honest — 365d");
-  if (gradRate >= 0.95) badges.push("Pre-buy Honest");
-  if (profile.totalBuyVolume > VOLUME_MAKER_THRESHOLD) badges.push("Volume Maker");
-  if (rawScore >= 70) badges.push("Verified Founder");
-  if (accountAgeDays >= 365 && profile.graduatedCount >= OG_MIN_GRADS)
-    badges.push("OG");
-
-  return { score: rawScore, tier, badges };
-}
+export type { Tier } from "@/lib/reputation";
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Formatting Helpers                                                               */
@@ -1044,34 +990,6 @@ export function formatTimeAgo(timestamp: bigint): string {
 
 export function formatAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-export function tierColor(tier: Tier): string {
-  switch (tier) {
-    case "Starter":
-      return "text-gray-400";
-    case "Established":
-      return "text-blue-400";
-    case "Verified":
-      return "text-amber-400";
-  }
-}
-
-export function tierBg(tier: Tier): string {
-  switch (tier) {
-    case "Starter":
-      return "bg-gray-500/10 border-gray-500/30";
-    case "Established":
-      return "bg-blue-500/10 border-blue-500/30";
-    case "Verified":
-      return "bg-amber-500/10 border-amber-500/30";
-  }
-}
-
-export function reputationColor(score: number): string {
-  if (score >= 70) return "text-green-400";
-  if (score >= 30) return "text-blue-400";
-  return "text-yellow-400";
 }
 
 /* ──────────────────────────────────────────────────────────────────────────────── */

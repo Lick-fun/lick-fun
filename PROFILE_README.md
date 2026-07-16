@@ -6,7 +6,7 @@ A meme lake on liquidity fun. Social-first token launchpad on Monad with earned 
 
 ## What is Lickfun.xyz?
 
-Lickfun.xyz is a token launchpad where your on-chain behavior is your content. No open posting feed. No shilling. Creators build a portable reputation score from their actual track record — graduation rates, lock fulfillment, pre-buy honesty — and that score unlocks real platform benefits.
+Lickfun.xyz is a token launchpad where your on-chain behavior is your content. No open posting feed. No shilling. Creators build a portable reputation score from their actual track record — graduation rates, trader diversity, cumulative volume — and that score unlocks real platform benefits.
 
 Tokens launch on a bonding curve, graduate to a built-in V2-style DEX at 100K MON, and LP tokens are burned to `0xdead` at graduation — permanent liquidity, zero rug risk.
 
@@ -18,7 +18,7 @@ Tokens launch on a bonding curve, graduate to a built-in V2-style DEX at 100K MO
 |---|---|
 | 13 Solidity contracts (3 audit passes, 137 tests) | done |
 | Envio HyperSync indexer (live GraphQL, 7 event handlers) | done |
-| Off-chain reputation engine (9-factor sigmoid, 58 tests) | done |
+| Off-chain reputation engine (9-factor sigmoid, 61 tests) | done |
 | FeeRouter tier system (Starter / Creator Extra / Creator + LP Support / Custom) — reputation-gated | done |
 | LP burned to 0xdead at graduation | done |
 | Factory onlyOwner gates + failure-tolerant fee routing | done |
@@ -45,7 +45,7 @@ Tokens launch on a bonding curve, graduate to a built-in V2-style DEX at 100K MO
 | Indexer | Envio HyperSync v3 (TypeScript + GraphQL) |
 | Frontend | Next.js 15, wagmi, RainbowKit, Tailwind CSS |
 | Images | Pinata IPFS (server-side JWT, gateway fallback cycling) |
-| Reputation | Off-chain TypeScript engine, Merkle-anchored on-chain daily |
+| Reputation | Off-chain TypeScript engine, Merkle-anchored on-chain daily (Stage 6 — not yet wired) |
 
 ---
 

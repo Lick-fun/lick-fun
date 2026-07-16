@@ -5,11 +5,11 @@ import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  useToken, useTokenTradesMerged, useMarket, useProfile, useTokenMeta,
+  useToken, useTokenTradesMerged, useMarket, useTokenMeta,
   useTokenPriceBars,
   formatTimeAgo, formatAddress,
-  computeReputation,
 } from "@/lib/hooks/useData";
+import { useReputation } from "@/lib/hooks/useReputation";
 import { useTokenPair } from "@/lib/wagmi/contracts";
 import { TradePanel } from "@/components/token/TradePanel";
 
@@ -53,8 +53,7 @@ export default function TokenDetailPage() {
   } = useTokenTradesMerged(tokenId, token?.curve, token?.startBlock);
   const { data: market } = useMarket(tokenId);
   const creatorAddress = token?.creator ?? "";
-  const { data: creatorProfile } = useProfile(creatorAddress);
-  const reputation = creatorProfile ? computeReputation(creatorProfile) : null;
+  const { data: reputation } = useReputation(creatorAddress);
   const { name: tokenName, symbol: tokenSymbol } = useTokenMeta(tokenId, token?.name ?? "", token?.symbol ?? "");
   const { bars, resolution, setResolution, isLoading: barsLoading } = useTokenPriceBars(tokenId);
   const { data: ipfsMeta } = useTokenIpfsMeta(tokenId);
@@ -218,7 +217,7 @@ export default function TokenDetailPage() {
                   {reputation && (
                     <>
                       <span>·</span>
-                      <span className="text-figma-green font-semibold">Rep {reputation.score}</span>
+                      <span className="text-figma-green font-semibold">Rep {Math.round(reputation.reputation)}</span>
                     </>
                   )}
                 </div>

@@ -28,7 +28,7 @@ import {
 import { FounderTokenBanner } from "@/components/home/FounderTokenBanner";
 import { KNOWN_ADDRESS_LABELS, isKnownAddress } from "@/lib/knownAddresses";
 
-type SortOption = "lastTrade" | "largestMC" | "newestCreated" | "highestReputation";
+type SortOption = "lastTrade" | "largestMC" | "newestCreated" | "highestVolume";
 
 const TOKENS_PER_PAGE = 60; // 10 rows × 6 cols
 
@@ -133,7 +133,7 @@ export default function HomePage() {
         );
       case "newestCreated":
         return list.sort((a, b) => Number(b.createdAt - a.createdAt));
-      case "highestReputation":
+      case "highestVolume":
         return list.sort((a, b) => {
           const aVol = Number(a.totalBuyVolume + a.totalSellVolume);
           const bVol = Number(b.totalBuyVolume + b.totalSellVolume);
@@ -174,7 +174,7 @@ export default function HomePage() {
     { key: "lastTrade",         label: "Last Trade" },
     { key: "largestMC",         label: "Largest MC" },
     { key: "newestCreated",     label: "Newest Created" },
-    { key: "highestReputation", label: "Highest Reputation" },
+    { key: "highestVolume",     label: "Highest Volume" },
   ];
 
   /* True once the tokenMap multicall has resolved at least one name.

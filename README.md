@@ -8,7 +8,7 @@
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 [![Tests](https://img.shields.io/badge/Tests-176%20Forge%20•%2061%20Vitest-green)](.)
 
-**Status:** 🟢 **Live on Monad mainnet (chain 143)** · 29-finding mainnet security audit completed + all fixes applied (164 → 176 Forge tests) · Phase 3 — custom fee config for all users · **Phase 4 hardening (2026-07-13)** — V2 buyback-and-burn vault live (burn-to-dead-address, works with every ERC-20), vault auto-execution at 50 MON threshold with 5% on-chain slippage cap, untracked-vault-balance Telegram alerting in the keeper, Storj-backed profile metadata (survives Railway redeploys), Sentry error monitoring + Plausible analytics opt-in (env-gated, no-op without DSN), `/terms` and `/privacy` pages (legal-review pending) · **UI overhaul (2026-07-16)** — full Figma redesign (purple/lime theme) merged across every page and component, production infra (Sentry, WalletConnect fail-fast, Storj-backed profile storage) verified intact · **Profile/reputation upgrades (2026-07-16)** — new "First Graduation" badge (11 badges total), on-chain token name/symbol resolution on profile Holdings + Tokens Created lists (fixes blank names from indexer), token page Holders list now shows the bonding curve (pre-grad unsold supply), the DEX liquidity pool (post-grad), and the dead/burn address (🔥 Burned) as labeled rows · **Profile Activity tabs (2026-07-16)** — Activity rows (All/Buys/Sells) now show the token **name** (was symbol only) with USD value traded as primary (MON secondary); Creates tab shows token name + market cap USD; holdings name fallback fixed so on-chain `name()`/`symbol()` resolution fires instead of leaking truncated contract addresses. 4 tokens live, fees verified to Safe multisig treasury `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` (block 83961211).
+**Status:** 🟢 **Live on Monad mainnet (chain 143)** · 29-finding mainnet security audit completed + all fixes applied (164 → 176 Forge tests) · Phase 3 — custom fee config for all users · **Phase 4 hardening (2026-07-13)** — V2 buyback-and-burn vault live (burn-to-dead-address, works with every ERC-20), vault auto-execution at 50 MON threshold with 5% on-chain slippage cap, untracked-vault-balance Telegram alerting in the keeper, Storj-backed profile metadata (survives Railway redeploys), Sentry error monitoring + Plausible analytics opt-in (env-gated, no-op without DSN), `/terms` and `/privacy` pages (legal-review pending) · **UI overhaul (2026-07-16)** — full Figma redesign (purple/lime theme) merged across every page and component, production infra (Sentry, WalletConnect fail-fast, Storj-backed profile storage) verified intact · **Profile/reputation upgrades (2026-07-16)** — new "First Graduation" badge (12 badges total), on-chain token name/symbol resolution on profile Holdings + Tokens Created lists (fixes blank names from indexer), token page Holders list now shows the bonding curve (pre-grad unsold supply), the DEX liquidity pool (post-grad), and the dead/burn address (🔥 Burned) as labeled rows · **Profile Activity tabs (2026-07-16)** — Activity rows (All/Buys/Sells) now show the token **name** (was symbol only) with USD value traded as primary (MON secondary); Creates tab shows token name + market cap USD; holdings name fallback fixed so on-chain `name()`/`symbol()` resolution fires instead of leaking truncated contract addresses · **Reputation consistency fix (2026-07-16)** — unified the token page + profile page onto a single sigmoid scoring engine (removed divergent legacy linear `computeReputation`), trader-only wallets now get a Starter score (was blank), homepage "Highest Reputation" sort renamed to "Highest Volume" (was volume-sorted under a misleading label), `medianGradVolume` normalized to the 100k MON graduation threshold (was per-profile → always ~1.0), "Never Rug" + "Pre-buy Honest" badges suppressed until their signals are indexed, profile OG/Twitter meta tags migrated to Storj (was local-disk, stale on Railway redeploys). 4 tokens live, fees verified to Safe multisig treasury `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` (block 83961211).
 
 ## Overview
 
@@ -42,7 +42,7 @@ Every creator sets their own fee split at launch via a Nad.fun-style toggle-card
 All enabled shares must sum to exactly 100%. No tier gating — available to every wallet regardless of reputation. Gift split is optional (toggle ON to reveal address input).
 
 ### 5. Earn Reputation
-Every on-chain action feeds an off-chain reputation engine. Scores (0–100) computed from graduation rates, lock fulfillment, pre-buy honesty, profile age, verified tenure, and volume. Sigmoid formula: `100 / (1 + e^(-0.15 × (raw - 0.4)))`. Anchored daily on-chain via Merkle root in ProfileRegistry. 11 milestone badges auto-awarded.
+Every on-chain action feeds an off-chain reputation engine. Scores (0–100) computed from graduation rates, trader diversity, cumulative graduated volume, account age, and burst/self-trade penalties. Sigmoid formula: `100 / (1 + e^(-0.15 × (raw - 0.4)))`. 12 milestone badges (10 earnable + Founder + First Graduation). Computed client-side per profile view; daily Merkle-root anchoring to an on-chain ProfileRegistry is spec'd for Stage 6 (not yet wired).
 
 ### 6. View Profile
 Connected wallet → click Profile in nav → see live trading stats, reputation score, tier badge, achievements, tokens created, and recent activity — all from the Envio indexer.
@@ -142,7 +142,7 @@ lick-fun/
 │   ├── src/instrumentation*  Sentry + instrumentation hooks (env-gated, no-op without DSN)
 │   └── src/components/ UI + layout + reputation + token (TradePanel, PriceChart, CurveChart, Footer, Analytics)
 ├── indexer/            Envio HyperIndex v3 config + handlers (5 entities)
-├── reputation/         Off-chain TypeScript scoring engine (11 badges, 3 tiers, Merkle anchor)
+├── reputation/         Off-chain TypeScript scoring engine (12 badges, 3 tiers, Merkle anchor)
 ├── .memory/            RAG reference files for Cline (latest 2026-* session notes tracked)
 └── script/             Utility scripts
     ├── graduation-keeper.ts            Polls CurveGraduate, auto-migrates graduated tokens, auto-executes vaults at 50 MON threshold
@@ -152,21 +152,24 @@ lick-fun/
 
 ---
 
-## Reputation Badges (11 total)
+## Reputation Badges (12 total)
 
 | Badge | Condition |
 |---|---|
+| Founder | Hardcoded — deployer wallet only (not earnable) |
 | First Token | tokenCount ≥ 1 |
 | First Graduation | graduatedCount ≥ 1 (no diversity gate) |
 | Triple Graduate | graduatedCount ≥ 3 + trader diversity ≥ 30% |
 | Deca Graduate | graduatedCount ≥ 10 + trader diversity ≥ 30% |
 | Crowd Favourite | One graduated token with 200+ unique buyers |
 | Diamond Hands | Never sold creator allocation on a graduated token |
-| Never Rug | age ≥ 30d + zero rug events |
-| Pre-buy Honest | prebuy honesty rate ≥ 95% |
+| Never Rug | age ≥ 30d + zero rug events *(suppressed — rug detection not yet indexed)* |
+| Pre-buy Honest | prebuy honesty rate ≥ 95% *(suppressed — pre-buy tagging not yet indexed)* |
 | Volume Maker | cumulative grad volume > 100K MON |
 | Verified Founder | reputation score ≥ 70 |
 | OG | age ≥ 365d + ≥ 3 graduates + trader diversity ≥ 30% |
+
+> **Note:** "Never Rug" and "Pre-buy Honest" are currently suppressed in the frontend because their underlying signals (rug events, pre-buy honesty) are not yet indexed. They will be re-enabled once that data is available. The scoring weights for those factors contribute 0 in the meantime.
 
 ---
 
@@ -196,8 +199,8 @@ cd contracts && forge script script/DeployMainnet.s.sol:DeployMainnet --rpc-url 
 
 Proprietary — see [LICENSE](LICENSE).
 ├── indexer/            Envio HyperSync (TypeScript + GraphQL)
-├── reputation/         Off-chain reputation engine (TypeScript, 58 tests)
-└── frontend/           Next.js 15.5 (9 pages, wagmi, RainbowKit)
+├── reputation/         Off-chain reputation engine (TypeScript, 61 tests)
+└── frontend/           Next.js 15.5 (11 pages, wagmi, RainbowKit)
 ```
 
 ---

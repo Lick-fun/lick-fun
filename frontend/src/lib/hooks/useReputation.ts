@@ -48,18 +48,24 @@ function useTradesByTrader(address: string) {
 
 /**
  * Compute the median graduated volume across a list of tokens.
- * Used as the normalization denominator for the volume factor.
+ *
+ * NOTE: Previously this was computed per-profile (only the creator's own
+ * graduated tokens), which made fVol ≈ 1.0 for any creator with ≥1 graduation
+ * (their own volume divided by their own median). The scoring formula intends
+ * a GLOBAL normalization denominator.
+ *
+ * Fetching all graduated tokens across all profiles just to compute a median
+ * is too heavy for a per-profile client-side hook. Instead we use a fixed
+ * protocol constant: the graduation threshold (100,000 MON). A graduated token
+ * has raised ≥100k MON by definition, so this is a stable, meaningful
+ * normalization point. Creators whose graduated tokens raised more than the
+ * threshold get fVol → 1.0; those with smaller graduations get a proportional
+ * fraction. This matches the intent without a network round-trip.
  */
-function medianGradVolume(tokens: TokenEntity[]): bigint {
-  const graduated = tokens.filter((t) => t.graduated);
-  if (graduated.length === 0) return 0n;
-  const volumes = graduated
-    .map((t) => t.totalBuyVolume + t.totalSellVolume)
-    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  const mid = Math.floor(volumes.length / 2);
-  return volumes.length % 2 === 0
-    ? (volumes[mid - 1] + volumes[mid]) / 2n
-    : volumes[mid];
+const GRADUATION_THRESHOLD_MON = 100_000n * 10n ** 18n; // 100k MON
+
+function medianGradVolume(): bigint {
+  return GRADUATION_THRESHOLD_MON;
 }
 
 /**
@@ -141,18 +147,19 @@ function buildTokenDiversityData(tokens: TokenEntity[]): TokenDiversityData[] {
  * Compute pre-buy honesty rate: fraction of the creator's own buys
  * (where trader == creator) that were small relative to their sells.
  *
- * Without explicit "pre-buy" tagging, we approximate: a creator's buys
- * on their own tokens are honest if they don't exceed 5% of total buys.
+ * Without explicit "pre-buy" tagging indexed on-chain, we cannot measure this
+ * accurately. Returning 0.0 (rather than the previous 1.0) ensures:
+ *   - The w_hon scoring factor contributes 0 (no unearned bonus)
+ *   - The "Pre-buy Honest" badge (threshold 0.95) is NOT auto-awarded
+ * Once pre-buy events are indexed, replace this with a real computation.
  */
 function prebuyHonestyRate(
   tokens: TokenEntity[],
   trades: TradeEntity[]
 ): number {
-  if (tokens.length === 0) return 1.0;
-  // No rug detection yet — default to 1.0 (fully honest) until
-  // rug events are indexed. This is the safe default.
+  void tokens;
   void trades;
-  return 1.0;
+  return 0.0;
 }
 
 /**
@@ -174,19 +181,34 @@ export function useReputation(address: string) {
     useTradesByTrader(address);
 
   const result = useMemo<ScoringResult | null>(() => {
-    if (!profile) return null;
+    // Trader-only profiles: the indexer only creates a Profile row on
+    // Factory.TokenCreated, so wallets that only buy/sell have no Profile.
+    // Synthesize a minimal profile from trade data so they still get a
+    // Starter-tier score + relevant badges instead of nothing.
+    const hasTradeData = trades.length > 0;
+    if (!profile && !hasTradeData) return null;
 
     const nowSec = BigInt(Math.floor(Date.now() / 1000));
+
+    // accountAgeDays: from Profile.createdAt (creators) or earliest trade
+    // timestamp (trader-only wallets). Falls back to 0 if neither exists.
+    const createdAt = profile?.createdAt
+      ?? (trades.length > 0
+        ? trades.reduce(
+            (min, t) => (t.blockTimestamp < min ? t.blockTimestamp : min),
+            trades[0].blockTimestamp
+          )
+        : nowSec);
     const accountAgeDays = Math.max(
       0,
-      Math.floor(Number(nowSec - profile.createdAt) / 86_400)
+      Math.floor(Number(nowSec - createdAt) / 86_400)
     );
 
-    const tokenCount = profile.tokenCount;
-    const graduatedCount = profile.graduatedCount;
+    const tokenCount = profile?.tokenCount ?? 0;
+    const graduatedCount = profile?.graduatedCount ?? 0;
 
     const cumVol = cumulativeGradVolume(tokens);
-    const medVol = medianGradVolume(tokens);
+    const medVol = medianGradVolume();
     const honestRate = prebuyHonestyRate(tokens, trades);
 
     const qualityGradRate = computeQualityGradRate(tokens, medVol);
@@ -211,7 +233,18 @@ export function useReputation(address: string) {
       linkedWallets: [], // ProfileRegistry not deployed yet
     };
 
-    return computeScore(address.toLowerCase(), inputs, tokenDiversityData);
+    const score = computeScore(address.toLowerCase(), inputs, tokenDiversityData);
+
+    // Filter out badges that depend on data we don't yet index.
+    // - "Never Rug": requires rugEvents to be indexed to verify "no rugs".
+    //   With rugEvents always [], the badge would auto-award to everyone —
+    //   suppress it until rug detection is live.
+    // - "Pre-buy Honest": already suppressed via prebuyHonestyRate() returning 0,
+    //   but double-filter here for safety.
+    const UNMEASURED_BADGES = new Set(["Never Rug", "Pre-buy Honest"]);
+    const filteredBadges = score.badges.filter((b) => !UNMEASURED_BADGES.has(b));
+
+    return { ...score, badges: filteredBadges };
   }, [address, profile, tokens, trades]);
 
   return {
