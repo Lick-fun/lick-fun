@@ -106,15 +106,13 @@ export default function DiscoverPage() {
   }, [tokensWithMeta, search, sort, filter]);
 
   return (
-    <div className="bg-figma-bg min-h-screen px-5 pb-20 lg:pb-10">
+    <div className="min-h-screen px-5 pb-20 lg:pb-10">
+      <div className="mx-auto max-w-[1500px]">
       {/* Page Header */}
-      <div className="pt-8 mb-8">
-        <h1 className="text-figma-3xl text-figma-white font-bold mb-1">
-          Discover Tokens
-        </h1>
-        <p className="text-figma-sm text-figma-muted">
-          Explore tokens launching on the Lickfun.xyz bonding curve.
-        </p>
+      <div className="pb-8 pt-10">
+        <span className="text-xs font-extrabold uppercase tracking-[0.18em] text-figma-purple-soft">The meme lake</span>
+        <h1 className="mt-2 font-display text-4xl font-extrabold tracking-tight text-figma-white md:text-5xl">Find your next obsession.</h1>
+        <p className="mt-3 max-w-xl text-sm leading-relaxed text-figma-muted">Filter fresh launches, inspect creator reputation, and discover what&apos;s moving on Monad.</p>
       </div>
 
       {/* Search + Controls */}
@@ -127,7 +125,7 @@ export default function DiscoverPage() {
             placeholder="Search by name, symbol, or creator address..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-pill border border-figma-surface bg-figma-card text-figma-white text-sm placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors"
+            className="w-full rounded-2xl border border-figma-purple/20 bg-figma-card py-3.5 pl-11 pr-4 text-sm text-figma-white outline-none transition-all placeholder:text-figma-muted focus:border-figma-purple/70 focus:shadow-glow-purple-sm"
           />
         </div>
 
@@ -142,7 +140,7 @@ export default function DiscoverPage() {
                 className={cn(
                   "px-4 py-1.5 rounded-pill text-sm font-medium transition-all",
                   filter === f
-                    ? "bg-figma-green text-figma-bg"
+                    ? "bg-figma-purple text-figma-white shadow-glow-purple-sm"
                     : "text-figma-muted hover:text-figma-white"
                 )}
               >
@@ -190,7 +188,7 @@ export default function DiscoverPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-20 text-figma-muted">
-          <div className="text-figma-3xl mb-4">🔍</div>
+          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-figma-purple/15 text-figma-purple-soft"><Search className="size-6" /></div>
           <p className="text-figma-lg text-figma-white font-medium mb-2">
             No tokens found
           </p>
@@ -242,6 +240,7 @@ export default function DiscoverPage() {
       >
         <Plus className="w-6 h-6 text-figma-bg" />
       </Link>
+      </div>
     </div>
   );
 }

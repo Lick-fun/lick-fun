@@ -2,6 +2,7 @@ packages:
   - 'frontend'
   - 'indexer'
 allowBuilds:
+  '@sentry/cli': true
   bufferutil: true
   esbuild: true
   keccak: true

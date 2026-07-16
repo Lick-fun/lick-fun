@@ -3,7 +3,16 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount, useReadContracts } from "wagmi";
-import { mockTokens, mockMarkets, getMockOdds } from "@/lib/mock/data";
+import {
+  mockTokens,
+  mockMarkets,
+  mockProfiles,
+  mockTrades,
+  getMockOdds,
+  getMockTradesForToken,
+  getMockProfile,
+  getMockTokensByCreator,
+} from "@/lib/mock/data";
 import {
   getTokenPrice,
   getGraduationProgress,
@@ -84,6 +93,21 @@ function decorateToken(t: TokenEntity) {
 export type DecoratedToken = ReturnType<typeof decorateToken>;
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
+/* Mock mode — renders the UI with realistic sample data when no live Envio          */
+/* GraphQL indexer is configured (e.g. in a preview without env vars). As soon as    */
+/* NEXT_PUBLIC_ENVIO_GRAPHQL_URL points at a real indexer, live data takes over.     */
+/* ──────────────────────────────────────────────────────────────────────────────── */
+
+const ENVIO_URL = process.env.NEXT_PUBLIC_ENVIO_GRAPHQL_URL;
+export const MOCK_MODE =
+  !ENVIO_URL || ENVIO_URL.includes("localhost") || ENVIO_URL.includes("127.0.0.1");
+
+// Small async delay so loading states still flash briefly in mock mode.
+function mockDelay<T>(value: T, ms = 250): Promise<T> {
+  return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────── */
 /* Live Envio GraphQL hooks                                                          */
 /* ──────────────────────────────────────────────────────────────────────────────── */
 
@@ -91,6 +115,9 @@ export function useAllTokens() {
   return useQuery({
     queryKey: ["all-tokens"],
     queryFn: async () => {
+      if (MOCK_MODE) {
+        return mockDelay(mockTokens.map((t) => decorateToken(t)));
+      }
       const client = getGraphQLClient();
       const res = await client.request<{ Token: unknown[] }>(QUERY_ALL_TOKENS, {
         limit: 100,
@@ -99,7 +126,7 @@ export function useAllTokens() {
         decorateToken(toBigIntToken(r))
       );
     },
-    refetchInterval: 10_000, // live prices on home + discover grids
+    refetchInterval: MOCK_MODE ? false : 10_000, // live prices on home + discover grids
   });
 }
 
@@ -108,6 +135,12 @@ export function useToken(tokenId: string) {
     queryKey: ["token", tokenId.toLowerCase()],
     enabled: !!tokenId,
     queryFn: async () => {
+      if (MOCK_MODE) {
+        const t = mockTokens.find(
+          (m) => m.id.toLowerCase() === tokenId.toLowerCase()
+        );
+        return mockDelay(t ? decorateToken(t) : null);
+      }
       const client = getGraphQLClient();
       const res = await client.request<{ Token_by_pk: unknown | null }>(QUERY_TOKEN, {
         id: tokenId.toLowerCase(),
@@ -115,7 +148,7 @@ export function useToken(tokenId: string) {
       if (!res.Token_by_pk) return null;
       return decorateToken(toBigIntToken(res.Token_by_pk));
     },
-    refetchInterval: 5_000, // live price on token detail page
+    refetchInterval: MOCK_MODE ? false : 5_000, // live price on token detail page
   });
 }
 
@@ -124,6 +157,9 @@ export function useTokenTrades(tokenId: string) {
     queryKey: ["token-trades", tokenId.toLowerCase()],
     enabled: !!tokenId,
     queryFn: async () => {
+      if (MOCK_MODE) {
+        return mockDelay(getMockTradesForToken(tokenId));
+      }
       const client = getGraphQLClient();
       const res = await client.request<{ Trade: unknown[] }>(
         QUERY_TRADES_BY_TOKEN,
@@ -131,7 +167,7 @@ export function useTokenTrades(tokenId: string) {
       );
       return ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
     },
-    refetchInterval: 10_000, // keep recent trades list fresh
+    refetchInterval: MOCK_MODE ? false : 10_000, // keep recent trades list fresh
   });
 }
 
@@ -226,6 +262,9 @@ export function useProfile(address: string) {
     queryKey: ["profile", address.toLowerCase()],
     enabled: !!address,
     queryFn: async () => {
+      if (MOCK_MODE) {
+        return mockDelay(getMockProfile(address) ?? mockProfiles[0]);
+      }
       const client = getGraphQLClient();
       const res = await client.request<{ Profile_by_pk: unknown | null }>(
         QUERY_PROFILE,
@@ -242,6 +281,11 @@ export function useTokensByCreator(creator: string) {
     queryKey: ["tokens-by-creator", creator.toLowerCase()],
     enabled: !!creator,
     queryFn: async () => {
+      if (MOCK_MODE) {
+        return mockDelay(
+          getMockTokensByCreator(creator).map((t) => decorateToken(t))
+        );
+      }
       const client = getGraphQLClient();
       const res = await client.request<{ Token: unknown[] }>(QUERY_ALL_TOKENS, {
         limit: 100,
@@ -258,6 +302,9 @@ export function useAllProfiles() {
   return useQuery({
     queryKey: ["all-profiles"],
     queryFn: async () => {
+      if (MOCK_MODE) {
+        return mockDelay(mockProfiles);
+      }
       const client = getGraphQLClient();
       const res = await client.request<{ Profile: unknown[] }>(QUERY_ALL_PROFILES);
       return ((res.Profile as unknown[]) ?? []).map((r) => toBigIntProfile(r));
@@ -269,6 +316,9 @@ export function useLeaderboard(limit: number = 20) {
   return useQuery({
     queryKey: ["leaderboard", limit],
     queryFn: async () => {
+      if (MOCK_MODE) {
+        return mockDelay(mockProfiles.slice(0, limit));
+      }
       const client = getGraphQLClient();
       const res = await client.request<{ Profile: unknown[] }>(QUERY_LEADERBOARD, {
         limit,
@@ -282,13 +332,16 @@ export function useRecentTrades(limit: number = 10) {
   return useQuery({
     queryKey: ["recent-trades", limit],
     queryFn: async () => {
+      if (MOCK_MODE) {
+        return mockDelay(mockTrades.slice(0, limit));
+      }
       const client = getGraphQLClient();
       const res = await client.request<{ Trade: unknown[] }>(QUERY_RECENT_TRADES, {
         limit,
       });
       return ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
     },
-    refetchInterval: 15_000, // refresh every 15s for live feed
+    refetchInterval: MOCK_MODE ? false : 15_000, // refresh every 15s for live feed
   });
 }
 
@@ -342,9 +395,19 @@ export function useTokenPriceChanges(
       currentPrices ? Array.from(currentPrices.entries()) : null,
     ],
     queryFn: async () => {
-      const client = getGraphQLClient();
       const map = new Map<string, number>();
       if (tokenIds.length === 0) return map;
+      if (MOCK_MODE) {
+        // Deterministic pseudo-random 24h change per token so the UI feels alive.
+        tokenIds.forEach((id) => {
+          let hash = 0;
+          for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0xffff;
+          const pct = ((hash % 4000) - 1500) / 100; // range ≈ -15% .. +25%
+          map.set(id.toLowerCase(), pct);
+        });
+        return map;
+      }
+      const client = getGraphQLClient();
 
       // Fetch earliest 24h trade per token (one lightweight query each).
       // With up to 60 paginated tokens this is acceptable; for larger grids
@@ -892,7 +955,7 @@ export function useMarket(tokenId: string): {
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
 /* Reputation computation (client-side, mirrors reputation/src/ + tiers.ts)         */
-/* ──────────────────────────────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────���─────────────────────────── */
 
 export type Badge =
   | "First Token"

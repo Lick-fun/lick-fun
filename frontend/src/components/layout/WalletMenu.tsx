@@ -40,7 +40,7 @@ export function WalletMenu() {
             <button
               onClick={openConnectModal}
               type="button"
-              className="flex items-center justify-center px-3 py-2 rounded-lg bg-figma-surface hover:bg-figma-surface/80 text-sm font-medium transition-colors text-figma-white"
+              className="flex items-center justify-center rounded-xl border border-figma-purple/30 bg-figma-card px-3.5 py-2.5 text-sm font-bold text-figma-white transition-all hover:border-figma-purple/70 hover:bg-figma-purple/10"
             >
               {!ready ? "" : "Connect"}
             </button>
@@ -162,8 +162,8 @@ function ConnectedMenu({
         className={cn(
           "flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border transition-colors",
           open
-            ? "border-figma-green bg-figma-surface"
-            : "border-figma-surface bg-figma-card hover:bg-figma-surface"
+            ? "border-figma-purple bg-figma-purple/15 shadow-glow-purple-sm"
+            : "border-figma-purple/25 bg-figma-card hover:border-figma-purple/60 hover:bg-figma-purple/10"
         )}
       >
         <span
@@ -190,7 +190,7 @@ function ConnectedMenu({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-2 w-64 rounded-card border border-figma-surface bg-figma-card shadow-2xl overflow-hidden z-50"
+          className="absolute right-0 top-full z-50 mt-3 w-64 overflow-hidden rounded-2xl border border-figma-purple/25 bg-figma-card/95 shadow-glow-purple backdrop-blur-xl"
         >
           {/* Header — avatar + name + address */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-figma-surface">

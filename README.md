@@ -8,7 +8,7 @@
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
 [![Tests](https://img.shields.io/badge/Tests-176%20Forge%20•%2058%20Vitest-green)](.)
 
-**Status:** 🟢 **Live on Monad mainnet (chain 143)** · 29-finding mainnet security audit completed + all fixes applied (164 → 176 Forge tests) · Phase 3 — custom fee config for all users · **Phase 4 hardening (2026-07-13)** — V2 buyback-and-burn vault live (burn-to-dead-address, works with every ERC-20), vault auto-execution at 50 MON threshold with 5% on-chain slippage cap, untracked-vault-balance Telegram alerting in the keeper, Storj-backed profile metadata (survives Railway redeploys), Sentry error monitoring + Plausible analytics opt-in (env-gated, no-op without DSN), `/terms` and `/privacy` pages (legal-review pending). 4 tokens live, fees verified to Safe multisig treasury `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` (block 83961211).
+**Status:** 🟢 **Live on Monad mainnet (chain 143)** · 29-finding mainnet security audit completed + all fixes applied (164 → 176 Forge tests) · Phase 3 — custom fee config for all users · **Phase 4 hardening (2026-07-13)** — V2 buyback-and-burn vault live (burn-to-dead-address, works with every ERC-20), vault auto-execution at 50 MON threshold with 5% on-chain slippage cap, untracked-vault-balance Telegram alerting in the keeper, Storj-backed profile metadata (survives Railway redeploys), Sentry error monitoring + Plausible analytics opt-in (env-gated, no-op without DSN), `/terms` and `/privacy` pages (legal-review pending) · **UI overhaul (2026-07-16)** — full Figma redesign (purple/lime theme) merged across every page and component, production infra (Sentry, WalletConnect fail-fast, Storj-backed profile storage) verified intact. 4 tokens live, fees verified to Safe multisig treasury `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` (block 83961211).
 
 ## Overview
 
@@ -290,6 +290,7 @@ ProfileRegistry            Wallet linking (0.1 MON bond, checked refund, anchor 
 | + | Plausible analytics opt-in (cookie-less, no-op without DOMAIN) | ✅ done |
 | + | `/terms` and `/privacy` pages (legal-review pending) | ✅ done |
 | + | V2 buyback burns confirmed end-to-end (founder token 11.3M+ tokens sent to `0x…dEaD`) | ✅ done |
+| + | Full UI overhaul — Figma redesign (purple/lime theme) merged across every page/component | ✅ done |
 | -> | ProfileRegistry + VestingController mainnet deploy (Phase 5) | pending |
 176 Forge tests · 58 vitest tests · 15 contracts · 11 pages · All green
 

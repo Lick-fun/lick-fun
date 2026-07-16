@@ -20,6 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 // Used by the token detail price chart toolbar/header to match the
 // TradingView-style Figma design (Sora ExtraBold for labels/buttons).
+// Sora doubles as the punchy display face for headings / meme-energy hero copy.
 const sora = Sora({
   subsets: ["latin"],
   variable: "--font-sora",
@@ -38,6 +39,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/tokens/founder-token.png",
+    apple: "/tokens/founder-token.png",
   },
 
   openGraph: {

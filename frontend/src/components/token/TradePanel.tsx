@@ -257,7 +257,7 @@ export function TradePanel({
   }
 
   return (
-    <div className="rounded-xl border border-figma-card bg-figma-card overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border border-figma-purple/25 bg-figma-card shadow-glow-purple-sm">
       {/* DEX badge when graduated */}
       {graduated && pairAddress && (
         <div className="flex items-center justify-center gap-1.5 py-1.5 bg-purple-500/10 border-b border-purple-500/20">

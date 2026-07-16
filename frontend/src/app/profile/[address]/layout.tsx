@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { promises as fs } from "fs";
+import path from "path";
 import { getGraphQLClient } from "@/lib/graphql/client";
 import { QUERY_PROFILE, type ProfileEntity } from "@/lib/graphql/queries";
 import { formatMon } from "@/lib/bondingCurve";
-import { readProfileIndex } from "@/lib/server/profileMetadataStore";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://lickfun.xyz";
+const DATA_FILE = path.join(process.cwd(), "src", "data", "profile-metadata.json");
 
 interface ProfileResponse {
   Profile_by_pk: Record<string, unknown> | null;
@@ -49,7 +51,8 @@ async function getProfileData(address: string) {
 
 async function getProfileMeta(address: string): Promise<ProfileMetaEntry | null> {
   try {
-    const store = await readProfileIndex();
+    const raw = await fs.readFile(DATA_FILE, "utf-8");
+    const store = JSON.parse(raw) as Record<string, ProfileMetaEntry>;
     return store[address.toLowerCase()] ?? null;
   } catch {
     return null;

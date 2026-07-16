@@ -228,7 +228,7 @@ export default function CreateTokenPage() {
             Launch your token on the Lickfun.xyz bonding curve.
           </p>
         </div>
-        <div className="rounded-card border border-figma-card bg-figma-card p-10 flex flex-col items-center gap-5 text-center">
+        <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-10 flex flex-col items-center gap-5 text-center">
           <div className="w-16 h-16 rounded-card gradient-lick flex items-center justify-center">
             <Rocket className="w-8 h-8 text-figma-bg" />
           </div>
@@ -265,7 +265,7 @@ export default function CreateTokenPage() {
           </div>
           <div>
             <h2 className="text-figma-2xl text-figma-green font-bold mb-1">
-              Token Created! 🎉
+              Token created
             </h2>
             <p className="text-figma-sm text-figma-muted">
               Your token is live on the bonding curve.
@@ -318,7 +318,7 @@ export default function CreateTokenPage() {
 
       <form onSubmit={handleSubmit} className="space-y-3">
         {/* ── Top row: Image (left) + Token Details (right) ── */}
-        <div className="rounded-card border border-figma-card bg-figma-card p-4">
+        <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-4">
           <div className="grid grid-cols-1 md:grid-cols-[140px_1fr] gap-4">
             {/* Image uploader — compact square */}
             <div className="space-y-2">
@@ -417,7 +417,7 @@ export default function CreateTokenPage() {
                     disabled={isLoading}
                     maxLength={64}
                     required
-                    className="w-full px-3 py-2 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50 text-figma-sm"
+                    className="w-full px-3 py-2 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-purple transition-colors disabled:opacity-50 text-figma-sm"
                   />
                 </div>
 
@@ -438,7 +438,7 @@ export default function CreateTokenPage() {
                     disabled={isLoading}
                     maxLength={8}
                     required
-                    className="w-full px-3 py-2 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50 text-figma-sm font-mono"
+                    className="w-full px-3 py-2 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-purple transition-colors disabled:opacity-50 text-figma-sm font-mono"
                   />
                 </div>
               </div>
@@ -460,7 +460,7 @@ export default function CreateTokenPage() {
                   maxLength={280}
                   rows={2}
                   required
-                  className="w-full px-3 py-2 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors disabled:opacity-50 text-figma-sm resize-none"
+                  className="w-full px-3 py-2 rounded-card border border-figma-surface bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-purple transition-colors disabled:opacity-50 text-figma-sm resize-none"
                 />
               </div>
             </div>
@@ -468,7 +468,7 @@ export default function CreateTokenPage() {
         </div>
 
         {/* ── Social Links — 3 columns ── */}
-        <div className="rounded-card border border-figma-card bg-figma-card p-4">
+        <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-4">
           <div className="flex items-center gap-1.5 mb-3">
             <Link2 className="w-3.5 h-3.5 text-figma-green" />
             <h2 className="text-figma-xs font-semibold text-figma-muted uppercase tracking-wider">
@@ -497,7 +497,7 @@ export default function CreateTokenPage() {
                   "w-full px-3 py-2 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
                   telegramError
                     ? "border-figma-red focus:border-figma-red"
-                    : "border-figma-surface focus:border-figma-green"
+                    : "border-figma-surface focus:border-figma-purple"
                 )}
               />
               {telegramError && (
@@ -524,7 +524,7 @@ export default function CreateTokenPage() {
                   "w-full px-3 py-2 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
                   twitterError
                     ? "border-figma-red focus:border-figma-red"
-                    : "border-figma-surface focus:border-figma-green"
+                    : "border-figma-surface focus:border-figma-purple"
                 )}
               />
               {twitterError && (
@@ -551,7 +551,7 @@ export default function CreateTokenPage() {
                   "w-full px-3 py-2 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm",
                   websiteError
                     ? "border-figma-red focus:border-figma-red"
-                    : "border-figma-surface focus:border-figma-green"
+                    : "border-figma-surface focus:border-figma-purple"
                 )}
               />
               {websiteError && (
@@ -564,7 +564,7 @@ export default function CreateTokenPage() {
         </div>
 
         {/* ── Fee Strategy ── */}
-        <div className="rounded-card border border-figma-card bg-figma-card p-4">
+        <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-4">
           <FeeConfigSelector
             onChange={handleFeeChange}
           />
@@ -573,7 +573,7 @@ export default function CreateTokenPage() {
         {/* ── Bottom row: Dev Purchase (left) + Deploy Cost (right) ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* Dev Purchase */}
-          <div className="rounded-card border border-figma-card bg-figma-card p-4 space-y-3">
+          <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-4 space-y-3">
             <div className="flex items-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5 text-figma-green" />
               <h2 className="text-figma-xs font-semibold text-figma-muted uppercase tracking-wider">
@@ -640,7 +640,7 @@ export default function CreateTokenPage() {
                   "w-full px-3 py-2 rounded-card border bg-figma-bg text-figma-white placeholder:text-figma-muted focus:outline-none transition-colors disabled:opacity-50 text-figma-sm font-mono",
                   devBuyError
                     ? "border-figma-red focus:border-figma-red"
-                    : "border-figma-surface focus:border-figma-green"
+                    : "border-figma-surface focus:border-figma-purple"
                 )}
               />
               {devBuyError && (
@@ -652,7 +652,7 @@ export default function CreateTokenPage() {
           </div>
 
           {/* Deploy Cost */}
-          <div className="rounded-card border border-figma-card bg-figma-card p-4">
+          <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-4">
             <div className="flex items-center gap-1.5 mb-3">
               <Info className="w-3.5 h-3.5 text-figma-green-soft" />
               <h2 className="text-figma-xs font-semibold text-figma-muted uppercase tracking-wider">

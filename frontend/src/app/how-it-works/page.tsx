@@ -94,19 +94,14 @@ export default function AboutPage() {
       />
 
       {/* Page Header */}
-      <div className="pt-8 mb-12 text-center max-w-3xl mx-auto">
-        <h1 className="text-figma-3xl text-figma-white font-bold mb-3">
-          About Lickfun.xyz
-        </h1>
-        <p className="text-figma-md text-figma-muted">
-          A social-first token launchpad on Monad. Discover new tokens, trade
-          on a fair curve, and watch the strongest projects graduate to a real
-          DEX pool.
-        </p>
+      <div className="mx-auto mb-12 max-w-3xl pt-12 text-center">
+        <span className="text-xs font-extrabold uppercase tracking-[0.18em] text-figma-purple-soft">Reputation changes the game</span>
+        <h1 className="mt-3 text-balance font-display text-4xl font-extrabold tracking-tight text-figma-white md:text-6xl">A fairer way to launch onchain.</h1>
+        <p className="mx-auto mt-4 max-w-2xl text-pretty text-base leading-relaxed text-figma-muted">Launch on a transparent bonding curve, build a permanent creator track record, and graduate the strongest communities to real DEX liquidity.</p>
       </div>
 
       {/* What is Lickfun.xyz */}
-      <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
+      <section className="mb-8 rounded-2xl border border-figma-purple/15 bg-figma-card p-6 shadow-[0_20px_60px_-45px_rgba(139,61,255,0.6)] md:p-8">
         <div className="flex items-center gap-3 mb-4">
           <Image
             src="/logo-transparent.png"
@@ -148,7 +143,7 @@ export default function AboutPage() {
       </section>
 
       {/* How Trading Works */}
-      <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
+      <section className="mb-8 rounded-2xl border border-figma-purple/15 bg-figma-card p-6 shadow-[0_20px_60px_-45px_rgba(139,61,255,0.6)] md:p-8">
         <div className="flex items-center gap-3 mb-4">
           <BarChart3 className="w-7 h-7 text-figma-green" />
           <h2 className="text-figma-2xl text-figma-white font-bold">How Trading Works</h2>
@@ -203,7 +198,7 @@ export default function AboutPage() {
       </section>
 
       {/* Fair Launch Protection */}
-      <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
+      <section className="mb-8 rounded-2xl border border-figma-purple/15 bg-figma-card p-6 shadow-[0_20px_60px_-45px_rgba(139,61,255,0.6)] md:p-8">
         <div className="flex items-center gap-3 mb-4">
           <Shield className="w-7 h-7 text-figma-green" />
           <h2 className="text-figma-2xl text-figma-white font-bold">Fair Launch Protection</h2>
@@ -237,7 +232,7 @@ export default function AboutPage() {
       </section>
 
       {/* Reputation & Trust */}
-      <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
+      <section className="mb-8 rounded-2xl border border-figma-purple/15 bg-figma-card p-6 shadow-[0_20px_60px_-45px_rgba(139,61,255,0.6)] md:p-8">
         <div className="flex items-center gap-3 mb-4">
           <Award className="w-7 h-7 text-figma-green" />
           <h2 className="text-figma-2xl text-figma-white font-bold">Reputation & Trust</h2>
@@ -275,57 +270,29 @@ export default function AboutPage() {
         <p className="text-figma-sm text-figma-muted mb-3">
           Creators earn badges automatically as they hit milestones:
         </p>
-        <div className="grid sm:grid-cols-2 gap-2 text-figma-sm">
-          <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>🎓</span>
-            <span>Triple Graduate</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">3 successful launches</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>🏆</span>
-            <span>Deca Graduate</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">10 successful launches</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>⭐</span>
-            <span>Crowd Favourite</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">200+ unique buyers</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>💎</span>
-            <span>Diamond Hands</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">Never sold own launch</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>🛡️</span>
-            <span>Never Rugged</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">30+ days, zero rugs</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>✅</span>
-            <span>Honest Pre-buy</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">Bought what they launched</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>📊</span>
-            <span>Volume Maker</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">100K+ MON traded</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>👑</span>
-            <span>Trusted Founder</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">Score 70+</span>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-pill bg-figma-surface">
-            <span>🌟</span>
-            <span>OG</span>
-            <span className="text-figma-xs text-figma-muted ml-auto">1 year+ veteran</span>
-          </div>
+        <div className="grid gap-2 text-figma-sm sm:grid-cols-2">
+          {[
+            { name: "Triple Graduate", note: "3 successful launches", Icon: Award },
+            { name: "Deca Graduate", note: "10 successful launches", Icon: Award },
+            { name: "Crowd Favourite", note: "200+ unique buyers", Icon: Users },
+            { name: "Diamond Hands", note: "Never sold own launch", Icon: Lock },
+            { name: "Never Rugged", note: "30+ days, zero rugs", Icon: Shield },
+            { name: "Honest Pre-buy", note: "Bought what they launched", Icon: CheckCircle },
+            { name: "Volume Maker", note: "100K+ MON traded", Icon: BarChart3 },
+            { name: "Trusted Founder", note: "Score 70+", Icon: Award },
+            { name: "OG", note: "1 year+ veteran", Icon: Zap },
+          ].map(({ name, note, Icon }) => (
+            <div key={name} className="flex items-center gap-3 rounded-xl border border-figma-purple/10 bg-figma-surface p-3">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-figma-purple/15 text-figma-purple-soft"><Icon className="size-4" /></span>
+              <span className="font-bold text-figma-white">{name}</span>
+              <span className="ml-auto text-right text-figma-xs text-figma-muted">{note}</span>
+            </div>
+          ))}
         </div>
       </section>
 
       {/* Fees */}
-      <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
+      <section className="mb-8 rounded-2xl border border-figma-purple/15 bg-figma-card p-6 shadow-[0_20px_60px_-45px_rgba(139,61,255,0.6)] md:p-8">
         <div className="flex items-center gap-3 mb-4">
           <Coins className="w-7 h-7 text-figma-green" />
           <h2 className="text-figma-2xl text-figma-white font-bold">Fees</h2>
@@ -348,7 +315,7 @@ export default function AboutPage() {
       </section>
 
       {/* Why It's Safe */}
-      <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
+      <section className="mb-8 rounded-2xl border border-figma-purple/15 bg-figma-card p-6 shadow-[0_20px_60px_-45px_rgba(139,61,255,0.6)] md:p-8">
         <div className="flex items-center gap-3 mb-4">
           <Lock className="w-7 h-7 text-figma-green" />
           <h2 className="text-figma-2xl text-figma-white font-bold">Why It&apos;s Safe</h2>
@@ -401,7 +368,7 @@ export default function AboutPage() {
       </section>
 
       {/* Community */}
-      <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
+      <section className="mb-8 rounded-2xl border border-figma-purple/15 bg-figma-card p-6 shadow-[0_20px_60px_-45px_rgba(139,61,255,0.6)] md:p-8">
         <div className="flex items-center gap-3 mb-4">
           <Users className="w-7 h-7 text-figma-green" />
           <h2 className="text-figma-2xl text-figma-white font-bold">Community</h2>
@@ -416,7 +383,7 @@ export default function AboutPage() {
       </section>
 
       {/* FAQ — explicit Q&A pairs for AI/answer-engine extraction */}
-      <section className="rounded-card border border-figma-card bg-figma-card p-8 mb-8">
+      <section className="mb-8 rounded-2xl border border-figma-purple/15 bg-figma-card p-6 shadow-[0_20px_60px_-45px_rgba(139,61,255,0.6)] md:p-8">
         <div className="flex items-center gap-3 mb-4">
           <Shield className="w-7 h-7 text-figma-green" />
           <h2 className="text-figma-2xl text-figma-white font-bold">Frequently Asked Questions</h2>

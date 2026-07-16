@@ -1,4 +1,36 @@
-# Session Memory — 2026-07-13 (newest) — Marketing-readiness hardening: profile persistence, vault alerting, observability, terms
+# Session Memory — 2026-07-16 (newest) — Full UI overhaul: v0 Figma redesign selectively merged into frontend
+
+## Task: Replace the entire frontend UI with a v0-generated Figma redesign, keeping production infra intact.
+
+User provided a local export from v0 (a full fork of `frontend/`, purple/lime "degen" theme, Figma file `CU3oZmvNUl8b722gjtQvNa`) and asked to completely replace the current UI. Decision: **selective merge**, not a folder swap — diff every file first, take the design, reject any regressions in server/data logic.
+
+### Process
+1. Diffed every file between the v0 export and current `frontend/src` (hash + line-level) before copying anything — treated the whole export as untrusted, not just "new components".
+2. Copied from v0: all `components/**`, redesigned pages (`create/discover/markets/how-it-works/profile/token`), `tailwind.config.ts`, `globals.css`, `lib/{format,utils,ipfs}.ts`, `lib/mock/*`, `lib/hooks/*` (added a safe `MOCK_MODE` fallback, gated on missing `NEXT_PUBLIC_ENVIO_GRAPHQL_URL` — no-op in prod).
+3. **Rejected two regressions found in the v0 export** (see `frontend/UI_MIGRATION_PLAN.md` for full detail):
+   - `lib/wagmi/config.ts` — v0 replaced the throw-on-missing `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` with a silent placeholder id. Kept current (throw).
+   - `app/api/register-profile/route.ts` — v0 reverted the 2026-07-13 Storj migration back to local-disk `fs` writes, which would silently wipe all profile data on every Railway redeploy (ephemeral filesystem). Kept current entirely (all 4 upload/metadata API routes, in fact — only `register-profile` had diverged from v0; the other 3 were byte-identical).
+   - v0's `next.config.ts`/`package.json` had dropped `@sentry/nextjs` + `withSentryConfig` — kept current.
+   - v0's `app/layout.tsx` had dropped `<Analytics />` and `<Footer />` — manually re-added both after copying v0's layout structure.
+4. Kept current `src/data/profile-metadata.json` / `token-metadata.json` (verified byte-identical real production data in v0's copy anyway — current is the source of truth).
+5. `tsconfig.json` — took v0's one additive change (`.next/dev/types/**/*.ts` in `include`).
+
+### Verification
+- `pnpm build` — clean, zero new TypeScript errors, all 16 routes generated (incl. `/privacy`, `/terms`, all API routes).
+- `pnpm dev` smoke test via browser — Home, Discover, Token detail, Create, Profile all render correctly with **live Envio indexer data** (real tokens, real MON balances, real bonding-curve %), not mock data. Footer + Analytics confirmed present in the DOM on every page.
+- Caught and reverted accidental `pnpm-lock.yaml` drift (1574 lines) from an early `pnpm install`/`pnpm dev` run that resolved newer transitive deps than committed — reinstalled with `--frozen-lockfile` to match the Railway build exactly.
+- `pnpm-workspace.yaml` gained one legitimate line (`allowBuilds: '@sentry/cli': true`) — needed locally because newer pnpm blocks postinstall scripts by default; harmless, matches existing `allowBuilds` pattern for `bufferutil`/`esbuild`/`keccak`.
+- Full plan + rationale written to `frontend/UI_MIGRATION_PLAN.md` (kept in repo as a durable reference, not just chat/session memory).
+
+### Outstanding for user (not blocking)
+- Restyle `/privacy` and `/terms` to the new theme (currently functional, inherits base styles only)
+- Manual QA on wallet-connected flows (buy/sell tx, create token tx, edit-profile save) — not exercised by the automated smoke test (needs a real signature)
+- Verify `NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS` is set correctly — `/markets` showed a perpetual loading state in local dev (looked like an env issue unrelated to the merge)
+- Two `<img>` → `next/image` ESLint warnings for LCP (pre-existing pattern in v0's copied components)
+
+---
+
+# Session Memory — 2026-07-13 — Marketing-readiness hardening: profile persistence, vault alerting, observability, terms
 
 ## Task: Pre-marketing audit — fix the highest-impact items, document, and prep for commit.
 

@@ -158,14 +158,6 @@ export function Sidebar() {
         <p className="text-figma-xs text-figma-muted">
           © 2026 Lickfun.xyz. All rights reserved
         </p>
-        <div className="flex items-center gap-3 text-figma-xs text-figma-muted">
-          <Link href="/terms" className="hover:text-figma-white transition-colors">
-            Terms
-          </Link>
-          <Link href="/privacy" className="hover:text-figma-white transition-colors">
-            Privacy
-          </Link>
-        </div>
       </div>
     </aside>
   );
