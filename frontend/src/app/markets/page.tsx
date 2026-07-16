@@ -152,7 +152,7 @@ export default function MarketsPage() {
 
       {/* Stats Bar */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="rounded-card border border-figma-card bg-figma-card p-4 text-center">
+        <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-4 text-center">
           <div className="text-[10px] uppercase tracking-wide text-figma-muted mb-1">
             Active Markets
           </div>
@@ -160,7 +160,7 @@ export default function MarketsPage() {
             {active.length}
           </div>
         </div>
-        <div className="rounded-card border border-figma-card bg-figma-card p-4 text-center">
+        <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-4 text-center">
           <div className="text-[10px] uppercase tracking-wide text-figma-muted mb-1">
             Total Locked
           </div>
@@ -171,7 +171,7 @@ export default function MarketsPage() {
             <span className="text-figma-sm text-figma-muted font-normal">MON</span>
           </div>
         </div>
-        <div className="rounded-card border border-figma-card bg-figma-card p-4 text-center">
+        <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-4 text-center">
           <div className="text-[10px] uppercase tracking-wide text-figma-muted mb-1">
             Your Positions
           </div>
@@ -185,7 +185,7 @@ export default function MarketsPage() {
         {/* Left: Active Markets */}
         <div className="lg:col-span-1 space-y-6">
           {/* Active Markets List */}
-          <div className="rounded-card border border-figma-card bg-figma-card p-5">
+          <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-5">
             <h3 className="text-figma-md text-figma-white font-semibold mb-4">
               Active Markets ({active.length})
             </h3>
@@ -244,7 +244,7 @@ export default function MarketsPage() {
                       onClick={() => setSelectedTokenId(m.tokenId)}
                       className={`w-full text-left rounded-pill border p-4 transition-all ${
                         selectedTokenId === m.tokenId
-                          ? "border-figma-green/50 bg-figma-green/5"
+                          ? "border-figma-purple/60 bg-figma-purple/10 shadow-glow-purple-sm"
                           : "border-figma-surface hover:border-figma-card-alt"
                       }`}
                     >
@@ -337,7 +337,7 @@ export default function MarketsPage() {
           </div>
 
           {/* Resolved Markets */}
-          <div className="rounded-card border border-figma-card bg-figma-card p-5">
+          <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-5">
             <h3 className="text-figma-md text-figma-white font-semibold mb-4">
               Resolved ({resolved.length})
             </h3>
@@ -397,7 +397,7 @@ export default function MarketsPage() {
 
           {/* Cancelled Markets */}
           {cancelled.length > 0 && (
-            <div className="rounded-card border border-figma-card bg-figma-card p-5">
+            <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-5">
               <h3 className="text-figma-md text-figma-white font-semibold mb-4">
                 Cancelled ({cancelled.length})
               </h3>
@@ -408,7 +408,7 @@ export default function MarketsPage() {
                     onClick={() => setSelectedTokenId(m.tokenId)}
                     className={`w-full text-left flex items-center justify-between rounded-pill border p-3 transition-all ${
                       selectedTokenId === m.tokenId
-                        ? "border-figma-green/50 bg-figma-green/5"
+                        ? "border-figma-purple/60 bg-figma-purple/10 shadow-glow-purple-sm"
                         : "border-figma-surface hover:border-figma-card-alt"
                     }`}
                   >
@@ -448,7 +448,7 @@ export default function MarketsPage() {
               tokenProgress={selected.token?.progress}
             />
           ) : (
-            <div className="rounded-card border border-figma-card bg-figma-card p-5 text-center text-figma-muted">
+            <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-5 text-center text-figma-muted">
               <TrendingUp className="w-8 h-8 mx-auto mb-3 opacity-30" />
               <p className="text-figma-sm mb-2">Select a market to place a bet</p>
               <p className="text-figma-xs text-figma-muted/70 leading-relaxed">
@@ -462,7 +462,7 @@ export default function MarketsPage() {
 
         {/* Right: Biggest Pools */}
         <div className="lg:col-span-1">
-          <div className="rounded-card border border-figma-card bg-figma-card p-5">
+          <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_18px_55px_-40px_rgba(139,61,255,0.5)] p-5">
             <h3 className="text-figma-md text-figma-white font-semibold mb-4 flex items-center gap-2">
               <Trophy className="w-4 h-4 text-figma-green-soft" />
               Biggest Pools

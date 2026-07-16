@@ -15,39 +15,42 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        /* ── Figma-sourced surfaces ── */
-        "figma-bg":       "#0E0E0E",
-        "figma-surface":  "#1B1B1B",
-        "figma-card":     "#000000",
-        "figma-card-alt": "#1B1B1B",
+        /* ── Purple degen surfaces ── */
+        "figma-bg":       "#0B0613",
+        "figma-surface":  "#150B26",
+        "figma-card":     "#130A22",
+        "figma-card-alt": "#1E1236",
 
-        /* ── Figma-sourced white card ── */
+        /* ── White card (kept for high-contrast surfaces) ── */
         "figma-white-card": "#FFFFFF",
 
-        /* ── Figma-sourced text ── */
+        /* ── Text ── */
         "figma-white":   "#FFFFFF",
-        "figma-card-fg": "#0E0E0E",
-        "figma-muted":   "rgba(255, 255, 255, 0.5)",
+        "figma-card-fg": "#0B0613",
+        "figma-muted":   "rgba(214, 199, 240, 0.55)",
 
-        /* ── Figma-sourced accents ── */
-        "figma-green":       "#70E000",
+        /* ── Brand accent = electric purple (primary CTA / highlights) ── */
+        "figma-purple":      "#8B3DFF",
+        "figma-purple-soft": "#B57BFF",
+        "figma-purple-deep": "#6D28D9",
+
+        /* ── Buy / positive (lime) & sell / negative (red) semantics ── */
+        "figma-green":       "#7CEF3A",
         "figma-green-soft":  "#9EF01A",
-        "figma-chart-green": "#2CC054",
-        "figma-purple":      "#6E44D2",
-        "figma-purple-soft": "#9B6FFF",
-        "figma-red":         "#E00004",
-        "figma-red-soft":    "#F01A1E",
+        "figma-chart-green": "#3BD671",
+        "figma-red":         "#FF3B4E",
+        "figma-red-soft":    "#FF5A6A",
 
         /* ── Background fallbacks for legacy shadcn-style components ── */
-        background:  "#0E0E0E",
+        background:  "#0B0613",
         foreground:  "#FFFFFF",
         card: {
-          DEFAULT: "#1B1B1B",
+          DEFAULT: "#130A22",
           foreground: "#FFFFFF",
         },
-        border: "#1B1B1B",
-        input:  "#1B1B1B",
-        ring:   "#70E000",
+        border: "#271641",
+        input:  "#1E1236",
+        ring:   "#8B3DFF",
       },
       borderRadius: {
         card:   "12px",
@@ -55,9 +58,15 @@ const config: Config = {
         panel:  "23px",
       },
       fontFamily: {
-        sans:  ["var(--font-sans)", "system-ui", "sans-serif"],
-        mono:  ["var(--font-mono)", "monospace"],
-        sora:  ["var(--font-sora)", "system-ui", "sans-serif"],
+        sans:    ["var(--font-sans)", "system-ui", "sans-serif"],
+        mono:    ["var(--font-mono)", "monospace"],
+        sora:    ["var(--font-sora)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-sora)", "system-ui", "sans-serif"],
+      },
+      boxShadow: {
+        "glow-purple":    "0 0 0 1px rgba(139,61,255,0.35), 0 8px 40px -8px rgba(139,61,255,0.55)",
+        "glow-purple-sm": "0 0 24px -6px rgba(139,61,255,0.55)",
+        "glow-green":     "0 0 24px -6px rgba(124,239,58,0.55)",
       },
 
       fontSize: {
@@ -79,10 +88,20 @@ const config: Config = {
           "0%":   { transform: "translateY(8px)", opacity: "0" },
           "100%": { transform: "translateY(0)",   opacity: "1" },
         },
+        "float": {
+          "0%,100%": { transform: "translateY(0)" },
+          "50%":     { transform: "translateY(-8px)" },
+        },
+        "glow-pulse": {
+          "0%,100%": { opacity: "0.6" },
+          "50%":     { opacity: "1" },
+        },
       },
       animation: {
-        "fade-in":   "fade-in 0.2s ease-out",
-        "slide-up":  "slide-up 0.25s ease-out",
+        "fade-in":    "fade-in 0.2s ease-out",
+        "slide-up":   "slide-up 0.25s ease-out",
+        "float":      "float 5s ease-in-out infinite",
+        "glow-pulse": "glow-pulse 2.4s ease-in-out infinite",
       },
     },
   },

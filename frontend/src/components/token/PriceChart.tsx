@@ -918,14 +918,14 @@ export function PriceChart({
         </div>
       )}
 
-      {/* ── Bottom bar: scale mode label + lickfun.xyz watermark ────────── */}
+      {/* ── Bottom bar: scale mode label + Lickfun.xyz watermark ────────── */}
 
       <div className="flex items-center justify-between text-[10px] px-0.5 mt-1" style={{ color: C.textMuted }}>
         <span className="font-extrabold">
           {displayMode === "mcap" ? "MCap" : "Price"} / {quoteSymbol}
           {logScale && <span className="ml-2 font-extrabold" style={{ color: C.teal }}>log</span>}
         </span>
-        <span className="opacity-40 font-extrabold">lickfun.xyz</span>
+        <span className="opacity-40 font-extrabold">Lickfun.xyz</span>
       </div>
     </div>
   );

@@ -3,15 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Home, Compass, TrendingUp, BookOpen } from "lucide-react";
+import { Search, Home, Compass, TrendingUp, BookOpen, Plus, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WalletMenu } from "@/components/layout/WalletMenu";
 
 const navLinks = [
-  { href: "/",             label: "Home",         icon: Home },
-  { href: "/discover",     label: "Discover",     icon: Compass },
-  { href: "/markets",      label: "Markets",      icon: TrendingUp },
-  { href: "/how-it-works", label: "How It Works", icon: BookOpen },
+  { href: "/", label: "Launchpad", icon: Home },
+  { href: "/discover", label: "Explore", icon: Compass },
+  { href: "/markets", label: "Markets", icon: TrendingUp },
+  { href: "/how-it-works", label: "How it works", icon: BookOpen },
 ];
 
 function isActiveLink(pathname: string, href: string): boolean {
@@ -19,69 +19,66 @@ function isActiveLink(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/**
- * Full-width top navigation bar:
- *   Logo → Nav links → Search pill → Wallet connect
- *
- * "Create Token" and "Profile" live in the wallet dropdown menu (WalletMenu)
- * rather than the main nav, since they're account-scoped actions.
- */
 export function Header() {
   const pathname = usePathname();
 
   return (
-    <header className="flex items-center gap-4 h-16 px-6 border-b border-figma-surface bg-figma-bg shrink-0 w-full">
-      {/* Logo */}
-      <Link href="/" className="flex items-center gap-2 shrink-0">
-        <Image
-          src="/logo-transparent.png"
-          alt="Lickfun.xyz"
-          width={32}
-          height={32}
-          className="w-8 h-8 rounded-lg object-cover shrink-0"
-        />
-        <span className="font-bold text-gradient-lick text-lg">Lickfun.xyz</span>
-      </Link>
+    <header className="sticky top-0 z-50 flex h-[72px] w-full shrink-0 items-center border-b border-figma-purple/20 bg-figma-bg/90 px-4 backdrop-blur-xl md:px-6">
+      <div className="mx-auto flex w-full max-w-[1600px] items-center gap-3">
+        <Link href="/" className="group flex shrink-0 items-center gap-2.5" aria-label="Lickfun home">
+          <span className="relative flex size-11 items-center justify-center overflow-hidden rounded-xl border border-figma-purple/35 bg-figma-card shadow-glow-purple-sm transition-transform group-hover:-rotate-3 group-hover:scale-105">
+            <Image src="/logo-transparent.png" alt="" width={44} height={44} className="size-11 object-cover" priority />
+          </span>
+          <span className="hidden font-display text-xl font-extrabold tracking-[-0.04em] text-figma-white sm:block">
+            Lickfun<span className="text-figma-purple-soft">.xyz</span>
+          </span>
+        </Link>
 
-      {/* Desktop nav links */}
-      <nav className="hidden lg:flex items-center gap-1 ml-2">
-        {navLinks.map((link) => {
-          const active = isActiveLink(pathname, link.href);
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150",
-                active
-                  ? "bg-figma-surface text-figma-white"
-                  : "text-figma-muted hover:text-figma-white hover:bg-figma-surface"
-              )}
-            >
-              <link.icon className={cn("w-4 h-4", active ? "text-figma-green" : "")} />
-              {link.label}
-            </Link>
-          );
-        })}
-      </nav>
+        <nav className="ml-4 hidden items-center gap-1 lg:flex" aria-label="Main navigation">
+          {navLinks.map((link) => {
+            const active = isActiveLink(pathname, link.href);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-semibold transition-all",
+                  active
+                    ? "bg-figma-purple/15 text-figma-purple-soft shadow-[inset_0_0_0_1px_rgba(139,61,255,0.25)]"
+                    : "text-figma-muted hover:bg-figma-card-alt hover:text-figma-white"
+                )}
+              >
+                <link.icon className="size-4" />
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
 
-      {/* Search pill — grows to fill remaining space */}
-      <div className="hidden lg:flex flex-1 max-w-sm ml-auto">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-figma-muted" />
-          <input
-            type="text"
-            placeholder="Search tokens, creators..."
-            className="w-full pl-9 pr-4 py-2 rounded-pill border border-figma-surface bg-figma-card text-sm text-figma-white placeholder:text-figma-muted focus:outline-none focus:border-figma-green transition-colors"
-          />
+        <div className="ml-auto hidden max-w-xs flex-1 xl:flex">
+          <label className="relative w-full">
+            <span className="sr-only">Search tokens and creators</span>
+            <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-figma-muted" />
+            <input
+              type="search"
+              placeholder="Search the meme lake..."
+              className="w-full rounded-xl border border-figma-purple/15 bg-figma-card py-2.5 pl-10 pr-4 text-sm text-figma-white outline-none transition-all placeholder:text-figma-muted focus:border-figma-purple/60 focus:shadow-glow-purple-sm"
+            />
+          </label>
         </div>
+
+        <div className="hidden items-center gap-1.5 rounded-full border border-figma-green/20 bg-figma-green/5 px-3 py-1.5 text-xs font-bold text-figma-green md:flex">
+          <Radio className="size-3.5 animate-pulse" />
+          MONAD LIVE
+        </div>
+
+        <Link href="/create" className="hidden items-center gap-2 rounded-xl bg-figma-purple px-4 py-2.5 text-sm font-extrabold text-figma-white shadow-glow-purple-sm transition-all hover:-translate-y-0.5 hover:bg-figma-purple-soft sm:flex">
+          <Plus className="size-4" />
+          Launch
+        </Link>
+
+        <WalletMenu />
       </div>
-
-      {/* Mobile: logo only (nav handled by BottomNav) */}
-      <div className="flex items-center gap-2 lg:hidden ml-auto" />
-
-      {/* Wallet — custom dropdown with profile avatar + name (desktop + mobile) */}
-      <WalletMenu />
     </header>
   );
 }

@@ -66,6 +66,32 @@ const ONE_SHOT = process.env.ONE_SHOT === "true";
 /// @notice Execution threshold — must match VaultBuybackBurn/VaultLPSupport constant (50 MON).
 const EXECUTION_THRESHOLD = 50n * 10n ** 18n;
 
+// ─── Untracked-vault-balance monitoring (Telegram alert) ───────────────────
+// The live FeeRouter predates the receiveForToken() audit fix and can never
+// be replaced (Factory.feeRouter is set-once) — see MEMORY.md. Every trade
+// fee is raw-sent to the vaults' bare receive(), which does NOT populate the
+// per-token pendingBurn/pendingLP mapping that execute()'s threshold check
+// relies on. This makes reconciliation (script/generate-reconcile-batch.mjs
+// + a Safe multisig batch) a RECURRING manual task, not a one-time fix —
+// funds silently pile up "untracked" until someone remembers to run it.
+//
+// Since sweep() is deliberately onlyOwner (multisig-only — an audit fix we
+// should not weaken), the keeper cannot move funds itself. Instead it
+// monitors vault.balance() vs. the sum of tracked pendingBurn/pendingLP
+// across all known tokens, and posts a Telegram alert once the untracked
+// amount crosses a configurable threshold, so reconciliation happens on a
+// schedule instead of by luck.
+const ALERT_BOT_TOKEN = process.env.ALERT_TELEGRAM_BOT_TOKEN;
+const ALERT_CHAT_ID = process.env.ALERT_TELEGRAM_CHAT_ID;
+const UNTRACKED_ALERT_THRESHOLD = BigInt(
+  Math.round(Number(process.env.UNTRACKED_ALERT_THRESHOLD_MON ?? "30") * 1e18)
+);
+// Re-alert every time the untracked amount grows by at least this much more
+// beyond the last alert, so a single ack doesn't silence future growth.
+const UNTRACKED_ALERT_STEP = BigInt(
+  Math.round(Number(process.env.UNTRACKED_ALERT_STEP_MON ?? "20") * 1e18)
+);
+
 if (!RPC_URL || !PRIVATE_KEY || !GRADUATION_ROUTER) {
   console.error(
     "Missing env vars. Required: KEEPER_RPC_URL, KEEPER_PRIVATE_KEY, GRADUATION_ROUTER_ADDR"
@@ -196,6 +222,35 @@ const knownTokens = new Map<string, `0x${string}`>();
 
 /** Tokens whose vault execution is already in-flight — avoid duplicate txs. */
 const vaultAttempted = new Set<string>(); // key = `${vault}-${token}`
+
+/** Last untracked amount (wei) we alerted on, per vault — avoids alert spam. */
+const lastUntrackedAlerted = new Map<string, bigint>(); // key = vault address
+
+// ─── Alerting ────────────────────────────────────────────────────────────────
+
+async function sendTelegramAlert(text: string): Promise<void> {
+  if (!ALERT_BOT_TOKEN || !ALERT_CHAT_ID) return;
+  try {
+    const res = await fetch(
+      `https://api.telegram.org/bot${ALERT_BOT_TOKEN}/sendMessage`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: ALERT_CHAT_ID,
+          text,
+          parse_mode: "Markdown",
+          disable_web_page_preview: true,
+        }),
+      }
+    );
+    if (!res.ok) {
+      console.error(`[alert] Telegram API returned ${res.status}: ${await res.text()}`);
+    }
+  } catch (err) {
+    console.error("[alert] Failed to send Telegram alert:", (err as Error).message);
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -442,6 +497,74 @@ async function pollVaults(): Promise<void> {
   }
 }
 
+/**
+ * Compares a vault's raw MON balance against the sum of its tracked
+ * per-token mapping (pendingBurn or pendingLP) across all known tokens.
+ * Any positive difference is MON that arrived via the FeeRouter's raw-send
+ * path and is invisible to execute()'s threshold check — i.e. "untracked".
+ *
+ * This is read-only (no txs) — it only decides whether to fire a Telegram
+ * alert so a human can run script/generate-reconcile-batch.mjs and execute
+ * the resulting Safe batch. Alerts only re-fire once the untracked amount
+ * grows by at least UNTRACKED_ALERT_STEP beyond the last alert, so this is
+ * safe to poll frequently without spamming the chat.
+ */
+async function checkUntrackedVaultBalance(
+  vault: `0x${string}`,
+  abi: typeof VAULT_BUYBACK_ABI | typeof VAULT_LP_ABI,
+  pendingFn: "pendingBurn" | "pendingLP",
+  label: string
+): Promise<void> {
+  try {
+    const balance = await publicClient.getBalance({ address: vault });
+    let trackedSum = 0n;
+    for (const token of knownTokens.keys()) {
+      try {
+        const pending = (await publicClient.readContract({
+          address: vault,
+          abi,
+          functionName: pendingFn,
+          args: [token as `0x${string}`],
+        })) as bigint;
+        trackedSum += pending;
+      } catch {
+        // skip token if the read fails — don't let one bad read block the check
+      }
+    }
+
+    const untracked = balance > trackedSum ? balance - trackedSum : 0n;
+    if (untracked < UNTRACKED_ALERT_THRESHOLD) {
+      // Below threshold — clear any prior alert state so the next crossing re-alerts.
+      lastUntrackedAlerted.delete(vault.toLowerCase());
+      return;
+    }
+
+    const lastAlerted = lastUntrackedAlerted.get(vault.toLowerCase()) ?? 0n;
+    if (untracked < lastAlerted + UNTRACKED_ALERT_STEP) {
+      return; // already alerted for roughly this amount — avoid spam
+    }
+
+    lastUntrackedAlerted.set(vault.toLowerCase(), untracked);
+    const untrackedMon = Number(untracked) / 1e18;
+    const balanceMon = Number(balance) / 1e18;
+    console.warn(
+      `[vault] ⚠ ${label} (${vault}) has ${untrackedMon.toFixed(2)} MON untracked (balance ${balanceMon.toFixed(2)} MON) — run generate-reconcile-batch.mjs`
+    );
+    await sendTelegramAlert(
+      `⚠️ *Vault reconciliation needed*\n\n` +
+        `*${label}* (\`${vault}\`) has *${untrackedMon.toFixed(2)} MON* untracked ` +
+        `(total balance ${balanceMon.toFixed(2)} MON).\n\n` +
+        `This MON arrived via the FeeRouter's legacy raw-send path and isn't ` +
+        `attributed to any token yet, so it won't count toward the 50 MON ` +
+        `execute() threshold.\n\n` +
+        `Run \`node script/generate-reconcile-batch.mjs\` and execute the ` +
+        `resulting Safe batch to fix.`
+    );
+  } catch (err) {
+    console.error(`[vault] checkUntrackedVaultBalance error for ${label}:`, (err as Error).message);
+  }
+}
+
 // ─── Poll loop ────────────────────────────────────────────────────────────────
 
 async function poll(): Promise<void> {
@@ -521,6 +644,9 @@ console.log(`[keeper] Start block:       ${START_BLOCK}`);
 console.log(`[keeper] RPC:               ${RPC_URL}`);
 console.log(`[keeper] Grad poll:         ${POLL_MS}ms`);
 console.log(`[keeper] Vault poll:        ${VAULT_POLL_MS}ms`);
+console.log(
+  `[keeper] Untracked alert:   ${ALERT_BOT_TOKEN && ALERT_CHAT_ID ? `enabled (threshold ${Number(UNTRACKED_ALERT_THRESHOLD) / 1e18} MON, step ${Number(UNTRACKED_ALERT_STEP) / 1e18} MON)` : "disabled — set ALERT_TELEGRAM_BOT_TOKEN + ALERT_TELEGRAM_CHAT_ID"}`
+);
 
 // Seed the known tokens map before first vault poll
 syncKnownTokens().catch(console.error);
@@ -531,6 +657,14 @@ poll().then(() => {
     // In ONE_SHOT mode, also run a single vault poll before exiting
     syncKnownTokens()
       .then(() => pollVaults())
+      .then(async () => {
+        if (VAULT_BUYBACK) {
+          await checkUntrackedVaultBalance(VAULT_BUYBACK, VAULT_BUYBACK_ABI, "pendingBurn", "VaultBuybackBurn");
+        }
+        if (VAULT_LP) {
+          await checkUntrackedVaultBalance(VAULT_LP, VAULT_LP_ABI, "pendingLP", "VaultLPSupport");
+        }
+      })
       .then(() => {
         console.log("[keeper] ONE_SHOT mode — exiting after single poll");
         process.exit(0);
@@ -546,5 +680,11 @@ poll().then(() => {
   setInterval(async () => {
     await syncKnownTokens();
     await pollVaults();
+    if (VAULT_BUYBACK) {
+      await checkUntrackedVaultBalance(VAULT_BUYBACK, VAULT_BUYBACK_ABI, "pendingBurn", "VaultBuybackBurn");
+    }
+    if (VAULT_LP) {
+      await checkUntrackedVaultBalance(VAULT_LP, VAULT_LP_ABI, "pendingLP", "VaultLPSupport");
+    }
   }, VAULT_POLL_MS);
 });

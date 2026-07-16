@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send, Globe } from "lucide-react";
+import { ArrowUpRight, Globe, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TokenImage } from "@/components/ui/TokenImage";
 import { CreatorBadge } from "@/components/ui/CreatorBadge";
@@ -9,7 +9,7 @@ import { formatPriceChange } from "@/lib/hooks/useData";
 import { useTokenIpfsMeta } from "@/lib/hooks/useTokenImage";
 
 interface TokenCardProps {
-  tokenAddress?: string;     // contract address — used for image lookup
+  tokenAddress?: string;
   tokenName: string;
   symbol: string;
   description?: string;
@@ -17,268 +17,81 @@ interface TokenCardProps {
   percentage: string;
   volume: string;
   txCount: string;
-  /** @deprecated Pass tokenAddress instead; kept for backwards compat */
   imageUrl?: string;
   progress?: number;
   isAnimated?: boolean;
-  /** Live price per token in MON (optional) */
   priceMon?: string;
-  /** Optional 24h percentage change number, e.g. +12.34 or -5.67 */
   priceChangePct?: number;
-  /** Creator wallet address — shows avatar + name below token name */
   creator?: string;
 }
 
-export function TokenCard({
-  tokenAddress,
-  tokenName,
-  symbol,
-  description = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor.",
-  mc,
-  percentage,
-  volume,
-  txCount,
-  imageUrl,
-  progress = 0,
-  isAnimated = false,
-  priceMon,
-  priceChangePct,
-  creator,
-}: TokenCardProps) {
+export function TokenCard({ tokenAddress, tokenName, symbol, description = "Fresh from the meme lake.", mc, percentage, volume, txCount, imageUrl, progress = 0, isAnimated = false, priceMon, priceChangePct, creator }: TokenCardProps) {
   const change = formatPriceChange(priceChangePct);
-
-  // Fetch IPFS metadata for social links (TG / X / Web) — cached 10 min
   const { data: ipfsMeta } = useTokenIpfsMeta(tokenAddress);
-
-  // Flash green/red when price or MC updates
   const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
-  const prevPriceMon = useRef<string | undefined>(priceMon);
-  const prevMc = useRef<string>(mc);
+  const prevPrice = useRef(priceMon);
 
   useEffect(() => {
-    if (prevPriceMon.current !== undefined && priceMon !== undefined && priceMon !== prevPriceMon.current) {
-      const direction = priceMon > prevPriceMon.current ? "up" : "down";
-      setPriceFlash(direction);
-      const t = setTimeout(() => setPriceFlash(null), 800);
-      prevPriceMon.current = priceMon;
-      return () => clearTimeout(t);
+    if (prevPrice.current && priceMon && priceMon !== prevPrice.current) {
+      setPriceFlash(priceMon > prevPrice.current ? "up" : "down");
+      const timer = setTimeout(() => setPriceFlash(null), 800);
+      prevPrice.current = priceMon;
+      return () => clearTimeout(timer);
     }
-    prevPriceMon.current = priceMon;
+    prevPrice.current = priceMon;
   }, [priceMon]);
 
-  useEffect(() => {
-    if (mc !== prevMc.current) {
-      prevMc.current = mc;
-    }
-  }, [mc]);
-
   return (
-    <div
-      className={cn(
-        "flex flex-col gap-[10px] w-full p-[13px_18px]",
-        isAnimated
-          ? "border border-figma-purple"
-          : "border border-black"
-      )}
-      style={{
-        background: "#000000",
-        borderRadius: "12px",
-      }}
-    >
-      {/* Top row: image + name/desc */}
-      <div className="flex gap-[15px] items-start">
-        {/* Token image */}
-        {tokenAddress ? (
-          <TokenImage
-            tokenAddress={tokenAddress}
-            tokenName={tokenName}
-            size="lg"
-            directImageUrl={imageUrl}
-          />
-        ) : (
-          <div
-            className="w-[58px] h-[58px] shrink-0 overflow-hidden"
-            style={{ borderRadius: "7px" }}
-          >
-            <div className="w-full h-full bg-figma-card-alt flex items-center justify-center text-xl font-bold text-white">
-              {tokenName.slice(0, 2).toUpperCase()}
-            </div>
-          </div>
-        )}
-
-        {/* Name + Description + Creator + Socials */}
-        <div className="flex flex-col gap-[3px] flex-1 min-w-0">
-          <span
-            className="text-figma-white font-figma-bold"
-            style={{ fontSize: "14px", lineHeight: "1.2" }}
-          >
-            {tokenName}{" "}
-            <span className="text-figma-muted font-figma-bold">(${symbol})</span>
-          </span>
-
-          {/* Creator badge (avatar + name) */}
-          {creator && <CreatorBadge address={creator} />}
-
-          <span
-            className="text-figma-muted font-figma-regular truncate"
-            style={{ fontSize: "10px", lineHeight: "1.3" }}
-          >
-            {description}
-          </span>
-
-          {/* Social links (TG / X / Web) — icon-only, only renders if any exist */}
-          {/* Using <button> + window.open instead of <a> to avoid invalid nested anchor */}
-          {(ipfsMeta?.telegram || ipfsMeta?.twitter || ipfsMeta?.website) && (
-            <div className="flex items-center gap-[4px] mt-[2px]">
-              {ipfsMeta.telegram && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open(ipfsMeta.telegram, "_blank", "noopener,noreferrer"); }}
-                  title="Telegram"
-                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors cursor-pointer"
-                  style={{
-                    width: "18px",
-                    height: "18px",
-                    borderRadius: "4px",
-                    background: "#1B1B1B",
-                    border: "none",
-                    padding: 0,
-                  }}
-                >
-                  <Send style={{ width: "10px", height: "10px" }} />
-                </button>
-              )}
-              {ipfsMeta.twitter && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open(ipfsMeta.twitter, "_blank", "noopener,noreferrer"); }}
-                  title="Twitter / X"
-                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors cursor-pointer"
-                  style={{
-                    width: "18px",
-                    height: "18px",
-                    borderRadius: "4px",
-                    background: "#1B1B1B",
-                    border: "none",
-                    padding: 0,
-                  }}
-                >
-                  <svg
-                    style={{ width: "10px", height: "10px" }}
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.741l7.73-8.835L1.254 2.25H8.08l4.26 5.632 5.905-5.632Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                </button>
-              )}
-              {ipfsMeta.website && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.open(ipfsMeta.website, "_blank", "noopener,noreferrer"); }}
-                  title="Website"
-                  className="inline-flex items-center justify-center text-figma-muted hover:text-figma-white transition-colors cursor-pointer"
-                  style={{
-                    width: "18px",
-                    height: "18px",
-                    borderRadius: "4px",
-                    background: "#1B1B1B",
-                    border: "none",
-                    padding: 0,
-                  }}
-                >
-                  <Globe style={{ width: "10px", height: "10px" }} />
-                </button>
-              )}
-            </div>
+    <article className={cn("group relative flex h-full flex-col overflow-hidden rounded-2xl border bg-figma-card p-3.5 transition-all duration-300 hover:-translate-y-1 hover:border-figma-purple/60 hover:shadow-glow-purple", isAnimated ? "border-figma-purple/60 shadow-glow-purple-sm" : "border-figma-purple/15")}>
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-figma-purple/70 to-transparent" />
+      <div className="flex items-start gap-3">
+        <div className="relative shrink-0 overflow-hidden rounded-xl ring-1 ring-figma-purple/20 transition-transform group-hover:scale-[1.03]">
+          {tokenAddress ? (
+            <TokenImage tokenAddress={tokenAddress} tokenName={tokenName} size="lg" directImageUrl={imageUrl} />
+          ) : (
+            <div className="flex size-[58px] items-center justify-center bg-figma-card-alt text-lg font-black text-figma-purple-soft">{tokenName.slice(0, 2).toUpperCase()}</div>
           )}
         </div>
-      </div>
-
-      {/* Bottom row: metrics + progress */}
-      <div className="flex flex-col gap-[5px]">
-        {/* Stats row */}
-        <div className="flex items-center justify-between w-full">
-          {/* Left group: icon + % + MC */}
-          <div className="flex items-center gap-[3px]">
-            {/* mini icon */}
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="5" cy="5" r="4.5" fill="#2CC054" />
-            </svg>
-            {/* Percentage */}
-            <span className="text-figma-purple font-figma-bold" style={{ fontSize: "8px", lineHeight: "10px" }}>
-              {percentage}
-            </span>
-            {/* MC */}
-            <span className="text-figma-green font-figma-bold" style={{ fontSize: "8px", lineHeight: "10px" }}>
-              MC: <span className="text-figma-white">{mc}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="truncate font-display text-sm font-extrabold text-figma-white">{tokenName}</h3>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-figma-purple-soft">${symbol}</p>
+            </div>
+            <span className={cn("rounded-md px-1.5 py-1 text-[10px] font-extrabold", change.isPositive ? "bg-figma-green/10 text-figma-green" : change.isNegative ? "bg-figma-red/10 text-figma-red-soft" : "bg-figma-surface text-figma-muted")}>
+              {change.isPositive ? "+" : ""}{change.text}
             </span>
           </div>
-
-          {/* Right: Txns / Vol */}
-          <span className="text-figma-green font-figma-bold" style={{ fontSize: "8px", lineHeight: "10px" }}>
-            {txCount} Txs / {volume} 24h VOL
-          </span>
-        </div>
-
-        {/* LIVE price + 24h change */}
-        {(priceMon || priceChangePct !== undefined) && (
-          <div className="flex items-center justify-between w-full mt-[2px]">
-            {priceMon ? (
-              <span
-                className={cn(
-                  "font-figma-bold transition-colors duration-300",
-                  priceFlash === "up" ? "text-green-400" : priceFlash === "down" ? "text-red-500" : "text-figma-white"
-                )}
-                style={{ fontSize: "10px", lineHeight: "12px" }}
-              >
-                {priceMon}
-              </span>
-            ) : (
-              <span />
-            )}
-            {priceChangePct !== undefined && (
-              <span
-                className={cn(
-                  "font-figma-bold",
-                  change.isPositive
-                    ? "text-green-400"
-                    : change.isNegative
-                    ? "text-red-500"
-                    : "text-figma-muted"
-                )}
-                style={{ fontSize: "10px", lineHeight: "12px" }}
-              >
-                {change.isPositive && "▲ "}
-                {change.isNegative && "▼ "}
-                {change.text}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Progress bar */}
-        <div
-          className="w-full overflow-hidden"
-          style={{ height: "9px", borderRadius: "24px", background: "#1B1B1B" }}
-        >
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${progress}%`,
-              minWidth: progress > 0 ? "4px" : "0",
-              background: "linear-gradient(90deg, #2CC054 0%, #70E000 100%)",
-              borderRadius: "24px",
-              transition: "width 0.3s ease",
-            }}
-          />
+          {creator && <div className="mt-1"><CreatorBadge address={creator} /></div>}
+          <p className="mt-1 line-clamp-1 text-[11px] leading-relaxed text-figma-muted">{description}</p>
         </div>
       </div>
-    </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-figma-purple/10 bg-figma-bg/60 p-2.5">
+        <div><p className="text-[9px] font-bold uppercase tracking-wider text-figma-muted">Market cap</p><p className="mt-0.5 text-xs font-extrabold text-figma-white">{mc}</p></div>
+        <div className="text-right"><p className="text-[9px] font-bold uppercase tracking-wider text-figma-muted">24h volume</p><p className="mt-0.5 text-xs font-extrabold text-figma-white">{volume}</p></div>
+        {priceMon && <div className="col-span-2 flex items-center justify-between border-t border-figma-purple/10 pt-2"><span className="text-[9px] font-bold uppercase tracking-wider text-figma-muted">Price</span><span className={cn("text-[11px] font-bold transition-colors", priceFlash === "up" ? "text-figma-green" : priceFlash === "down" ? "text-figma-red" : "text-figma-white")}>{priceMon}</span></div>}
+      </div>
+
+      <div className="mt-3">
+        <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold"><span className="text-figma-muted">Bonding curve</span><span className="text-figma-purple-soft">{percentage || `${Math.round(progress)}%`}</span></div>
+        <div className="h-2 overflow-hidden rounded-full bg-figma-surface"><div className="h-full rounded-full bg-figma-purple shadow-glow-purple-sm transition-all" style={{ width: `${Math.max(0, Math.min(100, progress))}%`, minWidth: progress > 0 ? 4 : 0 }} /></div>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between border-t border-figma-purple/10 pt-3">
+        <span className="text-[10px] font-semibold text-figma-muted">{txCount} txs</span>
+        <div className="flex items-center gap-1.5">
+          {ipfsMeta?.telegram && <SocialButton label="Telegram" onClick={() => window.open(ipfsMeta.telegram, "_blank", "noopener,noreferrer")}><Send className="size-3" /></SocialButton>}
+          {ipfsMeta?.website && <SocialButton label="Website" onClick={() => window.open(ipfsMeta.website, "_blank", "noopener,noreferrer")}><Globe className="size-3" /></SocialButton>}
+          <span className="flex size-7 items-center justify-center rounded-lg bg-figma-purple/10 text-figma-purple-soft transition-colors group-hover:bg-figma-purple group-hover:text-figma-white"><ArrowUpRight className="size-3.5" /></span>
+        </div>
+      </div>
+    </article>
   );
 }
 
-/** Animated variant with purple border */
-export function TokenCardAnimated(props: TokenCardProps) {
-  return <TokenCard {...props} isAnimated />;
+function SocialButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return <button type="button" aria-label={label} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onClick(); }} className="flex size-7 items-center justify-center rounded-lg bg-figma-surface text-figma-muted transition-colors hover:text-figma-white">{children}</button>;
 }
+
+export function TokenCardAnimated(props: TokenCardProps) { return <TokenCard {...props} isAnimated />; }

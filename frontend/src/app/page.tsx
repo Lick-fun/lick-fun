@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { ArrowRight, Rocket, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { TokenCard, TokenCardAnimated } from "@/components/token/TokenCard";
 import { TokenAvatar } from "@/components/ui/TokenImage";
 import { CreatorBadge } from "@/components/ui/CreatorBadge";
@@ -182,6 +183,34 @@ export default function HomePage() {
 
   return (
     <>
+      <section className="relative overflow-hidden border-b border-figma-purple/15 bg-grid px-5 py-12 md:py-16">
+        <div className="pointer-events-none absolute left-1/2 top-0 size-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-figma-purple/20 blur-3xl" />
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center text-center">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-figma-purple/30 bg-figma-purple/10 px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-figma-purple-soft">
+            <Sparkles className="size-3.5" /> Reputation is the new liquidity
+          </div>
+          <h1 className="max-w-4xl text-balance font-display text-4xl font-extrabold leading-[1.03] tracking-[-0.055em] text-figma-white sm:text-6xl lg:text-7xl">
+            Launch memes. Build rep. <span className="text-gradient-lick">Own the lake.</span>
+          </h1>
+          <p className="mt-5 max-w-2xl text-pretty text-base leading-relaxed text-figma-muted md:text-lg">
+            The reputation-powered token launchpad on Monad. Fair launches, transparent bonding curves, and rewards for creators who keep shipping.
+          </p>
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <Link href="/create" className="flex items-center justify-center gap-2 rounded-xl bg-figma-purple px-6 py-3.5 text-sm font-extrabold text-figma-white shadow-glow-purple transition-all hover:-translate-y-0.5 hover:bg-figma-purple-soft">
+              <Rocket className="size-4" /> Launch a token <ArrowRight className="size-4" />
+            </Link>
+            <Link href="/discover" className="flex items-center justify-center gap-2 rounded-xl border border-figma-purple/30 bg-figma-card/70 px-6 py-3.5 text-sm font-bold text-figma-white backdrop-blur transition-all hover:border-figma-purple/70 hover:bg-figma-purple/10">
+              Explore the lake
+            </Link>
+          </div>
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-xs font-semibold text-figma-muted">
+            <span className="flex items-center gap-2"><ShieldCheck className="size-4 text-figma-green" /> Reputation-gated launches</span>
+            <span className="flex items-center gap-2"><Users className="size-4 text-figma-purple-soft" /> Community-first discovery</span>
+            <span className="flex items-center gap-2"><Rocket className="size-4 text-figma-purple-soft" /> Built on Monad</span>
+          </div>
+        </div>
+      </section>
+
       {/* ── Buys & Sells Ticker — rendered OUTSIDE the padded page div so it
            can span the full viewport width regardless of parent overflow ── */}
       <div className="relative overflow-hidden mt-[17px] h-[58px] w-full bg-figma-bg">
@@ -287,11 +316,9 @@ export default function HomePage() {
       />
 
       {/* ── Trending Now Banner ── */}
-      <div className="flex items-center justify-center gap-3 mt-[20px]">
-        <span className="text-3xl">🔥</span>
-        <span className="text-3xl text-figma-white font-bold tracking-wide">
-          Trending Now
-        </span>
+      <div className="mt-10 flex items-center justify-center gap-3">
+        <span className="flex size-9 items-center justify-center rounded-xl bg-figma-purple/15 text-figma-purple-soft"><Sparkles className="size-5" /></span>
+        <span className="font-display text-3xl font-extrabold tracking-tight text-figma-white">Trending in the lake</span>
       </div>
 
       {/* ── Trending Section ── */}

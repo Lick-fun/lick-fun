@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import Image from "next/image";
 import { useTokenImage } from "@/lib/hooks/useTokenImage";
 import { ipfsFallbackUrls } from "@/lib/ipfs";
+import { getMockTokenImage } from "@/lib/mock/images";
 import { cn } from "@/lib/utils";
 
 /* ──────────────────────────────────────────────────────────────────────────────── */
@@ -153,7 +154,11 @@ export function TokenImage({
   const isFounderToken = tokenAddress?.toLowerCase() === FOUNDER_TOKEN_ADDRESS.toLowerCase();
   const founderImageUrl = isFounderToken ? FOUNDER_TOKEN_IMAGE : null;
 
-  const { data, isLoading } = useTokenImage(directImageUrl || founderImageUrl ? null : tokenAddress);
+  // Mock-mode artwork (preview without a live image API) — resolved locally.
+  const mockImageUrl = getMockTokenImage(tokenAddress);
+
+  const skipApi = Boolean(directImageUrl || founderImageUrl || mockImageUrl);
+  const { data, isLoading } = useTokenImage(skipApi ? null : tokenAddress);
   const [errorCount, setErrorCount] = useState(0);
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
 
@@ -163,6 +168,7 @@ export function TokenImage({
   const resolvedImageUrl =
     founderImageUrl ??
     directImageUrl ??
+    mockImageUrl ??
     (currentUrl || (data?.imageUrl ?? null));
 
   // Track the raw IPFS URI for fallback gateway cycling.

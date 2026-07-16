@@ -70,8 +70,10 @@ export default function ProfilePage() {
         <div
           className="flex flex-col gap-[18px] w-full"
           style={{
-            background: "#000000",
-            borderRadius: "34px",
+            background: "rgba(19, 10, 34, 0.88)",
+            border: "1px solid rgba(139, 61, 255, 0.2)",
+            boxShadow: "0 24px 80px -48px rgba(139, 61, 255, 0.75)",
+            borderRadius: "24px",
             padding: "26px 37px 25px",
           }}
         >

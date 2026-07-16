@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import path from "path";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -45,4 +46,24 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * Sentry build-time integration — uploads source maps for readable stack
+ * traces when SENTRY_AUTH_TOKEN + SENTRY_ORG + SENTRY_PROJECT are set (e.g.
+ * in CI/Railway build env). Entirely optional: without an auth token the
+ * wrapper just skips the upload step (`silent: true` suppresses the "no
+ * auth token configured" notice so local/dev builds stay quiet). Sentry
+ * error reporting itself (instrumentation-client.ts / sentry.server.config.ts
+ * / sentry.edge.config.ts) works independently of source maps — this only
+ * makes stack traces prettier in the Sentry UI and never blocks the build.
+ */
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
+});

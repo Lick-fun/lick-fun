@@ -172,7 +172,7 @@ export default function TokenDetailPage() {
         <div className="flex-1 min-w-0 w-full space-y-3 order-2 lg:order-1">
 
           {/* Token header card */}
-          <div className="rounded-xl border border-figma-card bg-figma-card p-4">
+          <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_20px_60px_-35px_rgba(139,61,255,0.45)] p-4">
             <div className="flex items-start gap-3">
               <TokenImage
                 tokenAddress={tokenId}
@@ -252,7 +252,7 @@ export default function TokenDetailPage() {
                     onClick={() => setShowFeeOverview(true)}
                     className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-figma-surface bg-figma-surface/50 hover:bg-figma-surface text-figma-muted hover:text-figma-white text-[10px] font-semibold transition-all"
                   >
-                    📊 Fee Overview
+                    Fee Overview
                   </button>
                 </div>
               </div>
@@ -278,7 +278,7 @@ export default function TokenDetailPage() {
           )}
 
           {/* Chart card */}
-          <div className="rounded-xl border border-figma-card bg-figma-card p-0 overflow-hidden">
+          <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_20px_60px_-35px_rgba(139,61,255,0.45)] p-0 overflow-hidden">
             <div className="p-4 pt-3">
               <PriceChart
                 bars={bars}
@@ -293,7 +293,7 @@ export default function TokenDetailPage() {
           </div>
 
           {/* Trades / Holders section */}
-          <div className="rounded-xl border border-figma-card bg-figma-card overflow-hidden">
+          <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_20px_60px_-35px_rgba(139,61,255,0.45)] overflow-hidden">
             {/* Tab bar */}
             <div className="flex items-center gap-0 border-b border-figma-surface">
               <button
@@ -547,7 +547,7 @@ export default function TokenDetailPage() {
           />
 
           {/* Bonding Curve progress */}
-          <div className="rounded-xl border border-figma-card bg-figma-card p-4">
+          <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_20px_60px_-35px_rgba(139,61,255,0.45)] p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-figma-white">Bonding Curve</span>
               <span className="text-xs text-figma-green font-bold">{token.progress.toFixed(1)}%</span>
@@ -566,7 +566,7 @@ export default function TokenDetailPage() {
           </div>
 
           {/* Token information */}
-          <div className="rounded-xl border border-figma-card bg-figma-card p-4">
+          <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_20px_60px_-35px_rgba(139,61,255,0.45)] p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-figma-white">Information</span>
               <div className="flex items-center gap-1 text-xs text-figma-muted">
@@ -692,7 +692,7 @@ export default function TokenDetailPage() {
 
           {/* Prediction Market */}
           {market && (
-            <div className="rounded-xl border border-figma-card bg-figma-card p-4">
+            <div className="rounded-2xl border border-figma-purple/15 bg-figma-card shadow-[0_20px_60px_-35px_rgba(139,61,255,0.45)] p-4">
               <button
                 onClick={() => setShowBetForm((v) => !v)}
                 className="w-full flex items-center justify-between mb-3 group"

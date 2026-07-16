@@ -9,26 +9,29 @@
 /* ────────────────────────────────────────────────────────────────────────── */
 
 :root {
-  /* Surfaces */
-  --color-bg:           #0E0E0E;
-  --color-surface:      #1B1B1B;
-  --color-card:         #000000;
-  --color-card-alt:     #1B1B1B;
+  /* Surfaces — deep purple-black */
+  --color-bg:           #0B0613;
+  --color-surface:      #150B26;
+  --color-card:         #130A22;
+  --color-card-alt:     #1E1236;
   --color-white-card:   #FFFFFF;
 
   /* Text */
   --color-text:         #FFFFFF;
-  --color-text-muted:   rgba(255, 255, 255, 0.5);
-  --color-card-fg:      #0E0E0E;
+  --color-text-muted:   rgba(214, 199, 240, 0.55);
+  --color-card-fg:      #0B0613;
 
-  /* Accents */
-  --color-green:        #70E000;
+  /* Brand accent — electric purple (primary CTA / highlights) */
+  --color-purple:       #8B3DFF;
+  --color-purple-soft:  #B57BFF;
+  --color-purple-deep:  #6D28D9;
+
+  /* Buy / positive (lime) & sell / negative (red) semantics */
+  --color-green:        #7CEF3A;
   --color-green-soft:   #9EF01A;
-  --color-chart-green:  #2CC054;
-  --color-purple:       #6E44D2;
-  --color-purple-soft:  #9B6FFF;
-  --color-red:          #E00004;
-  --color-red-soft:     #F01A1E;
+  --color-chart-green:  #3BD671;
+  --color-red:          #FF3B4E;
+  --color-red-soft:     #FF5A6A;
 
   /* Figma spacing primitives used across components */
   --sidebar-w:          291px;
@@ -57,6 +60,11 @@
 
   body {
     @apply font-sans antialiased;
+    background-color: var(--color-bg);
+    background-image:
+      radial-gradient(900px circle at 12% -5%, rgba(139, 61, 255, 0.18), transparent 55%),
+      radial-gradient(700px circle at 92% 8%, rgba(109, 40, 217, 0.14), transparent 50%);
+    background-attachment: fixed;
   }
 
   /* Hide number input spinners (Chrome/Safari/Firefox) */
@@ -72,42 +80,60 @@
 }
 
 @layer components {
-  /* Green brand gradient (was the orange lick-gradient) */
+  /* Purple brand gradient */
   .gradient-lick {
-    background: linear-gradient(135deg, var(--color-green) 0%, var(--color-green-soft) 100%);
+    background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-purple-soft) 100%);
   }
 
   .text-gradient-lick {
-    background: linear-gradient(135deg, var(--color-green) 0%, var(--color-chart-green) 100%);
+    background: linear-gradient(120deg, var(--color-purple-soft) 0%, var(--color-purple) 55%, #E9D5FF 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* Button styles — semantic tokens */
+  /* Primary brand button — electric purple with glow */
   .btn-lick {
-    @apply rounded-lg px-6 py-3 font-semibold transition-all duration-200
+    @apply rounded-xl px-6 py-3 font-bold transition-all duration-200
            disabled:opacity-50 disabled:cursor-not-allowed;
-    background: linear-gradient(90deg, var(--color-green) 0%, var(--color-green-soft) 100%);
-    color: var(--color-card-fg);
+    background: linear-gradient(90deg, var(--color-purple-deep) 0%, var(--color-purple) 100%);
+    color: #FFFFFF;
+    box-shadow: 0 8px 30px -10px rgba(139, 61, 255, 0.7);
   }
   .btn-lick:hover {
-    filter: brightness(1.05);
+    filter: brightness(1.08);
+    box-shadow: 0 10px 36px -8px rgba(139, 61, 255, 0.85);
+    transform: translateY(-1px);
   }
 
   .btn-lick-outline {
-    border: 1px solid var(--color-green);
-    color: var(--color-green);
-    @apply rounded-lg px-6 py-3 font-semibold transition-all duration-200
-           hover:bg-[rgba(112,224,0,0.1)];
+    border: 1px solid rgba(139, 61, 255, 0.55);
+    color: var(--color-purple-soft);
+    @apply rounded-xl px-6 py-3 font-bold transition-all duration-200
+           hover:bg-[rgba(139,61,255,0.12)] hover:border-[rgba(139,61,255,0.9)];
   }
 
   /* Fade edges for the trade ticker */
   .gradient-fade-right {
-    background: linear-gradient(270deg, rgba(14, 14, 14, 0) 0%, rgba(14, 14, 14, 1) 100%);
+    background: linear-gradient(270deg, rgba(11, 6, 19, 0) 0%, rgba(11, 6, 19, 1) 100%);
   }
   .gradient-fade-left {
-    background: linear-gradient(90deg, rgba(14, 14, 14, 1) 0%, rgba(14, 14, 14, 0) 100%);
+    background: linear-gradient(90deg, rgba(11, 6, 19, 1) 0%, rgba(11, 6, 19, 0) 100%);
+  }
+
+  /* Frosted purple panel — reusable card surface */
+  .panel-glass {
+    background: linear-gradient(180deg, rgba(30, 18, 54, 0.75) 0%, rgba(19, 10, 34, 0.85) 100%);
+    border: 1px solid rgba(139, 61, 255, 0.18);
+    backdrop-filter: blur(10px);
+  }
+
+  /* Subtle grid texture overlay for hero sections */
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(139, 61, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139, 61, 255, 0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
 
   /* Marquee animation for the full-width ticker banner */
@@ -161,8 +187,9 @@
     @apply transition-all duration-200;
   }
   .card-hover:hover {
-    border-color: var(--color-green);
-    box-shadow: 0 0 0 1px rgba(112, 224, 0, 0.2);
+    border-color: var(--color-purple);
+    box-shadow: 0 0 0 1px rgba(139, 61, 255, 0.35), 0 12px 40px -12px rgba(139, 61, 255, 0.5);
+    transform: translateY(-2px);
   }
 }
 
