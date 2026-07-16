@@ -14,6 +14,7 @@ const EXCLUSIVE_BADGES = new Set<Badge>(["Founder"]);
 const ALL_BADGES: Badge[] = [
   "Founder",
   "First Token",
+  "First Graduation",
   "Triple Graduate",
   "Deca Graduate",
   "Crowd Favourite",
@@ -28,6 +29,7 @@ const ALL_BADGES: Badge[] = [
 const BADGE_ICONS: Record<Badge, string> = {
   "Founder": "🏅",
   "First Token": "🚀",
+  "First Graduation": "🥇",
   "Triple Graduate": "🎓",
   "Deca Graduate": "🏆",
   "Crowd Favourite": "⭐",
@@ -42,6 +44,7 @@ const BADGE_ICONS: Record<Badge, string> = {
 const BADGE_DESCRIPTIONS: Record<Badge, string> = {
   "Founder": "Lickfun.xyz founding developer",
   "First Token": "Launched your first token",
+  "First Graduation": "Graduated your first token to the DEX",
   "Triple Graduate": "Three or more tokens graduated to DEX",
   "Deca Graduate": "Ten or more tokens graduated to DEX",
   "Crowd Favourite": "One of your tokens attracted 200+ unique buyers",

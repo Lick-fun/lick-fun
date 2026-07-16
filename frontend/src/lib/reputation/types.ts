@@ -55,6 +55,7 @@ export interface ProfileEntity {
 export type Badge =
   | "Founder"
   | "First Token"
+  | "First Graduation"
   | "Triple Graduate"
   | "Deca Graduate"
   | "Crowd Favourite"

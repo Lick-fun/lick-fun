@@ -46,7 +46,7 @@ function hashLeaf(leaf: MerkleLeaf): Buffer {
   tierByte.writeUInt8(tierMap[leaf.tier] ?? 0, 0);
   hash.update(tierByte);
 
-  // Encode badges as a compact bitmap (10 badges = 10 bits, 2 bytes)
+  // Encode badges as a compact bitmap (11 badges = 11 bits, 2 bytes)
   const badgeBitmap = encodeBadgeBitmap(leaf.activeBadges);
   const badgeBuf = Buffer.alloc(2);
   badgeBuf.writeUInt16BE(badgeBitmap, 0);
@@ -56,31 +56,33 @@ function hashLeaf(leaf: MerkleLeaf): Buffer {
 }
 
 /**
- * Encode badges into a 10-bit bitmap.
+ * Encode badges into an 11-bit bitmap.
  * Badge order (bit 0 = LSB):
- *   bit 0: First Token
- *   bit 1: Triple Graduate
- *   bit 2: Deca Graduate
- *   bit 3: Crowd Favourite
- *   bit 4: Diamond Hands
- *   bit 5: Never Rug
- *   bit 6: Pre-buy Honest
- *   bit 7: Volume Maker
- *   bit 8: Verified Founder
- *   bit 9: OG
+ *   bit 0:  First Token
+ *   bit 1:  First Graduation
+ *   bit 2:  Triple Graduate
+ *   bit 3:  Deca Graduate
+ *   bit 4:  Crowd Favourite
+ *   bit 5:  Diamond Hands
+ *   bit 6:  Never Rug
+ *   bit 7:  Pre-buy Honest
+ *   bit 8:  Volume Maker
+ *   bit 9:  Verified Founder
+ *   bit 10: OG
  */
 function encodeBadgeBitmap(badges: readonly string[]): number {
   const BADGE_ORDER: Record<string, number> = {
     "First Token": 0,
-    "Triple Graduate": 1,
-    "Deca Graduate": 2,
-    "Crowd Favourite": 3,
-    "Diamond Hands": 4,
-    "Never Rug": 5,
-    "Pre-buy Honest": 6,
-    "Volume Maker": 7,
-    "Verified Founder": 8,
-    "OG": 9,
+    "First Graduation": 1,
+    "Triple Graduate": 2,
+    "Deca Graduate": 3,
+    "Crowd Favourite": 4,
+    "Diamond Hands": 5,
+    "Never Rug": 6,
+    "Pre-buy Honest": 7,
+    "Volume Maker": 8,
+    "Verified Founder": 9,
+    "OG": 10,
   };
 
   let bitmap = 0;

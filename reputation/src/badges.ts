@@ -70,6 +70,11 @@ export function computeBadges(
     badges.push("First Token");
   }
 
+  // "First Graduation" — graduatedCount >= 1 (no diversity gate — simplest milestone)
+  if (graduatedCount >= 1) {
+    badges.push("First Graduation");
+  }
+
   // "Triple Graduate" — graduatedCount >= 3 AND avgTraderDiversity >= threshold
   if (graduatedCount >= 3 && inputs.avgTraderDiversity >= DIVERSITY_MIN_FOR_GRAD_BADGES) {
     badges.push("Triple Graduate");

@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { Copy, Check, ExternalLink, Pencil, Globe, Send } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { TierBadge } from "@/components/reputation/TierBadge";
 import { ReputationScore } from "@/components/reputation/ReputationScore";
 import { BadgeGrid } from "@/components/reputation/BadgeGrid";
@@ -10,7 +10,7 @@ import { PortfolioSummary } from "@/components/profile/PortfolioSummary";
 import { HoldingsList } from "@/components/profile/HoldingsList";
 import { CreatedTokensList } from "@/components/profile/CreatedTokensList";
 import { ActivityTabs } from "@/components/profile/ActivityTabs";
-import { useProfile, useTokensByCreator } from "@/lib/hooks/useData";
+import { useProfile, useTokensByCreator, useTokensMeta } from "@/lib/hooks/useData";
 import { useReputation } from "@/lib/hooks/useReputation";
 import { useProfileMeta } from "@/lib/hooks/useProfileMeta";
 import { useTokenHoldings } from "@/lib/hooks/useTokenHoldings";
@@ -55,6 +55,31 @@ export default function ProfilePage() {
 
   // Creator fees for tokens created by this user
   const { data: creatorFees, isLoading: feesLoading } = useCreatorFees(addr);
+
+  // Resolve real on-chain name/symbol for tokens whose indexer values are blank
+  // (the Envio indexer intentionally stores empty name/symbol strings — see
+  // resolveTokenMeta / useTokenMeta pattern on the token detail page).
+  // Applies to both "Tokens Created" (keyed by `id`) and "Holdings" (keyed by `tokenId`).
+  const tokensResolved = useTokensMeta(tokens);
+
+  // Holdings use `tokenId` as the id field — adapt to the {id,name,symbol} shape
+  // useTokensMeta expects, resolve, then merge resolved name/symbol back.
+  const holdingsForResolution = useMemo(
+    () =>
+      holdings.map((h) => ({ id: h.tokenId, name: h.name, symbol: h.symbol })),
+    [holdings]
+  );
+  const holdingsResolvedRaw = useTokensMeta(holdingsForResolution);
+  const holdingsResolved = useMemo(
+    () =>
+      holdings.map((h, i) => {
+        const r = holdingsResolvedRaw[i];
+        return r && (!h.name || !h.symbol)
+          ? { ...h, name: r.name || h.name, symbol: r.symbol || h.symbol }
+          : h;
+      }),
+    [holdings, holdingsResolvedRaw]
+  );
 
   const isLoading = profileLoading || tokensLoading || repLoading;
 
@@ -242,7 +267,7 @@ export default function ProfilePage() {
             Holdings
           </h2>
           <HoldingsList
-            holdings={holdings}
+            holdings={holdingsResolved}
             isLoading={holdingsLoading}
             monUsdPrice={monUsdPrice}
           />
@@ -264,7 +289,7 @@ export default function ProfilePage() {
             Tokens Created
           </h2>
           <CreatedTokensList
-            tokens={tokens}
+            tokens={tokensResolved}
             isLoading={tokensLoading}
             creatorFees={creatorFees ?? new Map()}
             feesLoading={feesLoading}

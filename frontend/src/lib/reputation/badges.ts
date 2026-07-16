@@ -42,6 +42,7 @@ export function computeBadges(
   const { tokenCount, graduatedCount } = inputs;
 
   if (tokenCount >= 1) badges.push("First Token");
+  if (graduatedCount >= 1) badges.push("First Graduation");
   if (graduatedCount >= 3 && inputs.avgTraderDiversity >= DIVERSITY_MIN_FOR_GRAD_BADGES) {
     badges.push("Triple Graduate");
   }

@@ -1,0 +1,133 @@
+# Session — 2026-07-16 — Profile/reputation upgrades + holder-list additions
+
+## Task
+Implement 4 features requested by user:
+1. New "First Graduation" achievement/badge for first token graduated.
+2. Token names should come up in balances (Holdings) on the profile page.
+3. Name of the created token should show on the profile's "Tokens Created" list.
+4. Token page Holders list: add the liquidity pool as a holder (already existed
+   post-grad), AND add the dead/burn address so users can see how much is burned.
+   User clarified: also show the bonding curve contract itself as a holder for
+   pre-graduation tokens (it holds the unsold supply).
+
+## What was implemented (all verified — tsc clean, lint clean, 61 vitest tests pass)
+
+### Phase A — New "First Graduation" badge (11 badges total, was 10)
+- Added `"First Graduation"` to the `Badge` union in:
+  - `reputation/src/types.ts` (server/off-chain package)
+  - `frontend/src/lib/reputation/types.ts` (browser-safe mirror)
+- Added `if (graduatedCount >= 1) badges.push("First Graduation")` (NO diversity
+  gate — simplest milestone, unlike Triple/Deca Graduate which require
+  avgTraderDiversity >= 0.3) in:
+  - `reputation/src/badges.ts`
+  - `frontend/src/lib/reputation/badges.ts`
+- Updated Merkle badge bitmap in `reputation/src/anchor.ts`:
+  - `BADGE_ORDER` map renumbered: First Graduation = bit 1, Triple Graduate
+    shifted to bit 2, Deca Graduate to bit 3, etc. (OG now bit 10).
+  - 2-byte uint16 buffer still fits all 11 badges comfortably.
+  - Doc comment updated to enumerate new bit positions.
+- Registered in `frontend/src/components/reputation/BadgeGrid.tsx`:
+  - Added to `ALL_BADGES` array.
+  - Icon: 🥇 (🎓 and 🏆 already used by Triple/Deca Graduate).
+  - Description: "Graduated your first token to the DEX".
+- Added 3 new tests in `reputation/src/__tests__/reputation.test.ts`:
+  - Awarded when graduatedCount >= 1.
+  - Not awarded when graduatedCount = 0.
+  - Awarded regardless of trader diversity (confirms no diversity gate).
+- All 61 reputation tests pass (was 58, +3 new).
+
+### Phase B — Profile token-name resolution (fixes blank names on profile lists)
+- Root cause (same as the 2026-07-05 "??? Unknown Token" tab title bug): the Envio
+  indexer intentionally stores empty `name`/`symbol` strings for every `Token`
+  entity. The token detail page already works around this via `useTokenMeta()` in
+  `frontend/src/lib/hooks/useData.ts` (on-chain multicall fallback). The profile
+  page's "Holdings" and "Tokens Created" lists were NOT doing this fallback — they
+  rendered the raw indexer values, which were often blank.
+- Fix in `frontend/src/app/profile/[address]/page.tsx`:
+  - Imported `useTokensMeta` (existing batch resolver in `useData.ts`).
+  - For "Tokens Created" (`tokens` from `useTokensByCreator`, keyed by `id`):
+    passed directly through `useTokensMeta` → `tokensResolved`.
+  - For "Holdings" (`Holding[]` from `useTokenHoldings`, keyed by `tokenId` not
+    `id`): added a local adapter that maps to `{id, name, symbol}[]`, resolves
+    via `useTokensMeta`, then merges resolved name/symbol back onto the holdings
+    array → `holdingsResolved`.
+  - Passed `tokensResolved` to `<CreatedTokensList>` and `holdingsResolved` to
+    `<HoldingsList>`.
+  - Added `useMemo` to imports.
+- No shared-hook signature changes — resolution stays page-level, consistent with
+  the token detail page's existing pattern.
+
+### Phase C — Token page Holders list additions
+- Extended `frontend/src/lib/hooks/useTokenHolders.ts`:
+  - Added `DEAD_ADDRESS` constant = `0x000000000000000000000000000000000000dead`
+    (matches `VaultBuybackBurnV2.BURN_ADDRESS` in contracts/src/VaultBuybackBurnV2.sol
+    and `LickPair.DEAD` in contracts/src/LickPair.sol — `0xdead` left-pads to the
+    same 20-byte address).
+  - Added `curveAddress?: string | null` param to the hook signature.
+  - Candidate/multicall set now always includes `DEAD_ADDRESS` (unconditional,
+    pre- and post-grad) and `curveAddress` (when provided).
+  - Extended `TokenHolder` interface with `isCurve?: boolean` and `isBurned?: boolean`
+    (mirrors existing `isLp?: boolean`).
+  - Tagged results in the build loop with `isCurve`/`isBurned` flags.
+  - Updated `useMemo` dependency arrays to include `curveAddress`.
+- Updated `frontend/src/app/token/[id]/page.tsx`:
+  - Passes `token?.curve ?? null` as the new 7th arg to `useTokenHolders`.
+  - Added render branches in the holders table (mirroring the existing `isLp`
+    "🌊 Liquidity Pool" blue-tinted row pattern):
+    - `holder.isCurve` → 🌊 "Liquidity Pool (unsold supply)" purple-tinted row.
+      (User requested the bonding curve row be labeled "Liquidity Pool" for
+      consistency with the post-grad DEX pair row — same icon + label, with
+      "(unsold supply)" qualifier to distinguish the two states.)
+    - `holder.isBurned` → 🔥 "Burned (dead address)" red-tinted row.
+- LP row (post-graduation DEX pair) was already implemented and confirmed working
+  — no change needed there.
+- Burned balance is included in % of total supply (NOT excluded) — gives users a
+  true "fraction burned" reading. `totalSupply()` reflects OpenZeppelin's fixed 1B
+  mint (no real on-chain burn/decrease happens — only `transfer()` to dead address
+  is used by `VaultBuybackBurnV2`).
+
+## Verification
+- `npx tsc --noEmit` (frontend) — clean, 0 errors.
+- `npx next lint` (frontend) — only pre-existing warnings, 0 new errors/warnings
+  (Railway build safe — Railway fails on lint errors, not warnings).
+- `npx vitest run` (reputation/) — 61/61 pass (was 58, +3 new).
+- `get_errors` tool across all 10 modified files — 0 errors.
+
+## Files modified (10 total)
+**Reputation package (server/off-chain):**
+- `reputation/src/types.ts` — Badge union
+- `reputation/src/badges.ts` — computeBadges logic
+- `reputation/src/anchor.ts` — Merkle badge bitmap (BADGE_ORDER + doc comment)
+- `reputation/src/__tests__/reputation.test.ts` — 3 new tests
+
+**Frontend (browser-safe mirrors + UI):**
+- `frontend/src/lib/reputation/types.ts` — Badge union mirror
+- `frontend/src/lib/reputation/badges.ts` — computeBadges mirror
+- `frontend/src/components/reputation/BadgeGrid.tsx` — badge registry (icon/desc)
+- `frontend/src/app/profile/[address]/page.tsx` — useTokensMeta wiring for both lists
+- `frontend/src/lib/hooks/useTokenHolders.ts` — curveAddress param, DEAD_ADDRESS, isCurve/isBurned
+- `frontend/src/app/token/[id]/page.tsx` — pass token.curve, render branches
+
+## Docs updated
+- `README.md` — test badge (58→61 vitest), status line (+ Profile/reputation
+  upgrades 2026-07-16), reputation badges table (10→11, added First Graduation
+  row), reputation section (10→11 badges), profile page Holdings/Created bullets
+  (note on-chain name resolution), project structure (10→11 badges).
+- `.memory/Lick.fun — Reputation System.txt` — last-updated header, badges list
+  (added First Graduation), bitmap encoding section (renumbered bits, note about
+  2-byte buffer still fitting).
+- `.memory/Lick.fun — Frontend Reference.txt` — useTokenHolders hook doc (new
+  params + flags), token page Holders tab section (3 labeled special-holder
+  rows), profile route note (useTokensMeta name resolution).
+- This session note.
+
+## Outstanding (manual, not blocking commit)
+- Manual browser smoke test on live graduated + pre-grad tokens to visually
+  confirm the new holder rows and profile name resolution. Automated checks
+  (tsc/lint/tests) all pass.
+- No contract changes needed — pure frontend + off-chain reputation feature.
+- No indexer changes needed — `Token.curve` field already exists in the indexer
+  schema.
+
+## Git
+- Commit (pending) — all changes staged and ready to commit + push.

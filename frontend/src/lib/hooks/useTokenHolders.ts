@@ -19,7 +19,22 @@ export interface TokenHolder {
   valueMonFormatted: number; // balance × current price in MON
   valueUsd: number | null; // null if monUsdPrice unavailable
   isLp?: boolean; // true if this holder is the DEX liquidity pool
+  isCurve?: boolean; // true if this holder is the bonding curve (unsold supply, pre-grad)
+  isBurned?: boolean; // true if this holder is the dead/burn address (0x...dEaD)
 }
+
+/* ─────────────────────────────────────────────────────────────── */
+/* Known special addresses                                         */
+/* ─────────────────────────────────────────────────────────────── */
+
+/**
+ * The de-facto standard "dead" address used for permanent token burns.
+ * Matches `VaultBuybackBurnV2.BURN_ADDRESS` in contracts/src/VaultBuybackBurnV2.sol
+ * and `LickPair.DEAD` in contracts/src/LickPair.sol (0xdead left-pads to the
+ * same 20-byte address). Always checked as a holder so users can see how much
+ * of a token has been burned via buyback-and-burn (pre- or post-graduation).
+ */
+const DEAD_ADDRESS = "0x000000000000000000000000000000000000dead";
 
 /* ─────────────────────────────────────────────────────────────── */
 /* ERC-20 ABI (balanceOf + totalSupply)                           */
@@ -66,7 +81,8 @@ export function useTokenHolders(
   realMon: bigint | undefined,
   monUsdPrice?: number | null,
   extraTraders?: string[],
-  pairAddress?: string | null
+  pairAddress?: string | null,
+  curveAddress?: string | null
 ) {
   const enabled = !!tokenId;
   const tokenLower = tokenId.toLowerCase();
@@ -100,8 +116,13 @@ export function useTokenHolders(
     }
     // Include the DEX pair address (liquidity pool) if the token has graduated
     if (pairAddress) seen.add(pairAddress.toLowerCase());
+    // Include the bonding curve contract — it holds all unsold supply pre-graduation
+    if (curveAddress) seen.add(curveAddress.toLowerCase());
+    // Always include the dead/burn address — buyback-and-burns send tokens here
+    // pre- and post-graduation, and users want to see how much is burned.
+    seen.add(DEAD_ADDRESS);
     return Array.from(seen);
-  }, [tradersQuery.data, extraTraders, pairAddress]);
+  }, [tradersQuery.data, extraTraders, pairAddress, curveAddress]);
 
   // Step 2: Multicall totalSupply + balanceOf for every unique trader
   const balanceContracts = useMemo(
@@ -157,7 +178,10 @@ export function useTokenHolders(
       const valueUsd = monUsdPrice != null ? valueMonFormatted * monUsdPrice : null;
 
       const addr = traders[i];
-      const isLp = !!pairAddress && addr.toLowerCase() === pairAddress.toLowerCase();
+      const addrLower = addr.toLowerCase();
+      const isLp = !!pairAddress && addrLower === pairAddress.toLowerCase();
+      const isCurve = !!curveAddress && addrLower === curveAddress.toLowerCase();
+      const isBurned = addrLower === DEAD_ADDRESS;
       result.push({
         address: addr,
         balance,
@@ -166,11 +190,13 @@ export function useTokenHolders(
         valueMonFormatted,
         valueUsd,
         isLp,
+        isCurve,
+        isBurned,
       });
     }
 
     return result.sort((a, b) => (b.balance > a.balance ? 1 : -1));
-  }, [balanceResults, traders, soldTokens, realMon, monUsdPrice, pairAddress]);
+  }, [balanceResults, traders, soldTokens, realMon, monUsdPrice, pairAddress, curveAddress]);
 
   return {
     holders,

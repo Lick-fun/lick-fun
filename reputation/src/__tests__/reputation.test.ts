@@ -291,6 +291,30 @@ describe("testBadgeLogic", () => {
     expect(badges).not.toContain("First Token");
   });
 
+  it('"First Graduation" badge awarded when graduatedCount >= 1', () => {
+    const badges = computeBadges(
+      makeInputs({ tokenCount: 1, graduatedCount: 1 }),
+      0
+    );
+    expect(badges).toContain("First Graduation");
+  });
+
+  it('"First Graduation" badge not awarded when graduatedCount = 0', () => {
+    const badges = computeBadges(
+      makeInputs({ tokenCount: 5, graduatedCount: 0 }),
+      0
+    );
+    expect(badges).not.toContain("First Graduation");
+  });
+
+  it('"First Graduation" awarded regardless of trader diversity (no diversity gate)', () => {
+    const badges = computeBadges(
+      makeInputs({ tokenCount: 1, graduatedCount: 1, avgTraderDiversity: 0 }),
+      0
+    );
+    expect(badges).toContain("First Graduation");
+  });
+
   it('"Triple Graduate" awarded at 3+ grads with sufficient diversity', () => {
     const badges = computeBadges(
       makeInputs({ tokenCount: 5, graduatedCount: 3, avgTraderDiversity: 0.5 }),

@@ -82,7 +82,8 @@ export default function TokenDetailPage() {
     token?.realMon,
     monUsdPrice,
     extraTraderAddresses,
-    pairAddress ?? null
+    pairAddress ?? null,
+    token?.curve ?? null
   );
 
   // Activity tab: "trades" | "holders"
@@ -473,7 +474,9 @@ export default function TokenDetailPage() {
                             className={cn(
                               "border-b border-figma-surface/30 hover:bg-figma-surface/20 transition-colors",
                               isDevHolder && "bg-yellow-500/5",
-                              holder.isLp && "bg-blue-500/5"
+                              holder.isLp && "bg-blue-500/5",
+                              holder.isCurve && "bg-purple-500/5",
+                              holder.isBurned && "bg-red-500/5"
                             )}
                           >
                             <td className="px-3 sm:px-4 py-2.5 text-figma-muted font-mono">{globalIndex}</td>
@@ -482,6 +485,18 @@ export default function TokenDetailPage() {
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-sm">🌊</span>
                                   <span className="text-figma-white font-semibold text-[11px]">Liquidity Pool</span>
+                                </div>
+                              ) : holder.isCurve ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm">🌊</span>
+                                  <span className="text-figma-white font-semibold text-[11px]">Liquidity Pool</span>
+                                  <span className="text-figma-muted text-[9px]">(unsold supply)</span>
+                                </div>
+                              ) : holder.isBurned ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-sm">🔥</span>
+                                  <span className="text-figma-white font-semibold text-[11px]">Burned</span>
+                                  <span className="text-figma-muted text-[9px]">(dead address)</span>
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1.5">

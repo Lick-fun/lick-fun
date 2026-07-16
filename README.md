@@ -6,9 +6,9 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.27-blue)](https://soliditylang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![Foundry](https://img.shields.io/badge/Foundry-latest-orange)](https://getfoundry.sh/)
-[![Tests](https://img.shields.io/badge/Tests-176%20Forge%20•%2058%20Vitest-green)](.)
+[![Tests](https://img.shields.io/badge/Tests-176%20Forge%20•%2061%20Vitest-green)](.)
 
-**Status:** 🟢 **Live on Monad mainnet (chain 143)** · 29-finding mainnet security audit completed + all fixes applied (164 → 176 Forge tests) · Phase 3 — custom fee config for all users · **Phase 4 hardening (2026-07-13)** — V2 buyback-and-burn vault live (burn-to-dead-address, works with every ERC-20), vault auto-execution at 50 MON threshold with 5% on-chain slippage cap, untracked-vault-balance Telegram alerting in the keeper, Storj-backed profile metadata (survives Railway redeploys), Sentry error monitoring + Plausible analytics opt-in (env-gated, no-op without DSN), `/terms` and `/privacy` pages (legal-review pending) · **UI overhaul (2026-07-16)** — full Figma redesign (purple/lime theme) merged across every page and component, production infra (Sentry, WalletConnect fail-fast, Storj-backed profile storage) verified intact. 4 tokens live, fees verified to Safe multisig treasury `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` (block 83961211).
+**Status:** 🟢 **Live on Monad mainnet (chain 143)** · 29-finding mainnet security audit completed + all fixes applied (164 → 176 Forge tests) · Phase 3 — custom fee config for all users · **Phase 4 hardening (2026-07-13)** — V2 buyback-and-burn vault live (burn-to-dead-address, works with every ERC-20), vault auto-execution at 50 MON threshold with 5% on-chain slippage cap, untracked-vault-balance Telegram alerting in the keeper, Storj-backed profile metadata (survives Railway redeploys), Sentry error monitoring + Plausible analytics opt-in (env-gated, no-op without DSN), `/terms` and `/privacy` pages (legal-review pending) · **UI overhaul (2026-07-16)** — full Figma redesign (purple/lime theme) merged across every page and component, production infra (Sentry, WalletConnect fail-fast, Storj-backed profile storage) verified intact · **Profile/reputation upgrades (2026-07-16)** — new "First Graduation" badge (11 badges total), on-chain token name/symbol resolution on profile Holdings + Tokens Created lists (fixes blank names from indexer), token page Holders list now shows the bonding curve (pre-grad unsold supply), the DEX liquidity pool (post-grad), and the dead/burn address (🔥 Burned) as labeled rows. 4 tokens live, fees verified to Safe multisig treasury `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` (block 83961211).
 
 ## Overview
 
@@ -42,7 +42,7 @@ Every creator sets their own fee split at launch via a Nad.fun-style toggle-card
 All enabled shares must sum to exactly 100%. No tier gating — available to every wallet regardless of reputation. Gift split is optional (toggle ON to reveal address input).
 
 ### 5. Earn Reputation
-Every on-chain action feeds an off-chain reputation engine. Scores (0–100) computed from graduation rates, lock fulfillment, pre-buy honesty, profile age, verified tenure, and volume. Sigmoid formula: `100 / (1 + e^(-0.15 × (raw - 0.4)))`. Anchored daily on-chain via Merkle root in ProfileRegistry. 10 milestone badges auto-awarded.
+Every on-chain action feeds an off-chain reputation engine. Scores (0–100) computed from graduation rates, lock fulfillment, pre-buy honesty, profile age, verified tenure, and volume. Sigmoid formula: `100 / (1 + e^(-0.15 × (raw - 0.4)))`. Anchored daily on-chain via Merkle root in ProfileRegistry. 11 milestone badges auto-awarded.
 
 ### 6. View Profile
 Connected wallet → click Profile in nav → see live trading stats, reputation score, tier badge, achievements, tokens created, and recent activity — all from the Envio indexer.
@@ -50,9 +50,9 @@ Connected wallet → click Profile in nav → see live trading stats, reputation
 **Profile page sections (Phase 3g+):**
 - **Profile Card** — avatar, display name, address, tier badge, reputation score, stats (Tokens / Graduated / Buy Vol / Sell Vol), social links row (X / website / Telegram — shown only when set)
 - **Portfolio Summary** — Total Value (USD with MON fallback), MON balance, Holdings value, P&L with percentage
-- **Holdings** — tokens the wallet bought, with balance, current price, USD value, P&L per holding (green/red)
+- **Holdings** — tokens the wallet bought, with balance, current price, USD value, P&L per holding (green/red). Token name/symbol resolved on-chain via multicall when indexer values are blank.
 - **Achievements** — badge grid (only if badges earned)
-- **Tokens Created** — USD MC + creator fees distributed per token (show all, "Show more" if > 10)
+- **Tokens Created** — USD MC + creator fees distributed per token (show all, "Show more" if > 10). Token name/symbol resolved on-chain via multicall when indexer values are blank.
 - **Activity** — tabs (All / Buys / Sells / Creates) with counts
 
 **Profile editing (owner only):**
@@ -142,7 +142,7 @@ lick-fun/
 │   ├── src/instrumentation*  Sentry + instrumentation hooks (env-gated, no-op without DSN)
 │   └── src/components/ UI + layout + reputation + token (TradePanel, PriceChart, CurveChart, Footer, Analytics)
 ├── indexer/            Envio HyperIndex v3 config + handlers (5 entities)
-├── reputation/         Off-chain TypeScript scoring engine (10 badges, 3 tiers, Merkle anchor)
+├── reputation/         Off-chain TypeScript scoring engine (11 badges, 3 tiers, Merkle anchor)
 ├── .memory/            RAG reference files for Cline (latest 2026-* session notes tracked)
 └── script/             Utility scripts
     ├── graduation-keeper.ts            Polls CurveGraduate, auto-migrates graduated tokens, auto-executes vaults at 50 MON threshold
@@ -152,11 +152,12 @@ lick-fun/
 
 ---
 
-## Reputation Badges (10 total)
+## Reputation Badges (11 total)
 
 | Badge | Condition |
 |---|---|
 | First Token | tokenCount ≥ 1 |
+| First Graduation | graduatedCount ≥ 1 (no diversity gate) |
 | Triple Graduate | graduatedCount ≥ 3 + trader diversity ≥ 30% |
 | Deca Graduate | graduatedCount ≥ 10 + trader diversity ≥ 30% |
 | Crowd Favourite | One graduated token with 200+ unique buyers |
