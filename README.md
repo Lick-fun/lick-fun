@@ -291,6 +291,7 @@ ProfileRegistry            Wallet linking (0.1 MON bond, checked refund, anchor 
 | + | `/terms` and `/privacy` pages (legal-review pending) | ✅ done |
 | + | V2 buyback burns confirmed end-to-end (founder token 11.3M+ tokens sent to `0x…dEaD`) | ✅ done |
 | + | Full UI overhaul — Figma redesign (purple/lime theme) merged across every page/component | ✅ done |
+| + | Regenerated root pnpm-lock.yaml to include `@sentry/nextjs` (deleted stray `frontend/pnpm-lock.yaml` that was masking the sync issue, Railway `--frozen-lockfile` install was failing) | ✅ done |
 | -> | ProfileRegistry + VestingController mainnet deploy (Phase 5) | pending |
 176 Forge tests · 58 vitest tests · 15 contracts · 11 pages · All green
 

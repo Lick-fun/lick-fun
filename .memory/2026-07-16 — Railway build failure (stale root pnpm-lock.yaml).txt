@@ -1,0 +1,51 @@
+# 2026-07-16 — Railway Build Failure: Stale Root pnpm-lock.yaml
+
+## Task
+User pushed the UI overhaul PR (#1) which was merged into main → Railway auto-deploy
+attempted but the build failed. Diagnosis arrived: root pnpm-lock.yaml was out of sync
+with frontend/package.json (missing @sentry/nextjs), causing Railway's `pnpm install
+--frozen-lockfile` to abort immediately. The stray frontend/pnpm-lock.yaml was masking
+the sync issue.
+
+## Diagnosis confirmed (verified in repo)
+- `frontend/pnpm-lock.yaml` (stray) — dated 2026-07-13, had been tracked alongside the
+  root one, contained @sentry/nextjs and other frontend deps.
+- `pnpm-lock.yaml` (authoritative, repo root) — missing @sentry/nextjs from the
+  `frontend` importer section, even though `frontend/package.json` declared it.
+- `pnpm install` was reporting "Already up to date" because of the stray lockfile
+  confusing its sync check. The same was true even with `--no-frozen-lockfile`.
+- `pnpm list -r` did not show @sentry/nextjs anywhere — pnpm genuinely thought the
+  workspace was in sync.
+
+## Fix applied (commit 333d88a, pushed to main)
+1. **Deleted** `frontend/pnpm-lock.yaml` — pnpm workspaces should have a single
+   authoritative lockfile at the repo root.
+2. **Regenerated** `pnpm-lock.yaml` by moving it aside (`mv pnpm-lock.yaml
+   pnpm-lock.yaml.bak`) and re-running `pnpm install`. pnpm's sync check was broken
+   with both files present; removing the stale one forced a true re-resolution.
+3. **Verified** with the exact Railway command locally:
+   - `pnpm install --frozen-lockfile` succeeds
+   - `pnpm build` succeeds (all 16 routes generated, no errors)
+4. Committed as `fix(build): regenerate root pnpm-lock.yaml to include @sentry/nextjs`.
+
+## Why both lockfiles existed in the first place
+- The repo converted to a pnpm workspace monorepo over time (frontend + indexer
+  packages, pnpm-workspace.yaml at root).
+- The per-package `frontend/pnpm-lock.yaml` was a leftover from the pre-monorepo era
+  when `frontend/` was its own standalone pnpm project.
+- pnpm tolerated the duplicate silently rather than warning that one was stale.
+
+## Lesson learned (also in repo memory security-notes.md)
+If `pnpm install --frozen-lockfile` ever reports a sync error after a dependency
+change, check for a stray workspace-package `pnpm-lock.yaml`. pnpm workspaces
+should have a single authoritative lockfile at the repo root only.
+
+DO NOT TRUST `pnpm install` (with or without --frozen-lockfile) to flag a stale
+lockfile when both a root and a per-package one coexist. It will report "Already
+up to date" silently. Only deleting the stale lockfile and re-running install
+will force a true regeneration.
+
+## Related
+- See `frontend/UI_MIGRATION_PLAN.md` for the full UI overhaul rationale.
+- See `.memory/2026-07-16 — Full UI Overhaul (v0 Figma redesign merge).txt` for
+  the session that introduced the deps that exposed this lockfile drift.

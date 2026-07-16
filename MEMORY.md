@@ -1,4 +1,43 @@
-# Session Memory — 2026-07-16 (newest) — Full UI overhaul: v0 Figma redesign selectively merged into frontend
+# Session Memory — 2026-07-16 (newest) — Railway build fix: regenerated root pnpm-lock.yaml
+
+## Task: Fix Railway build failure on the freshly-merged UI overhaul commit.
+
+User merged PR #1 (`Full UI overhaul`) into `main`, Railway auto-deploy attempted but
+the build failed. Diagnosis arrived: root `pnpm-lock.yaml` was out of sync with
+`frontend/package.json` — missing `@sentry/nextjs` and other deps. The stray
+`frontend/pnpm-lock.yaml` (dated 2026-07-13, leftover from pre-monorepo era) was
+masking the sync issue and pnpm was reporting "Already up to date" when it shouldn't
+have.
+
+### Fix applied (commit `333d88a`, pushed to `main`)
+1. Deleted the stray `frontend/pnpm-lock.yaml` — pnpm workspaces should have a single
+   authoritative lockfile at the repo root.
+2. Regenerated root `pnpm-lock.yaml` by moving it aside and re-running `pnpm install`.
+   This was the only way to force true re-resolution; pnpm was refusing to do so while
+   the stray lockfile existed.
+3. Verified with Railway's exact command locally: `pnpm install --frozen-lockfile`
+   succeeds, `pnpm build` succeeds (all 16 routes generated, no errors).
+4. Recorded the full lesson in `repo/security-notes.md` for future sessions.
+
+### Lesson (also documented in `.memory/2026-07-16 — Railway build failure (stale root pnpm-lock.yaml).txt`)
+If `pnpm install --frozen-lockfile` ever reports a sync error after a dependency
+change, check for a stray workspace-package `pnpm-lock.yaml`. pnpm workspaces should
+have a single authoritative lockfile at the repo root only. Do not trust pnpm to
+flag a stale lockfile when both root + per-package copies coexist — it will report
+"Already up to date" silently. Only deleting the stale lockfile + re-running install
+forces true regeneration.
+
+### Other doc updates this session
+- `README.md` status line + build pipeline row updated for both the UI overhaul AND
+  the lockfile fix.
+- New tracked session note: `.memory/2026-07-16 — Full UI Overhaul (v0 Figma redesign merge).txt`
+- New tracked session note: `.memory/2026-07-16 — Railway build failure (stale root pnpm-lock.yaml).txt`
+- `frontend/UI_MIGRATION_PLAN.md` committed with full file-by-file merge rationale
+  (kept in repo as a durable reference, not just chat/session memory).
+
+---
+
+# Session Memory — 2026-07-16 — Full UI overhaul: v0 Figma redesign selectively merged into frontend
 
 ## Task: Replace the entire frontend UI with a v0-generated Figma redesign, keeping production infra intact.
 
