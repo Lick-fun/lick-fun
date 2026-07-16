@@ -1,0 +1,99 @@
+# Session — 2026-07-16 — Profile Activity tabs: token names + USD values
+
+## Task
+User request: "in user profiles, i would like the holdings to show the tokens name
+instead of contract address. I would like all activity on the profiles pages to show
+the name of the token with usd value traded."
+
+Continuation of the 2026-07-16 profile/reputation upgrades session. That session
+fixed token-name resolution on the Holdings + Tokens Created LISTS. This session
+fixes the same blank-name issue on the Activity tabs AND adds USD value display
+to all activity rows.
+
+## Root causes (verified in code)
+1. **HoldingsList showed address-like strings** — `useTokenHoldings.ts` set
+   `name: tokenData.name || agg.name || \`${tokenId.slice(0, 6)}...\``. When the
+   Envio indexer stored an empty `name`, this placeholder was a NON-empty string,
+   so the `useTokensMeta` on-chain multicall in `page.tsx` (which only resolves
+   when `!h.name`) was SKIPPED — the truncated-address placeholder leaked to UI.
+2. **ActivityTabs TradeRow** — showed only `trade.token?.symbol ?? "???"` and a
+   MON amount. No USD value, no token name. `monUsdPrice` was not passed in. The
+   nested `trade.token` join was frequently empty (indexer blank name/symbol).
+3. **Creates tab** — showed `token.symbol` as the action label and `token.name`
+   on the right; no USD value.
+
+## What was implemented (tsc clean, lint clean, type-check passed)
+
+### Phase 1 — Fix holdings name fallback (useTokenHoldings.ts)
+- Changed the `name`/`symbol` fallback in the `holdings` useMemo from truncated-
+  address placeholder to EMPTY STRING: `name: tokenData.name || agg.name || ""`,
+  `symbol: tokenData.symbol || agg.symbol || ""`.
+- This lets the existing `useTokensMeta` on-chain multicall in `page.tsx` actually
+  fire and fill real names via `name()`/`symbol()`. No other change needed —
+  `page.tsx` already calls `useTokensMeta(holdingsForResolution)` and merges into
+  `holdingsResolved`, which `HoldingsList` receives.
+
+### Phase 2 — Upgrade ActivityTabs TradeRow (All / Buys / Sells)
+- Added `monUsdPrice?: number | null` to `ActivityTabsProps`; threaded through
+  `ActivityTabs` → `ActivityList` → `TradeRow`.
+- In `page.tsx`: pass `monUsdPrice={monUsdPrice}` to `<ActivityTabs />`.
+- In `page.tsx`: built `tradesResolved` — dedupes trades by `token_id`, runs them
+  through `useTokensMeta` to resolve blank name/symbol via on-chain
+  `name()`/`symbol()`, then merges resolved values back into each trade's nested
+  `token` field. Passes `trades={tradesResolved}` to `ActivityTabs`.
+- Rewrote `TradeRow` in `ActivityTabs.tsx`:
+  - Primary line: `Buy {name}` / `Sell {name}` (truncate long names with
+    `truncate` class).
+  - Secondary line: `{symbol} · {timeAgo}`.
+  - Right side primary: USD value (`$X.XX` = `monAmount * monUsdPrice`); secondary:
+    `{formatMon(monAmount)} MON`. When `monUsdPrice` is null/0, shows MON as
+    primary and omits USD (mirrors HoldingsList's `hasUsdPrice` guard).
+- Added `formatUsd` helper (adaptive precision: K/M suffixes, extra precision for
+  small fractional amounts).
+
+### Phase 3 — Upgrade Creates tab
+- In `page.tsx`: pass `tokensResolved` (already on-chain-resolved via
+  `useTokensMeta`) instead of raw `tokens` as `createdTokens` — ensures names
+  populated and `price` present.
+- In `ActivityTabs.tsx` `CreatedActivityList`: added `monUsdPrice` prop; computes
+  `mcUsd` via `formatMarketCapUsd(token.price.marketCapMon, monUsdPrice)`.
+  Display: primary `Created {name}`; secondary `{symbol} · {timeAgo}`; right side
+  market cap USD with `MC` label below.
+
+## Decisions (from user via ask-questions)
+- Trade rows: USD primary, MON secondary (matches HoldingsList pattern).
+- Creates tab: market cap USD as right-side value.
+- Trade rows: token name primary, symbol secondary.
+
+## Verification
+- `pnpm lint` (frontend): PASS — only pre-existing warnings, none from these changes.
+- `pnpm build` (frontend): TypeScript type-check PASSED
+  (`✓ Linting and checking validity of types`). Build fails in "Collecting page
+  data" for `/create`, `/markets`, `/api/register-metadata` — PRE-EXISTING,
+  unrelated to profile changes (git status confirms only 3 profile files touched).
+- `get_errors` on all 3 edited files: No errors.
+
+## Files modified (3 total)
+- `frontend/src/lib/hooks/useTokenHoldings.ts` — Phase 1: holdings name/symbol
+  fallback now empty string instead of truncated address.
+- `frontend/src/components/profile/ActivityTabs.tsx` — Phase 2+3: added
+  `monUsdPrice` prop; `TradeRow` shows token name (primary) + symbol·timeAgo
+  (secondary) + USD (primary) + MON (secondary); `CreatedActivityList` shows
+  name + symbol·timeAgo + market cap USD; added `formatUsd` helper; imported
+  `formatMarketCapUsd`.
+- `frontend/src/app/profile/[address]/page.tsx` — Phase 2+3: built `tradesResolved`
+  via `useTokensMeta` (deduped by token_id) merging resolved name/symbol into
+  `trade.token`; pass `tradesResolved`, `tokensResolved`, `monUsdPrice` to
+  `<ActivityTabs>`.
+
+## Security/path audit
+- Diff audited for hardcoded absolute paths and secrets: CLEAN.
+- Only relative `@/lib/...` imports; no API keys, tokens, private keys, or
+  wallet addresses in the diff.
+
+## Outstanding (manual, not blocking commit)
+- Manual browser smoke test on a profile with trades + holdings to visually
+  confirm token names appear (not addresses) and USD values render. Automated
+  checks (tsc/lint) all pass.
+- No contract changes, no indexer changes, no new GraphQL queries (TRADE_FRAGMENT
+  already joins `token { id name symbol }`).

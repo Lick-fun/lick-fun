@@ -46,7 +46,10 @@ contracts/lib/
 npm-debug.log*
 
 # Local RAG memory (MCP local-rag storage)
-.memory/
+# Ignore everything in .memory/ except chat-history session notes (2026-*).
+# Use .memory/* (not .memory/) so the negation pattern below can re-include
+# specific files — git cannot re-include files under a fully-ignored directory.
+.memory/*
 # But keep chat-history memory docs tracked
 !.memory/2026-*
 

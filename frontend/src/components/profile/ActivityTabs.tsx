@@ -5,6 +5,7 @@ import Link from "next/link";
 import { TrendingUp, TrendingDown, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { formatMarketCapUsd } from "@/lib/format";
 import type { TradeEntity } from "@/lib/graphql/queries";
 import type { DecoratedToken } from "@/lib/hooks/useData";
 
@@ -14,13 +15,20 @@ interface ActivityTabsProps {
   /** Tokens created by this user (for the "Creates" tab) */
   createdTokens: DecoratedToken[];
   isLoading: boolean;
+  /** Current MON/USD price for USD conversion (optional) */
+  monUsdPrice?: number | null;
 }
 
 /**
  * Tabbed activity feed for the profile page.
  * Tabs: All / Buys / Sells / Creates
  */
-export function ActivityTabs({ trades, createdTokens, isLoading }: ActivityTabsProps) {
+export function ActivityTabs({
+  trades,
+  createdTokens,
+  isLoading,
+  monUsdPrice,
+}: ActivityTabsProps) {
   const [activeTab, setActiveTab] = useState("all");
 
   const buys = useMemo(() => trades.filter((t) => t.isBuy), [trades]);
@@ -44,16 +52,32 @@ export function ActivityTabs({ trades, createdTokens, isLoading }: ActivityTabsP
       </TabsList>
 
       <TabsContent value="all">
-        <ActivityList trades={trades.slice(0, 20)} isLoading={isLoading} />
+        <ActivityList
+          trades={trades.slice(0, 20)}
+          isLoading={isLoading}
+          monUsdPrice={monUsdPrice}
+        />
       </TabsContent>
       <TabsContent value="buys">
-        <ActivityList trades={buys.slice(0, 20)} isLoading={isLoading} />
+        <ActivityList
+          trades={buys.slice(0, 20)}
+          isLoading={isLoading}
+          monUsdPrice={monUsdPrice}
+        />
       </TabsContent>
       <TabsContent value="sells">
-        <ActivityList trades={sells.slice(0, 20)} isLoading={isLoading} />
+        <ActivityList
+          trades={sells.slice(0, 20)}
+          isLoading={isLoading}
+          monUsdPrice={monUsdPrice}
+        />
       </TabsContent>
       <TabsContent value="creates">
-        <CreatedActivityList tokens={createdTokens.slice(0, 20)} isLoading={isLoading} />
+        <CreatedActivityList
+          tokens={createdTokens.slice(0, 20)}
+          isLoading={isLoading}
+          monUsdPrice={monUsdPrice}
+        />
       </TabsContent>
     </Tabs>
   );
@@ -66,9 +90,11 @@ export function ActivityTabs({ trades, createdTokens, isLoading }: ActivityTabsP
 function ActivityList({
   trades,
   isLoading,
+  monUsdPrice,
 }: {
   trades: TradeEntity[];
   isLoading: boolean;
+  monUsdPrice?: number | null;
 }) {
   if (isLoading) {
     return (
@@ -121,16 +147,36 @@ function ActivityList({
       }}
     >
       {trades.map((trade) => (
-        <TradeRow key={trade.id} trade={trade} />
+        <TradeRow
+          key={trade.id}
+          trade={trade}
+          monUsdPrice={monUsdPrice}
+        />
       ))}
     </div>
   );
 }
 
-function TradeRow({ trade }: { trade: TradeEntity }) {
-  const symbol = trade.token?.symbol ?? "???";
+function TradeRow({
+  trade,
+  monUsdPrice,
+}: {
+  trade: TradeEntity;
+  monUsdPrice?: number | null;
+}) {
+  const name = trade.token?.name?.trim() || "Unknown";
+  const symbol = trade.token?.symbol?.trim() || "???";
   const tokenId = trade.token_id;
   const monAmount = Number(trade.amountIn) / 1e18;
+  const hasUsdPrice = monUsdPrice != null && monUsdPrice > 0;
+  const usdAmount = monAmount * (monUsdPrice ?? 0);
+
+  // USD primary, MON secondary (matches HoldingsList pattern). When no USD
+  // price is available, fall back to MON as the primary value.
+  const primaryValue = hasUsdPrice
+    ? `$${formatUsd(usdAmount)}`
+    : `${formatMon(monAmount)} MON`;
+  const secondaryValue = hasUsdPrice ? `${formatMon(monAmount)} MON` : null;
 
   return (
     <Link
@@ -149,17 +195,22 @@ function TradeRow({ trade }: { trade: TradeEntity }) {
         )}
         <div className="flex flex-col min-w-0">
           <span className="text-figma-white font-figma-bold text-figma-13 truncate">
-            {trade.isBuy ? "Buy" : "Sell"} {symbol}
+            {trade.isBuy ? "Buy" : "Sell"} {name}
           </span>
-          <span className="text-figma-muted text-figma-11">
-            {timeAgo(trade.blockTimestamp)}
+          <span className="text-figma-muted text-figma-11 truncate">
+            {symbol} · {timeAgo(trade.blockTimestamp)}
           </span>
         </div>
       </div>
       <div className="flex flex-col items-end shrink-0">
         <span className="text-figma-white font-figma-bold text-figma-13">
-          {formatMon(monAmount)} MON
+          {primaryValue}
         </span>
+        {secondaryValue && (
+          <span className="text-figma-muted text-figma-11">
+            {secondaryValue}
+          </span>
+        )}
       </div>
     </Link>
   );
@@ -172,9 +223,11 @@ function TradeRow({ trade }: { trade: TradeEntity }) {
 function CreatedActivityList({
   tokens,
   isLoading,
+  monUsdPrice,
 }: {
   tokens: DecoratedToken[];
   isLoading: boolean;
+  monUsdPrice?: number | null;
 }) {
   if (isLoading) {
     return (
@@ -240,17 +293,18 @@ function CreatedActivityList({
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-figma-white font-figma-bold text-figma-13 truncate">
-                Created {token.symbol}
+                Created {token.name?.trim() || "Unknown"}
               </span>
-              <span className="text-figma-muted text-figma-11">
-                {timeAgo(token.createdAt)}
+              <span className="text-figma-muted text-figma-11 truncate">
+                {token.symbol?.trim() || "???"} · {timeAgo(token.createdAt)}
               </span>
             </div>
           </div>
           <div className="flex flex-col items-end shrink-0">
             <span className="text-figma-white font-figma-bold text-figma-13">
-              {token.name}
+              {formatMarketCapUsd(token.price.marketCapMon, monUsdPrice)}
             </span>
+            <span className="text-figma-muted text-figma-11">MC</span>
           </div>
         </Link>
       ))}
@@ -278,4 +332,18 @@ function formatMon(amount: number): string {
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(1)}K`;
   if (amount >= 1) return amount.toFixed(2);
   return amount.toFixed(3);
+}
+
+/**
+ * Format a USD value with adaptive precision. Mirrors the HoldingsList
+ * formatNumber style: K/M suffixes for large values, extra precision for
+ * small fractional amounts.
+ */
+function formatUsd(amount: number): string {
+  const abs = Math.abs(amount);
+  if (abs >= 1_000_000) return `${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${(abs / 1_000).toFixed(2)}K`;
+  if (abs >= 1) return abs.toFixed(2);
+  if (abs >= 0.01) return abs.toFixed(4);
+  return abs.toFixed(6);
 }

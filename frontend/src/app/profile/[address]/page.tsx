@@ -81,6 +81,49 @@ export default function ProfilePage() {
     [holdings, holdingsResolvedRaw]
   );
 
+  // Resolve real on-chain name/symbol for trades whose nested token join is
+  // blank (same Envio empty-name issue as holdings). Dedupe by token_id so the
+  // multicall only fires once per distinct token, then merge resolved values
+  // back into each trade's `token` field for ActivityTabs to render.
+  const tradesForResolution = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string; symbol: string }>();
+    for (const t of holdingTrades) {
+      const id = t.token_id.toLowerCase();
+      if (!seen.has(id)) {
+        seen.set(id, {
+          id,
+          name: t.token?.name ?? "",
+          symbol: t.token?.symbol ?? "",
+        });
+      }
+    }
+    return Array.from(seen.values());
+  }, [holdingTrades]);
+  const tradesResolvedRaw = useTokensMeta(tradesForResolution);
+  const tradesResolved = useMemo(() => {
+    if (!holdingTrades.length) return holdingTrades;
+    const map = new Map<string, { name: string; symbol: string }>();
+    for (const r of tradesResolvedRaw) {
+      map.set(r.id.toLowerCase(), { name: r.name, symbol: r.symbol });
+    }
+    return holdingTrades.map((t) => {
+      const r = map.get(t.token_id.toLowerCase());
+      if (!r) return t;
+      const existingName = t.token?.name?.trim();
+      const existingSymbol = t.token?.symbol?.trim();
+      // Only overwrite when the indexer value was blank
+      if (existingName && existingSymbol) return t;
+      return {
+        ...t,
+        token: {
+          id: t.token_id,
+          name: existingName || r.name || "",
+          symbol: existingSymbol || r.symbol || "",
+        },
+      };
+    });
+  }, [holdingTrades, tradesResolvedRaw]);
+
   const isLoading = profileLoading || tokensLoading || repLoading;
 
   // Display name: custom name from off-chain store, or truncated address
@@ -302,9 +345,10 @@ export default function ProfilePage() {
             Activity
           </h2>
           <ActivityTabs
-            trades={holdingTrades}
-            createdTokens={tokens}
+            trades={tradesResolved}
+            createdTokens={tokensResolved}
             isLoading={holdingsLoading || tokensLoading}
+            monUsdPrice={monUsdPrice}
           />
         </div>
 

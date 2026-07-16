@@ -290,8 +290,12 @@ export function useTokenHoldings(
 
       result.push({
         tokenId,
-        name: tokenData.name || agg.name || `${tokenId.slice(0, 6)}...`,
-        symbol: tokenData.symbol || agg.symbol || "???",
+        // Leave name/symbol empty when the indexer stored blanks so the
+        // useTokensMeta on-chain multicall in page.tsx can resolve them via
+        // name()/symbol(). A non-empty placeholder (e.g. truncated address)
+        // would short-circuit that resolution and leak the address to the UI.
+        name: tokenData.name || agg.name || "",
+        symbol: tokenData.symbol || agg.symbol || "",
         balance,
         balanceFormatted,
         totalBoughtMon: agg.totalBoughtMon,

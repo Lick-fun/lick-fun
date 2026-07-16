@@ -1,3 +1,46 @@
+# Session Memory — 2026-07-16 (newest) — Profile Activity tabs: token names + USD values
+
+## Task: Show token names (not contract addresses) and USD values traded across all profile activity.
+
+User request: "in user profiles, i would like the holdings to show the tokens name instead of contract address. I would like all activity on the profiles pages to show the name of the token with usd value traded."
+
+Continuation of the earlier 2026-07-16 profile/reputation session (which fixed token-name resolution on the Holdings + Tokens Created lists). This session extends the same fix to the Activity tabs and adds USD value display.
+
+### Root causes (verified in code)
+1. **HoldingsList showed address-like strings** — `useTokenHoldings.ts` set `name: ... || \`${tokenId.slice(0, 6)}...\``. The non-empty placeholder short-circuited the `useTokensMeta` on-chain multicall in `page.tsx` (which only resolves when `!h.name`), so the truncated address leaked to the UI.
+2. **ActivityTabs TradeRow** — showed only `trade.token?.symbol ?? "???"` and a MON amount. No USD value, no token name. `monUsdPrice` not passed in. Nested `trade.token` join frequently empty.
+3. **Creates tab** — showed `token.symbol` as label and `token.name` on the right; no USD value.
+
+### Fix applied (3 files)
+1. `frontend/src/lib/hooks/useTokenHoldings.ts` — changed holdings `name`/`symbol` fallback from truncated-address placeholder to **empty string**, so the existing `useTokensMeta` on-chain multicall in `page.tsx` actually fires and fills real names via `name()`/`symbol()`.
+2. `frontend/src/components/profile/ActivityTabs.tsx` — added `monUsdPrice` prop; `TradeRow` now shows token **name** (primary) + `symbol · timeAgo` (secondary) + **USD** (primary) + MON (secondary); `CreatedActivityList` shows name + `symbol · timeAgo` + **market cap USD**; added `formatUsd` helper; imported `formatMarketCapUsd`.
+3. `frontend/src/app/profile/[address]/page.tsx` — built `tradesResolved` via `useTokensMeta` (deduped by `token_id`) merging resolved name/symbol into `trade.token`; pass `tradesResolved`, `tokensResolved`, `monUsdPrice` to `<ActivityTabs>`.
+
+### Decisions (from user via ask-questions)
+- Trade rows: USD primary, MON secondary (matches HoldingsList pattern).
+- Creates tab: market cap USD as right-side value.
+- Trade rows: token name primary, symbol secondary.
+
+### Verification
+- `pnpm lint` (frontend): PASS — only pre-existing warnings, none from these changes.
+- `pnpm build` (frontend): TypeScript type-check PASSED (`✓ Linting and checking validity of types`). Build fails in "Collecting page data" for `/create`, `/markets`, `/api/register-metadata` — **PRE-EXISTING**, unrelated to profile changes (git status confirms only 3 profile files touched).
+- `get_errors` on all 3 edited files: No errors.
+
+### Security/path audit
+- Full diff audited for hardcoded absolute paths and secrets: **CLEAN**. Only relative `@/lib/...` imports; no API keys, tokens, private keys, or wallet addresses in the diff.
+
+### Docs updated this session
+- `README.md` — status line (+ Profile Activity tabs 2026-07-16) + Activity bullet in profile page sections (name primary, USD primary, MC USD on Creates).
+- `.memory/Lick.fun — Frontend Reference.txt` — last-updated header + profile route note (Phase 3j: Activity tabs name + USD resolution).
+- New tracked session note: `.memory/2026-07-16 — Profile Activity tabs token names + USD values.txt`.
+- This MEMORY.md file (this entry).
+
+### Outstanding for user (not blocking commit)
+- Manual browser smoke test on a profile with trades + holdings to visually confirm token names appear (not addresses) and USD values render. Automated checks (tsc/lint) all pass.
+- No contract changes, no indexer changes, no new GraphQL queries (`TRADE_FRAGMENT` already joins `token { id name symbol }`).
+
+---
+
 # Session Memory — 2026-07-16 (newest) — Railway build fix: regenerated root pnpm-lock.yaml
 
 ## Task: Fix Railway build failure on the freshly-merged UI overhaul commit.
