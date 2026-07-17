@@ -39,9 +39,20 @@ const MONAD_DEPLOY_BLOCK = 83_961_211n;
 /** Maximum block span per getLogs call — chunked defensively. */
 const MAX_LOG_CHUNK = 500_000n;
 
-/** Monad mainnet RPC (Alchemy PAYG — no eth_getLogs block-range limit). */
+/**
+ * Monad mainnet RPC (Alchemy PAYG — no eth_getLogs block-range limit).
+ *
+ * Server-side code (no browser Origin header) must NOT use an
+ * origin-restricted Alchemy key — Alchemy's domain allowlist only inspects
+ * the Origin/Referer header, which Node.js server requests never send, so a
+ * browser-restricted key gets rejected here with "Unspecified origin not on
+ * whitelist". Prefer a dedicated, unrestricted server key (MONAD_RPC_URL);
+ * fall back to the public browser var only if no server override is set.
+ */
 const RPC_URL =
-  process.env.NEXT_PUBLIC_MONAD_RPC || "https://rpc.monad.xyz";
+  process.env.MONAD_RPC_URL ||
+  process.env.NEXT_PUBLIC_MONAD_RPC ||
+  "https://rpc.monad.xyz";
 
 const monadMainnet = defineChain({
   id: 143,

@@ -1,0 +1,80 @@
+# 2026-07-17 - Alchemy origin restriction broke keeper and server RPC
+# For Cline: context for any future chat that opens on this repo.
+
+=============================================================================
+CONTEXT
+=============================================================================
+Immediately after the RPC/indexer traffic-optimization session (see
+"2026-07-17 - RPC and indexer traffic optimization for marketing push.txt"),
+the user restricted their Alchemy key's "Allowed Origins" to lickfun.xyz +
+localhost:3010 per that session's guidance, and used the SAME key for
+NEXT_PUBLIC_MONAD_RPC everywhere, including the keeper's KEEPER_RPC_URL.
+
+Production immediately broke:
+  [vault] syncKnownTokens error: JSON is not a valid request object.
+  [keeper] poll error: JSON is not a valid request object.
+  Details: Unspecified origin not on whitelist.
+on eth_blockNumber / eth_getBalance calls from script/graduation-keeper.ts.
+
+=============================================================================
+ROOT CAUSE
+=============================================================================
+Alchemy's "Allowed Origins" restriction ONLY inspects the browser
+Origin/Referer header. Server-side Node.js processes (the standalone keeper
+script, and Next.js API routes running server-side: app/api/trades/[curve]
+and lib/server/resolveTokenMeta.ts, both of which fell back to reading
+NEXT_PUBLIC_MONAD_RPC) never send an Origin header — so an origin-restricted
+key rejects them outright with "Unspecified origin not on whitelist".
+
+One Alchemy key CANNOT be both:
+  (a) origin-restricted, which is required to safely expose it to browsers, and
+  (b) used by any server-side/keeper process, which sends no Origin header.
+
+This was a gap in the previous session's guidance — it correctly recommended
+origin-restricting the browser key, but didn't flag that server call sites
+reading the same env var (as a fallback) and the separate keeper script
+sharing that same key value would both break.
+
+=============================================================================
+FIX
+=============================================================================
+Split into two Alchemy keys/apps going forward:
+
+1. NEXT_PUBLIC_MONAD_RPC (frontend/.env.example, Railway frontend service)
+   - Browser-facing, KEEP origin-restricted (lickfun.xyz + localhost:3010).
+   - Used only by frontend/src/lib/wagmi/config.ts (browser wagmi transport).
+
+2. MONAD_RPC_URL (NEW, frontend/.env.example, Railway frontend service)
+   - Server-only, no NEXT_PUBLIC_ prefix (never sent to the browser bundle).
+   - MUST be a separate, UNRESTRICTED Alchemy key/app (no Allowed Origins set).
+   - frontend/src/lib/server/resolveTokenMeta.ts and
+     frontend/src/app/api/trades/[curve]/route.ts now check this var FIRST,
+     falling back to NEXT_PUBLIC_MONAD_RPC only if MONAD_RPC_URL is unset.
+
+3. KEEPER_RPC_URL (script/.env, script/.env.example, Railway lick-keeper service)
+   - Already a separate env var from NEXT_PUBLIC_MONAD_RPC in code — the bug
+     was the user setting its VALUE to the same restricted key, not a code
+     issue. Added an explicit warning comment in script/.env.example: this
+     must be a separate, unrestricted key — never reuse the browser key here.
+   - No code changes needed in script/graduation-keeper.ts.
+
+=============================================================================
+VERIFICATION
+=============================================================================
+- tsc --noEmit (frontend): clean.
+- Did not restart the live keeper or verify against production — requires
+  the user's real Alchemy key values, which must never be pasted into chat.
+
+=============================================================================
+OUTSTANDING FOR USER (not blocking commit)
+=============================================================================
+- Create a SECOND Alchemy key/app with NO "Allowed Origins" restriction.
+- Set it as MONAD_RPC_URL in the Railway frontend service env vars (and
+  frontend/.env.local for local dev if testing server routes locally).
+- Point script/.env's KEEPER_RPC_URL (and the Railway `lick-keeper` service's
+  KEEPER_RPC_URL env var) at that same unrestricted key, or a third dedicated
+  one — NOT the browser-restricted NEXT_PUBLIC_MONAD_RPC key.
+- Restart the `lick-keeper` Railway service after updating KEEPER_RPC_URL.
+- Keep the existing origin-restricted key as NEXT_PUBLIC_MONAD_RPC (browser
+  only) — that part of the previous session's setup was correct and should
+  NOT be reverted.

@@ -1,4 +1,48 @@
-# Session Memory — 2026-07-17 (newest) — RPC/indexer traffic optimization for marketing push
+# Session Memory — 2026-07-17 (newest) — Alchemy origin-restriction broke keeper/server RPC (post-deploy fix)
+
+## Task: Fix production incident right after the RPC optimization deploy below.
+
+User pasted keeper/vault-poller error logs: `JSON is not a valid request object ... Details: Unspecified
+origin not on whitelist` on `eth_blockNumber` / `eth_getBalance` calls from `script/graduation-keeper.ts`.
+
+### Root cause
+The previous session's guidance (see entry below) had the user restrict their Alchemy key's "Allowed
+Origins" to `lickfun.xyz` + `localhost:3010` and use that SAME key for `NEXT_PUBLIC_MONAD_RPC`. But
+`NEXT_PUBLIC_MONAD_RPC` is also read server-side as a fallback by `app/api/trades/[curve]/route.ts`,
+`lib/server/resolveTokenMeta.ts`, and — critically — the user pointed the standalone keeper's
+`KEEPER_RPC_URL` (`script/.env`) at the same restricted key. Alchemy's Allowed-Origins check only inspects
+the browser `Origin`/`Referer` header; server-side Node.js requests (keeper, Next.js API routes) never send
+one, so they get rejected outright. **One Alchemy key cannot safely be both origin-restricted (needed for
+browser safety) and used by any server/keeper process.**
+
+### Fix applied
+- `frontend/src/lib/server/resolveTokenMeta.ts` and `frontend/src/app/api/trades/[curve]/route.ts`: both now
+  check a NEW server-only env var `MONAD_RPC_URL` FIRST, falling back to `NEXT_PUBLIC_MONAD_RPC` only if
+  unset. `MONAD_RPC_URL` has no `NEXT_PUBLIC_` prefix (never bundled into browser JS) and must point at a
+  SEPARATE, unrestricted Alchemy key/app.
+- `frontend/.env.example`: rewrote the RPC section to clearly document TWO required keys —
+  `NEXT_PUBLIC_MONAD_RPC` (browser, origin-restricted) and `MONAD_RPC_URL` (server, unrestricted) — with an
+  explicit ⚠️ warning against reusing one key for both.
+- `script/.env.example`: added a warning on `KEEPER_RPC_URL` that it must be a separate, unrestricted key —
+  do not reuse the frontend's browser-facing key.
+- No change needed to `script/graduation-keeper.ts` itself — it already reads its own `KEEPER_RPC_URL`, the
+  bug was purely a misconfigured/shared key value, not code.
+
+### Verification
+- `tsc --noEmit` (frontend): clean.
+- No live keeper restart was performed by the assistant (would require the user's real key values).
+
+### Outstanding for user (not blocking commit)
+- Generate a SECOND Alchemy key/app with NO "Allowed Origins" restriction, set it as `MONAD_RPC_URL` in
+  Railway's frontend service env vars.
+- Point `script/.env`'s (and Railway `lick-keeper` service's) `KEEPER_RPC_URL` at that same unrestricted key
+  (or a third dedicated one) — NOT the browser-restricted key.
+- Restart the `lick-keeper` Railway service after updating `KEEPER_RPC_URL`.
+- Keep the existing restricted key as `NEXT_PUBLIC_MONAD_RPC` (browser only) — that part was correct.
+
+---
+
+# Session Memory — 2026-07-17 — RPC/indexer traffic optimization for marketing push
 
 ## Task: Optimize RPC + indexer load ahead of a marketing push so the site handles heavier traffic.
 
