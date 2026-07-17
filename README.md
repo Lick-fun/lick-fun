@@ -98,7 +98,13 @@ Connected wallet → click Profile in nav → see live trading stats, reputation
 | GraduationPool | `0x33e576E95F0d6f6B214F602ec5022Ffed0Eae389` |
 | WMON | `0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A` |
 | Treasury (Safe multisig) | `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` |
-RPC: dedicated Alchemy PAYG endpoint (frontend browser + server routes + keeper) — see `frontend/.env.example` `NEXT_PUBLIC_MONAD_RPC`. Public `rpc.monad.xyz` is no longer used in production (rate-limit risk under traffic).
+RPC: TWO Alchemy PAYG endpoints (verified working 2026-07-17):
+- Browser (`NEXT_PUBLIC_MONAD_RPC`): origin-restricted to `lickfun.xyz` + `localhost:3010`
+- Server (`MONAD_RPC_URL`) + Keeper (`KEEPER_RPC_URL`): UNRESTRICTED, separate Alchemy app/key.
+Two-key split required because server-side Node.js processes never send an
+Origin/Referer header, so an origin-restricted browser key gets rejected with
+"Unspecified origin not on whitelist" — this bit us in prod, see
+`.memory/2026-07-17 - Alchemy origin restriction broke keeper and server RPC.txt` + `frontend/.env.example`.
 
 ## Previous: Testnet Deployment (Monad chain 10143)
 

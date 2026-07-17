@@ -43,7 +43,7 @@ Edit `script/.env`:
 
 | Variable | Required | Description |
 |---|---|---|
-| `KEEPER_RPC_URL` | ✅ | Monad mainnet RPC — dedicated Alchemy provider (Pay-As-You-Go plan, unlimited `eth_getLogs` block range) |
+| `KEEPER_RPC_URL` | ✅ | Monad mainnet RPC — dedicated Alchemy PAYG endpoint. ⚠️ Must be an UNRESTRICTED Alchemy key (no "Allowed Origins" set) — the keeper is a server-side Node.js process that never sends an Origin/Referer header, so an origin-restricted browser key gets rejected here with "Unspecified origin not on whitelist". Use a separate Alchemy app/key from the frontend's `NEXT_PUBLIC_MONAD_RPC`. See `script/.env.example` for details. |
 | `KEEPER_PRIVATE_KEY` | ✅ | Funded keeper wallet private key — use a **dedicated throwaway wallet** |
 | `GRADUATION_ROUTER_ADDR` | ✅ | `0xb2Dc164Ac4eCDDA7Ea2D4115bC122463c65460b2` |
 | `FACTORY_ADDR` | ✅ | `0x9845c5625d9f9C48e17956940485aAAAD168aA10` |
