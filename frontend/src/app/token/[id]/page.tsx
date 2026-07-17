@@ -217,7 +217,11 @@ export default function TokenDetailPage() {
                   {reputation && (
                     <>
                       <span>·</span>
-                      <span className="text-figma-green font-semibold">Rep {Math.round(reputation.reputation)}</span>
+                      <span className="text-figma-green font-semibold">
+                        {reputation.isSparse
+                          ? "Rep Unranked"
+                          : `Rep ${Math.round(reputation.reputation)}`}
+                      </span>
                     </>
                   )}
                 </div>

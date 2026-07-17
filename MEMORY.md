@@ -1,3 +1,61 @@
+# Session Memory — 2026-07-17 (newest) — Reputation engine defaulting to ~48 for low-activity wallets
+
+## Task: Fix wallets defaulting to ~48 reputation regardless of actual activity.
+
+User request: "My looks like wallets default to 48 rep or something. i would like to make sure this is fixed for all wallets."
+
+### Root cause (verified in code)
+Sigmoid normalization `reputation = 100 / (1 + e^(-K × (raw - MIDPOINT)))` used `K = 0.15` (very flat curve)
+with `MIDPOINT = 0.4`. For any wallet with `rawScore ≈ 0` (no meaningful signal — no tokens, no grads, no
+volume), `sigmoid(0) = 100/(1+e^(0.06)) ≈ 48.5`. Because K was so small, essentially every low/no-activity
+wallet clustered at ~48–50 rep, which read as "wallets default to 48 rep." This existed in TWO hand-duplicated
+engine copies: `reputation/src/scoring.ts` (server) and `frontend/src/lib/reputation/scoring.ts` (browser —
+the one actually used by the live site via `useReputation`).
+
+### Fix applied (9 files, 2 phases)
+**Phase 1 — recalibrate sigmoid:** `K: 0.15 → 8.0` in both engine copies. `MIDPOINT` (0.4) and tier thresholds
+(30/70) unchanged (K doesn't move the midpoint anchor). New fixed points: raw=0 → rep≈3.9 (was 48.5),
+raw=0.4 → rep=50 (unchanged), raw=1.0 → rep≈99.2, raw<−1 (rug) → rep≈0.
+
+**Phase 2 — "Unranked" state:** Added `isSparse: boolean` to `ScoringResult` (both `types.ts` copies) — true
+when `tokenCount=0 AND graduatedCount=0 AND verifiedTenureDays=0 AND rugEvents=[]`. New `isProfileSparse()`
+helper in both `scoring.ts` copies; `computeScore()` sets it automatically. UI renders "Unranked" instead of
+a misleading near-zero number: `ReputationScore.tsx` + `TierBadge.tsx` gained an `isSparse` prop;
+`ReputationCard.tsx`, `profile/[address]/page.tsx`, and `token/[id]/page.tsx` pass `reputation.isSparse` through.
+`useReputation.ts` needed no changes — inputs already default to sparse-triggering values for trader-only wallets.
+
+### Verification
+- `npx vitest run` (reputation/): 61/61 tests pass. `testScoreStartsAtZero` updated (`< 10` + `isSparse===true`,
+  was `<= 50` documenting the bug).
+- `pnpm lint` (frontend): only pre-existing warnings, none new.
+- `tsc --noEmit` (frontend): clean.
+- `get_errors` on all 9 edited files: no errors.
+
+### Security/path audit
+Full diff audited for hardcoded absolute paths and secrets: CLEAN. Only relative imports; no API keys,
+tokens, private keys, or wallet addresses in the diff.
+
+### Docs updated this session
+- `README.md` — status line + sigmoid formula section updated to K=8.0 + Unranked state.
+- `.memory/Lick.fun — Reputation System.txt` — sigmoid formula, ScoringResult shape, frontend integration,
+  UI components sections all updated.
+- `.memory/Lick.fun — Testing Reference.txt` — vitest count clarified at 61.
+- `.memory/Lick.fun — BUILD PLAN (follow this in every chat).txt` — status table + test count row.
+- `.memory/Lick.fun — Frontend Reference.txt` — reputation component descriptions + browser module section.
+- New tracked session note: `.memory/2026-07-17 - Reputation engine default 48 fix.txt`.
+- `.memory/repo/security-notes.md` (assistant repo memory, not tracked in git) — session entry added.
+- This MEMORY.md entry (this session).
+
+### Outstanding for user (not blocking commit)
+- Manual browser smoke test: a sparse/low-activity wallet profile should now show "Unranked" instead of a
+  number; an established multi-graduation creator should still show a meaningfully high score (not
+  accidentally crushed by the recalibration). Automated checks (vitest/tsc/lint) all pass.
+- The exact K=8.0 value was chosen analytically (targets blank≈3.9) and validated against all 10 existing
+  test scenarios numerically before implementing — no live-profile spot-check was done against real mainnet
+  indexer data. Worth a follow-up manual check on a few real profiles if scores still look off after deploy.
+
+---
+
 # Session Memory — 2026-07-16 (newest) — Profile Activity tabs: token names + USD values
 
 ## Task: Show token names (not contract addresses) and USD values traded across all profile activity.

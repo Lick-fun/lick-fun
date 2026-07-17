@@ -5,6 +5,11 @@ import type { Tier } from "@/lib/reputation";
 
 interface TierBadgeProps {
   tier: Tier;
+  /**
+   * When true, the profile has too little on-chain activity to be ranked.
+   * Renders a neutral "Unranked" badge instead of a tier.
+   */
+  isSparse?: boolean;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -36,8 +41,16 @@ const TIER_CONFIG: Record<
   },
 };
 
-export function TierBadge({ tier, size = "md", className }: TierBadgeProps) {
-  const config = TIER_CONFIG[tier];
+const SPARSE_CONFIG = {
+  emoji: "○",
+  bg: "bg-figma-surface",
+  text: "text-figma-muted",
+  border: "border-figma-surface",
+  label: "Unranked",
+};
+
+export function TierBadge({ tier, isSparse = false, size = "md", className }: TierBadgeProps) {
+  const config = isSparse ? SPARSE_CONFIG : TIER_CONFIG[tier];
   const sizeClasses = {
     sm: "px-2 py-0.5 text-xs gap-1",
     md: "px-3 py-1 text-sm gap-1.5",

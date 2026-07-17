@@ -28,7 +28,31 @@ const WEIGHTS = {
   w_burst: 0.15,  // burst-launch penalty (new)
 } as const;
 
-const K = 0.15;
+/**
+ * Sigmoid steepness.
+ *
+ * Tuned so that a blank profile (rawScore = 0) maps to ≈ 3.9 reputation
+ * instead of ≈ 48.5 (which was the value under the legacy K = 0.15).
+ * The legacy flat curve caused every low-activity wallet to cluster around
+ * ~48–50, which read as "wallets default to 48 rep".
+ *
+ * With K = 8 the fixed points are:
+ *   raw = 0.0 → rep ≈ 3.9   (blank / no signal)
+ *   raw = 0.4 → rep = 50    (midpoint anchor — unchanged regardless of K)
+ *   raw = 1.0 → rep ≈ 99.2  (strong creator)
+ *   raw <  −1 → rep ≈ 0     (rug penalty dominates)
+ *
+ * Derivation:  sigmoid(0) = 100 / (1 + e^(K·MIDPOINT)).
+ * For target ≈ 4:  K = ln((100/4) − 1) / MIDPOINT = ln(24) / 0.4 ≈ 7.97 ≈ 8.
+ *
+ * NOTE: This file is a hand-maintained browser-safe copy of
+ * reputation/src/scoring.ts. The constants and formula MUST stay in sync
+ * with that file — drift here will cause the frontend to display different
+ * reputation scores than the server-side engine.
+ */
+const K = 8.0;
+
+/** Sigmoid midpoint (raw score where reputation = 50) */
 const MIDPOINT = 0.4;
 const AGE_CAP_DAYS = 365;
 const VTENURE_CAP_DAYS = 180;
@@ -113,6 +137,24 @@ export function sigmoid(rawScore: number, k: number = K, midpoint: number = MIDP
   return Math.max(0, Math.min(100, score));
 }
 
+/**
+ * Determine whether a profile is "sparse" — i.e. has so little on-chain
+ * activity that the numeric reputation is not yet meaningful.
+ *
+ * Returns true when the profile has no tokens created, no graduations,
+ * no verified tenure, and no rug events. In that state the only signals
+ * feeding the raw score are account age and (optionally) a handful of
+ * trades, which is not enough to assign a confident numeric reputation.
+ */
+export function isProfileSparse(inputs: ScoringInputs): boolean {
+  return (
+    inputs.tokenCount === 0 &&
+    inputs.graduatedCount === 0 &&
+    inputs.verifiedTenureDays === 0 &&
+    inputs.rugEvents.length === 0
+  );
+}
+
 export function computeScore(
   address: string,
   inputs: ScoringInputs,
@@ -123,6 +165,7 @@ export function computeScore(
   const reputation = sigmoid(rawScore);
   const tier = computeTier(reputation);
   const badges = computeBadges(inputs, reputation, tokenDiversityData, address);
+  const isSparse = isProfileSparse(inputs);
 
   return {
     address,
@@ -131,6 +174,7 @@ export function computeScore(
     tier,
     badges,
     inputs,
+    isSparse,
     computedAt: computedAt ?? Date.now(),
   };
 }

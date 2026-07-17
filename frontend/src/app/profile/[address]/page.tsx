@@ -182,7 +182,13 @@ export default function ProfilePage() {
                   Edit Profile
                 </button>
               )}
-              {reputation && <TierBadge tier={reputation.tier} size="md" />}
+              {reputation && (
+                <TierBadge
+                  tier={reputation.tier}
+                  isSparse={reputation.isSparse}
+                  size="md"
+                />
+              )}
             </div>
           </div>
 
@@ -254,7 +260,10 @@ export default function ProfilePage() {
           {/* Reputation Score */}
           {reputation && (
             <div className="w-full pt-2">
-              <ReputationScore score={reputation.reputation} />
+              <ReputationScore
+                score={reputation.reputation}
+                isSparse={reputation.isSparse}
+              />
             </div>
           )}
 

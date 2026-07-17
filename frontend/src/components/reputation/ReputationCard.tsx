@@ -29,9 +29,13 @@ export function ReputationCard({ result, className }: ReputationCardProps) {
           <span className="text-figma-lg text-figma-white font-bold">
             Reputation
           </span>
-          <TierBadge tier={result.tier} size="md" />
+          <TierBadge tier={result.tier} isSparse={result.isSparse} size="md" />
         </div>
-        <ReputationScore score={result.reputation} size="lg" />
+        <ReputationScore
+          score={result.reputation}
+          isSparse={result.isSparse}
+          size="lg"
+        />
       </div>
 
       {/* Badges */}

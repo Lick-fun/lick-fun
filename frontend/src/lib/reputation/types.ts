@@ -115,6 +115,19 @@ export interface ScoringResult {
   tier: Tier;
   badges: Badge[];
   inputs: ScoringInputs;
+  /**
+   * True when the profile has so little on-chain activity that the numeric
+   * reputation is not yet meaningful. UI consumers should render an
+   * "Unranked" / "Building reputation" state instead of the raw number.
+   *
+   * A profile is sparse when it has:
+   *   - no tokens created, AND
+   *   - no graduations, AND
+   *   - no verified tenure, AND
+   *   - no rug events
+   * (i.e. the only signal is account age and/or a handful of trades).
+   */
+  isSparse: boolean;
   computedAt: number;
 }
 

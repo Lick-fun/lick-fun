@@ -66,12 +66,14 @@ describe("testScoreStartsAtZero", () => {
     });
     const result = computeScore("0xaaaa", inputs);
     // Fresh profile: age=0, gradRate=0, div=0, vol=0, honest=0, vtenure=0
-    // rawScore = 0; sigmoid(0, k=0.15, midpoint=0.4) = 100/(1+e^(0.06)) ≈ 48.5
-    // The test verifies that the score is computable and low for
-    // the worst possible inputs.
-    expect(result.reputation).toBeLessThan(100);
-    // Also verify it's not absurdly high for a fresh account
-    expect(result.reputation).toBeLessThanOrEqual(50);
+    // rawScore = 0; sigmoid(0, k=8, midpoint=0.4) = 100/(1+e^(3.2)) ≈ 3.9
+    // (Previously, under the legacy K=0.15, this returned ≈ 48.5, which
+    // caused every low-activity wallet to default to ~48 rep. K was
+    // recalibrated to 8 so blank profiles score near 0.)
+    expect(result.reputation).toBeLessThan(10);
+    expect(result.reputation).toBeGreaterThan(0);
+    // A blank profile should also be flagged as sparse
+    expect(result.isSparse).toBe(true);
   });
 });
 

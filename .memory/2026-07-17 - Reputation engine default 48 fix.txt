@@ -1,0 +1,65 @@
+# Session — 2026-07-17 — Reputation engine default ~48 fix
+
+## Task
+Wallets with no/low on-chain activity were defaulting to ~48 reputation instead of near-0. Fix the sigmoid recalibration and add "Unranked" state for sparse wallets.
+
+## Root cause
+Sigmoid normalization used `K = 0.15` (very flat curve) with `MIDPOINT = 0.4`. For any wallet with `rawScore ≈ 0` (no meaningful signal), `sigmoid(0) = 100/(1+e^(0.06)) ≈ 48.5`. Because K was so small, every low/no-activity wallet clustered at ~48–50 rep.
+
+The issue existed in TWO duplicated engine copies:
+- `reputation/src/scoring.ts` (Node/server package)
+- `frontend/src/lib/reputation/scoring.ts` (browser-safe copy — this is the one actually used by the site)
+
+## Fixes applied
+
+### Phase 1 — Recalibrate the sigmoid (K: 0.15 → 8.0)
+- Increased K from 0.15 to 8.0 in BOTH engine copies. MIDPOINT (0.4) and tier thresholds (30/70) unchanged.
+- New fixed points:
+  - raw=0 (blank) → rep ≈ 3.9 (was 48.5)
+  - raw=0.4 (midpoint anchor) → rep = 50 (unchanged regardless of K)
+  - raw=1.0 (strong creator) → rep ≈ 99.2
+  - raw < −1 (rug) → rep ≈ 0
+- Derivation: K = ln((100/target)-1) / MIDPOINT; for target≈4: ln(24)/0.4 ≈ 7.97 ≈ 8.
+
+### Phase 2 — "Unranked" state for sparse wallets
+- Added `isSparse: boolean` to `ScoringResult` in both `reputation/src/types.ts` and `frontend/src/lib/reputation/types.ts`
+- New `isProfileSparse()` helper in both `scoring.ts` copies. A profile is sparse when `tokenCount=0 AND graduatedCount=0 AND verifiedTenureDays=0 AND rugEvents=[]`
+- **ReputationScore.tsx**: new `isSparse` prop → renders "Unranked" label + empty bar
+- **TierBadge.tsx**: new `isSparse` prop → renders neutral "○ Unranked" badge
+- **ReputationCard.tsx**: passes `result.isSparse` through to both
+- **profile/[address]/page.tsx**: passes `reputation.isSparse` to TierBadge + ReputationScore
+- **token/[id]/page.tsx**: creator rep badge shows "Rep Unranked" instead of "Rep {n}" when sparse
+
+### No changes needed
+- `useReputation.ts` — already builds inputs with `verifiedTenureDays: 0` and `rugEvents: []`, so `isSparse` is computed automatically by `computeScore` and spreads through `...score`.
+- `CreatorBadge.tsx` — only shows display name/avatar, no numeric reputation score.
+
+## Verification
+- `npx vitest run` — 61/61 tests pass (all 53 reputation + 8 broadcasts)
+- `pnpm lint` — only pre-existing warnings, none from these changes
+- `tsc --noEmit` — clean type check
+- `get_errors` on all 9 edited files — no errors
+
+## Files changed
+- `reputation/src/scoring.ts` — K=8.0, new isProfileSparse helper, computeScore sets isSparse
+- `reputation/src/types.ts` — isSparse field on ScoringResult
+- `frontend/src/lib/reputation/scoring.ts` — identical K=8.0 + isProfileSparse + isSparse (browser-safe copy)
+- `frontend/src/lib/reputation/types.ts` — isSparse field on ScoringResult
+- `frontend/src/components/reputation/ReputationScore.tsx` — isSparse prop, Unranked render
+- `frontend/src/components/reputation/TierBadge.tsx` — isSparse prop, Unranked badge
+- `frontend/src/components/reputation/ReputationCard.tsx` — passes isSparse
+- `frontend/src/app/profile/[address]/page.tsx` — passes isSparse to TierBadge + ReputationScore
+- `frontend/src/app/token/[id]/page.tsx` — creator rep shows "Rep Unranked" when sparse
+- `reputation/src/__tests__/reputation.test.ts` — testScoreStartsAtZero now asserts < 10 + isSparse === true
+
+## Security/path audit
+Full diff audited for hardcoded absolute paths and secrets: CLEAN. Only relative imports (@/lib/..., ./types, ../reputation/...). No API keys, tokens, private keys, or wallet addresses.
+
+## Docs updated
+- `README.md` — status line, sigmoid formula, badge count, test count
+- `.memory/Lick.fun — Reputation System.txt` — full update (K=8, isSparse, Unranked, 61 vitest tests)
+- `.memory/Lick.fun — Testing Reference.txt` — 61 vitest tests (was 58)
+- `.memory/Lick.fun — BUILD PLAN (follow this in every chat).txt` — updated status
+- `.memory/Lick.fun — Frontend Reference.txt` — reputation components updated
+- `.memory/repo/security-notes.md` — session entry added
+- This file (new)
