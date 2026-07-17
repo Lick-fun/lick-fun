@@ -277,11 +277,40 @@ export const QUERY_RECENT_TRADES = gql`
  * in one query for dynamic lists, so callers iterate per token or keep limit
  * high enough to capture all relevant trades. This query is intentionally
  * simple and additive only.
+ *
+ * @deprecated Prefer QUERY_TRADES_24H_BATCH — this per-token query caused an
+ * N+1 request pattern (one GraphQL round-trip per displayed token, up to 60,
+ * every 15s) on the home/discover grids. Kept only for the single-token case.
  */
 export const QUERY_TRADES_24H = gql`
   query GetTrades24h($since: numeric!, $tokenId: String!, $limit: Int!) {
     Trade(
       where: { blockTimestamp: { _gte: $since }, token_id: { _eq: $tokenId } }
+      order_by: { blockTimestamp: asc }
+      limit: $limit
+    ) {
+      ...TradeFields
+    }
+  }
+  ${TRADE_FRAGMENT}
+`;
+
+/**
+ * Batched 24h reference-price query — fetches trades since `$since` for ALL
+ * `$tokenIds` in ONE request (Envio supports `_in` combined with other
+ * filters). Callers reduce client-side to the earliest trade per token.
+ * Replaces the N+1 pattern of firing QUERY_TRADES_24H once per token.
+ *
+ * `limit` should be generous enough to capture the earliest trade for every
+ * token in the list (trades ordered ASC, so the first N per token appear
+ * before later ones, but a single flat limit can't guarantee per-token
+ * coverage on very active tokens — acceptable tradeoff: worst case a very
+ * high-volume token's 24h-change badge falls back to neutral).
+ */
+export const QUERY_TRADES_24H_BATCH = gql`
+  query GetTrades24hBatch($since: numeric!, $tokenIds: [String!]!, $limit: Int!) {
+    Trade(
+      where: { blockTimestamp: { _gte: $since }, token_id: { _in: $tokenIds } }
       order_by: { blockTimestamp: asc }
       limit: $limit
     ) {

@@ -29,7 +29,7 @@ import {
   QUERY_ALL_PROFILES,
   QUERY_LEADERBOARD,
   QUERY_RECENT_TRADES,
-  QUERY_TRADES_24H,
+  QUERY_TRADES_24H_BATCH,
   type TokenEntity,
   type TradeEntity,
   type ProfileEntity,
@@ -126,7 +126,7 @@ export function useAllTokens() {
         decorateToken(toBigIntToken(r))
       );
     },
-    refetchInterval: MOCK_MODE ? false : 10_000, // live prices on home + discover grids
+    refetchInterval: MOCK_MODE ? false : 15_000, // live prices on home + discover grids
   });
 }
 
@@ -148,7 +148,7 @@ export function useToken(tokenId: string) {
       if (!res.Token_by_pk) return null;
       return decorateToken(toBigIntToken(res.Token_by_pk));
     },
-    refetchInterval: MOCK_MODE ? false : 5_000, // live price on token detail page
+    refetchInterval: MOCK_MODE ? false : 8_000, // live price on token detail page
   });
 }
 
@@ -167,7 +167,7 @@ export function useTokenTrades(tokenId: string) {
       );
       return ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
     },
-    refetchInterval: MOCK_MODE ? false : 10_000, // keep recent trades list fresh
+    refetchInterval: MOCK_MODE ? false : 15_000, // keep recent trades list fresh
   });
 }
 
@@ -341,7 +341,7 @@ export function useRecentTrades(limit: number = 10) {
       });
       return ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
     },
-    refetchInterval: MOCK_MODE ? false : 15_000, // refresh every 15s for live feed
+    refetchInterval: MOCK_MODE ? false : 20_000, // refresh every 20s for live feed
   });
 }
 
@@ -408,45 +408,55 @@ export function useTokenPriceChanges(
         return map;
       }
       const client = getGraphQLClient();
+      const lowerIds = tokenIds.map((id) => id.toLowerCase());
 
-      // Fetch earliest 24h trade per token (one lightweight query each).
-      // With up to 60 paginated tokens this is acceptable; for larger grids
-      // consider batching or a server-side aggregate.
-      await Promise.all(
-        tokenIds.map(async (id) => {
-          try {
-            const res = await client.request<{ Trade: unknown[] }>(
-              QUERY_TRADES_24H,
-              { since: since.toString(), tokenId: id.toLowerCase(), limit: 1 }
-            );
-            const trades = ((res.Trade as unknown[]) ?? []).map((r) =>
-              toBigIntTrade(r)
-            );
-            if (trades.length === 0) return;
-            const firstTrade = trades[0];
-            const oldPrice = priceFromTrade(firstTrade);
-            if (oldPrice === 0) return;
-
-            // Compute actual percentage change vs current price.
-            // If no current price is provided, fall back to 0 (neutral).
-            const key = id.toLowerCase();
-            const currentPrice = currentPrices?.get(key);
-            if (currentPrice === undefined || currentPrice === 0) {
-              map.set(key, 0);
-              return;
-            }
-            const pct = ((currentPrice - oldPrice) / oldPrice) * 100;
-            map.set(key, pct);
-          } catch (err) {
-            // Fail open: missing data means no badge shown, no UI crash.
-            console.warn(`useTokenPriceChanges error for ${id}:`, err);
+      // Single batched query for ALL tokens (replaces the old N+1 pattern of
+      // one QUERY_TRADES_24H request per token). We ask for enough rows to
+      // realistically cover the earliest trade of every token, then reduce
+      // client-side to the first (oldest) trade per token.
+      try {
+        const res = await client.request<{ Trade: unknown[] }>(
+          QUERY_TRADES_24H_BATCH,
+          {
+            since: since.toString(),
+            tokenIds: lowerIds,
+            limit: Math.max(500, lowerIds.length * 20),
           }
-        })
-      );
+        );
+        const trades = ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
+
+        // Trades are ordered ASC by blockTimestamp — the first occurrence per
+        // token_id is its earliest trade in the window.
+        const earliestByToken = new Map<string, TradeEntity>();
+        for (const trade of trades) {
+          const key = trade.token_id.toLowerCase();
+          if (!earliestByToken.has(key)) earliestByToken.set(key, trade);
+        }
+
+        for (const key of lowerIds) {
+          const firstTrade = earliestByToken.get(key);
+          if (!firstTrade) continue;
+          const oldPrice = priceFromTrade(firstTrade);
+          if (oldPrice === 0) continue;
+
+          // Compute actual percentage change vs current price.
+          // If no current price is provided, fall back to 0 (neutral).
+          const currentPrice = currentPrices?.get(key);
+          if (currentPrice === undefined || currentPrice === 0) {
+            map.set(key, 0);
+            continue;
+          }
+          const pct = ((currentPrice - oldPrice) / oldPrice) * 100;
+          map.set(key, pct);
+        }
+      } catch (err) {
+        // Fail open: missing data means no badge shown, no UI crash.
+        console.warn("useTokenPriceChanges batch error:", err);
+      }
 
       return map;
     },
-    refetchInterval: 15_000, // refresh every 15s
+    refetchInterval: 30_000, // refresh every 30s (was 15s — this data is a slow-moving reference price)
     enabled: tokenIds.length > 0,
   });
 }
@@ -1120,7 +1130,7 @@ export function useTokenPriceBars(tokenId: string) {
       );
       return ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
     },
-    refetchInterval: 10_000,
+    refetchInterval: 15_000,
   });
 
   const bars = useMemo(

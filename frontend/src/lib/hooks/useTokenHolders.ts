@@ -101,8 +101,8 @@ export function useTokenHolders(
       for (const t of res.Trade ?? []) seen.add(t.trader.toLowerCase());
       return Array.from(seen);
     },
-    staleTime: 30_000,
-    refetchInterval: 30_000,
+    staleTime: 45_000,
+    refetchInterval: 45_000,
   });
 
   const traders = useMemo(() => {
@@ -147,7 +147,7 @@ export function useTokenHolders(
     contracts: balanceContracts,
     query: {
       enabled: balanceContracts.length > 0,
-      refetchInterval: 30_000,
+      refetchInterval: 45_000,
     },
   });
 

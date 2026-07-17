@@ -15,7 +15,7 @@ export function useMonBalance(address: string | undefined) {
     address: (address ?? "0x0000000000000000000000000000000000000000") as `0x${string}`,
     query: {
       enabled,
-      refetchInterval: 30_000, // refresh every 30s
+      refetchInterval: 45_000, // refresh every 45s
     },
   });
 

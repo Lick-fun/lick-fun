@@ -58,18 +58,32 @@ if (!projectId) {
   );
 }
 
+// ─── RPC request batching ─────────────────────────────────────────────────────
+// Coalesces many independent eth_call/eth_getBalance requests fired in the same
+// tick (e.g. useBondingCurveRead's 8 reads, holder/holdings balanceOf multicalls,
+// name()/symbol() resolution) into a single HTTP round-trip via JSON-RPC batching.
+// `wait: 0` flushes on the next microtask so it doesn't add perceptible latency.
+const transportBatchConfig = { batch: { wait: 0 } };
+
 export const wagmiConfig = getDefaultConfig({
   appName: "Lickfun.xyz",
   projectId,
   // Only the active chain — testnet removed from mainnet builds (P3-7)
   chains: [activeChain],
   ssr: true,
+  // wagmi's `useReadContracts` automatically groups reads via viem's multicall
+  // batching when the chain has a `multicall3` contract configured — see viem's
+  // built-in chain definitions. Our custom `defineChain` calls above don't set
+  // one, so wagmi falls back to firing one request per call; the JSON-RPC-level
+  // `batch` option below still coalesces those into fewer HTTP round-trips.
   transports: {
     [monadTestnetChain.id]: http(
-      process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC || "https://testnet-rpc.monad.xyz"
+      process.env.NEXT_PUBLIC_MONAD_TESTNET_RPC || "https://testnet-rpc.monad.xyz",
+      transportBatchConfig
     ),
     [monadChain.id]: http(
-      process.env.NEXT_PUBLIC_MONAD_RPC || "https://rpc.monad.xyz"
+      process.env.NEXT_PUBLIC_MONAD_RPC || "https://rpc.monad.xyz",
+      transportBatchConfig
     ),
   },
 });

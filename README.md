@@ -98,7 +98,7 @@ Connected wallet → click Profile in nav → see live trading stats, reputation
 | GraduationPool | `0x33e576E95F0d6f6B214F602ec5022Ffed0Eae389` |
 | WMON | `0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A` |
 | Treasury (Safe multisig) | `0x9F3fDE2C42BA3B00110fC4dc3365782dFE2743fA` |
-RPC: https://rpc.monad.xyz (frontend) / Alchemy PAYG dedicated endpoint (keeper + /api/trades)
+RPC: dedicated Alchemy PAYG endpoint (frontend browser + server routes + keeper) — see `frontend/.env.example` `NEXT_PUBLIC_MONAD_RPC`. Public `rpc.monad.xyz` is no longer used in production (rate-limit risk under traffic).
 
 ## Previous: Testnet Deployment (Monad chain 10143)
 

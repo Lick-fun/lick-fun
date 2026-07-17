@@ -1,4 +1,78 @@
-# Session Memory — 2026-07-17 (newest) — Reputation engine defaulting to ~48 for low-activity wallets
+# Session Memory — 2026-07-17 (newest) — RPC/indexer traffic optimization for marketing push
+
+## Task: Optimize RPC + indexer load ahead of a marketing push so the site handles heavier traffic.
+
+User request: "look at the way all the calls to the rpcs are happening. can we optimise? ... marketing soon
+... look at what nad.fun do to research as well." Follow-up: user has an Alchemy API key and asked to
+implement all recommended optimizations, then later confirmed to update docs, audit for secrets, and push.
+
+### Findings
+The frontend (wagmi/viem + Envio GraphQL indexer + @tanstack/react-query) had several per-visitor,
+polling-based bottlenecks that scale badly under a traffic spike:
+- No RPC batching/multicall on the `http()` transport — every `useReadContract` = 1 separate JSON-RPC request
+  (`useBondingCurveRead` alone fires 8).
+- N+1 GraphQL: `useTokenPriceChanges` fired one query PER displayed token (up to 60 on home/discover) every 15s.
+- No React Query cache defaults (`staleTime`/`gcTime`) — every navigation refetched everything.
+- Aggressive polling (5–15s) that never paused, including `useTokenPair` polling forever even after a
+  migration resolved (one-way state, no need to keep checking).
+- Browser RPC calls hit public `rpc.monad.xyz` directly — no SLA, first thing to rate-limit under load.
+- `useMonUsdPrice` called CoinGecko's free public API directly from every visitor's browser.
+
+### Fixes applied
+1. **`frontend/src/lib/wagmi/config.ts`** — added `batch: { wait: 0 }` to both `http()` transports (coalesces
+   simultaneous eth_call/eth_getBalance requests into fewer HTTP round-trips). Did NOT set a `multicall3`
+   contract address on the custom `defineChain`s — Monad's Multicall3 deployment address wasn't confirmed,
+   and guessing wrong would break every `useReadContracts` call site-wide.
+2. **`frontend/src/app/providers.tsx`** — QueryClient defaults now `staleTime: 10_000, gcTime: 300_000`.
+3. **N+1 fix** — added `QUERY_TRADES_24H_BATCH` (Envio `_in` filter across all token IDs) in
+   `frontend/src/lib/graphql/queries.ts`; rewrote `useTokenPriceChanges` in
+   `frontend/src/lib/hooks/useData.ts` to fire ONE batched query instead of N. 60 reqs/15s → 1 req/30s.
+4. **`useTokenPair`** (`frontend/src/lib/wagmi/contracts.ts`) now stops polling once `tokenToPair` resolves to
+   a real pair (was `refetchInterval: 5_000` forever).
+5. **Relaxed polling intervals** ~20–50% across `useAllTokens`, `useToken`, `useTokenTrades`,
+   `useRecentTrades`, chart-trades, `usePairReserves`, `useTokenHolders`, `useTokenHoldings`, `useMonBalance`,
+   `useCreatorFees` — still "live enough" for a fast-moving bonding-curve site, less background load.
+6. **Alchemy RPC for browser + server** — `frontend/.env.example` `NEXT_PUBLIC_MONAD_RPC` now documented to
+   point at the user's dedicated Alchemy Monad HTTP URL instead of public `rpc.monad.xyz`. No code changes
+   needed: the browser wagmi transport AND both server routes that read RPC
+   (`app/api/trades/[curve]/route.ts`, `lib/server/resolveTokenMeta.ts`) already fall back to this same env
+   var. Added guidance for Alchemy's "Allowed Origins" restriction: `https://lickfun.xyz` +
+   `http://localhost:3010` (matches `pnpm dev` → `next dev -p 3010` per `frontend/package.json`).
+7. **CoinGecko server-side proxy** — new `frontend/src/app/api/mon-price/route.ts` calls CoinGecko server-side
+   with Next.js `fetch` `revalidate: 120` (shared cache across all visitors/instances) + `Cache-Control`
+   headers. `frontend/src/lib/hooks/useMonUsdPrice.ts` now calls `/api/mon-price` instead of CoinGecko
+   directly — worst case ~720 CoinGecko requests/month total (not per-visitor), no paid CoinGecko plan needed.
+
+### Verification
+- `tsc --noEmit` (frontend): clean.
+- `pnpm lint`: unchanged — only pre-existing warnings, none new, none in touched files.
+- `pnpm build`: succeeds, 17/17 pages generated, new `/api/mon-price` route registered.
+
+### Security/path audit (before commit)
+Diffed all changed files for secrets, API keys, private keys, and local filesystem paths: CLEAN. Only
+public contract addresses (already documented elsewhere in README.md) and `0x000...000`/`0x000...001`
+sentinel constants appear as hex strings. No `.env.local` contents committed — `.env.example` only contains
+a placeholder (`YOUR_ALCHEMY_KEY`). `.gitignore` already excludes all `.env*` except `.env.example`.
+
+### Docs updated this session
+- `README.md` — mainnet deployment RPC line updated to reflect dedicated Alchemy endpoint (not public RPC).
+- `frontend/.env.example` — `NEXT_PUBLIC_MONAD_RPC` guidance rewritten: Alchemy URL, allowed-origins list
+  (production domain + local dev port), rationale for browser-safe Alchemy keys vs header-auth keys.
+- `.memory/repo/security-notes.md` (assistant repo memory, not tracked in git) — full session detail.
+- This MEMORY.md entry (this session).
+
+### Outstanding for user (not blocking commit)
+- Set the real Alchemy Monad mainnet HTTP URL as `NEXT_PUBLIC_MONAD_RPC` in `frontend/.env.local` (dev) and
+  the Railway frontend service env vars (prod) — not done by the assistant since it requires the user's
+  actual Alchemy key, which must never be pasted into chat/committed.
+- In the Alchemy dashboard, restrict that key's allowed origins to `https://lickfun.xyz` and
+  `http://localhost:3010` (see `.env.example` comment for full guidance incl. optional extra dev ports).
+- Recommended manual check after deploy: DevTools Network tab on home + token page to confirm RPC request
+  count dropped and the price-change GraphQL call count is 1 (not N).
+
+---
+
+# Session Memory — 2026-07-17 — Reputation engine defaulting to ~48 for low-activity wallets
 
 ## Task: Fix wallets defaulting to ~48 reputation regardless of actual activity.
 

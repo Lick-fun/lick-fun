@@ -171,7 +171,7 @@ export function useTokenHoldings(
       );
       return ((res.Trade as unknown[]) ?? []).map((r) => toBigIntTrade(r));
     },
-    refetchInterval: 15_000,
+    refetchInterval: 20_000,
   });
 
   // Step 2: Aggregate trades to find candidate tokens
@@ -200,7 +200,7 @@ export function useTokenHoldings(
     contracts: balanceContracts,
     query: {
       enabled: balanceContracts.length > 0,
-      refetchInterval: 30_000,
+      refetchInterval: 45_000,
     },
   });
 
@@ -241,7 +241,7 @@ export function useTokenHoldings(
       }
       return map;
     },
-    refetchInterval: 10_000, // live prices
+    refetchInterval: 15_000, // live prices
   });
 
   // Step 5: Compute final holdings

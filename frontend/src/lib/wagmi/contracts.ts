@@ -813,8 +813,17 @@ export function useTokenPair(tokenAddress: `0x${string}`) {
     args: [tokenAddress],
     query: {
       enabled: GRADUATION_ROUTER_ADDRESS !== ZERO_ADDRESS && !!tokenAddress,
-      // Poll every 5 seconds so the UI updates shortly after migration completes
-      refetchInterval: 5_000,
+      // Poll every 8s so the UI updates shortly after migration completes.
+      // Once migrated, `refetchInterval` returns `false` to stop polling —
+      // a resolved pair address never changes, so there's nothing to catch.
+      refetchInterval: (query) => {
+        const raw = query.state.data as `0x${string}` | undefined;
+        const migrated =
+          !!raw &&
+          raw !== "0x0000000000000000000000000000000000000000" &&
+          raw !== "0x0000000000000000000000000000000000000001";
+        return migrated ? false : 8_000;
+      },
     },
   });
   const raw = data as `0x${string}` | undefined;
@@ -838,7 +847,8 @@ export function usePairReserves(
     address: pairAddress,
     abi: LickPairABI,
     functionName: "getReserves",
-    query: { enabled: !!pairAddress, refetchInterval: 10_000 },
+    // 15s — DEX reserves change less often than pre-graduation curve state
+    query: { enabled: !!pairAddress, refetchInterval: 15_000 },
   });
   const { data: token0Raw } = useReadContract({
     address: pairAddress,

@@ -26,6 +26,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
           queries: {
             retry: false,
             refetchOnWindowFocus: false,
+            // Default cache lifetimes. Individual hooks that need live-polling
+            // data (prices, trades, migration status) set their own explicit
+            // `refetchInterval`/`staleTime` and override these — this default
+            // only prevents redundant refetches for queries that don't poll
+            // (e.g. one-off profile/holdings lookups) when the user navigates
+            // back to a page within a few seconds. Important under traffic
+            // spikes: without this, every route change re-fires every query.
+            staleTime: 10_000,
+            gcTime: 5 * 60_000,
           },
         },
       })

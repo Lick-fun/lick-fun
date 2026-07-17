@@ -64,7 +64,7 @@ export function useCreatorFees(creator: string | undefined) {
 
       return feesByToken;
     },
-    refetchInterval: 30_000, // refresh every 30s
+    refetchInterval: 45_000, // refresh every 45s
   });
 }
 
@@ -95,7 +95,7 @@ export function useCreatorFeesForToken(tokenId: string | undefined) {
       }
       return total;
     },
-    refetchInterval: 30_000,
+    refetchInterval: 45_000,
   });
 }
 
